@@ -49,19 +49,20 @@ case class CLagrange(a: Double, b: Double, c: Double, d: Double,
 }
 object CLagrange{
 
-  def apply(values : List[Tuple2[Double, Double]]): List[CLagrange] = {
+  def apply(values : List[Tuple2[Double, Double]]): Vector[CLagrange] = {
     var c = cCoefs(values)
     var d = dCoefs(values, c)
     var b = bCoefs(values, c, d)
     var a = aCoefs(values)
     var to = values.drop(1).map(_._1); var from = values.map(_._1)
-    val result : ListBuffer[CLagrange] = ListBuffer.empty[CLagrange]
+    val result = Vector.newBuilder[CLagrange]
+
     while(c.nonEmpty) {
       val interval = PieceFunction.makeInterval(min(from.head, to.head), max(from.head, to.head))
       result += new CLagrange(a.head, b.head, c.head, d.head, interval)
       a = a.tail; b = b.tail; c = c.tail; d = d.tail; to = to.tail; from = from.tail
     }
-    result.toList
+    result.result()
   }
 
 

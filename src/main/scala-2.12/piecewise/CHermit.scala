@@ -72,7 +72,7 @@ object CHermit{
       "/ the size of values must equal or more than two")
   }
 
-  def apply(values : List[(Double, Double)]): List[CHermit] = {
+  def apply(values : List[(Double, Double)]): Vector[CHermit] = {
 
     def exception() = {
       throw new IllegalArgumentException(" размер values должен быть больше или равен двум /" +
@@ -82,15 +82,16 @@ object CHermit{
     values.sortBy(_ _1) match {
       case Nil => exception()
       case any :: Nil => exception()
-      case v1 :: v2 :: Nil => List(new CHermit(v1._2, v2._2, 0.0, 0.0, PieceFunction.makeInterval(v1._1, v2._1)))
+      case v1 :: v2 :: Nil => Vector(new CHermit(v1._2, v2._2, 0.0, 0.0, PieceFunction.makeInterval(v1._1, v2._1)))
       case v1 :: v2 :: v3 :: Nil => {
         val der1 = der(v1, v3)
-        List(new CHermit(v1._2, v2._2, 0.0, der1, PieceFunction.makeInterval(v1._1, v2._1)),
+        Vector(new CHermit(v1._2, v2._2, 0.0, der1, PieceFunction.makeInterval(v1._1, v2._1)),
               new CHermit(v1._2, v2._2, der1, 0.0, PieceFunction.makeInterval(v2._1, v3._1)))
       }
       case vals => {
-        val dervs = derivatives(vals)
-        ((vals zip (vals drop(1))) zip (dervs zip (dervs drop(1)))).map(tuple => {
+        val v = vals.toVector
+        val dervs = derivatives(v)
+        ((v zip (v drop(1))) zip (dervs zip (dervs drop(1)))).map(tuple => {
           val (((x1, y1), (x2, y2)), (d1, d2)) = tuple
           new CHermit(y1, y2, d1, d2, PieceFunction.makeInterval(x1, x2))
         })
@@ -98,19 +99,26 @@ object CHermit{
     }
   }
 
-  def apply(x: List[Double], y: List[Double]): List[CHermit] = {
+  def apply(x: List[Double], y: List[Double]): Vector[CHermit] = {
     if(x.length != y.length) throw new IllegalArgumentException("x array length must be same as y array length")
     //TODO Rewrite method to avoid data tupling
     apply(x.zip(y))
   }
 
-  private def derivatives(values : List[(Double, Double)]) = {
+
+  private def derivatives(values : Vector[(Double, Double)]): Vector[Double] = {
     val onBound = boundDervs(values)
-    onBound._1 :: (values, values drop 2).zipped.map(der(_, _)) :::
-      onBound._2 :: Nil
+    List.newBuilder[Double]
+    val b = Vector.newBuilder[Double]
+    b += onBound._1
+    for(i <- 2 until values.size){
+      b += der(values(i - 2), values(i))
+    }
+    b += onBound._2
+    b.result()
   }
 
-  private def boundDervs(values : List[(Double, Double)]) = {
+  private def boundDervs(values : Vector[(Double, Double)]) = {
     val rightVals = values takeRight 2
     val der1 = der(values.head, values.tail.head)
     val der2 = der(rightVals.head, rightVals.tail.head)

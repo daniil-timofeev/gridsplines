@@ -65,10 +65,10 @@ case class Line(override val interval: Intersection[InclusiveLower, ExclusiveUpp
 }
 object Line{
 
-  def apply(argVals: List[Double], funVals: List[Double]): List[Line] = {
+  def apply(argVals: List[Double], funVals: List[Double]): Vector[Line] = {
     {argVals.view zip (argVals drop 1) zip (funVals zip (funVals drop 1))} map{t =>{
       val ((xLow, xUp),(yLow, yUp)) = t
       new Line(PieceFunction.makeInterval(xLow, xUp), yLow, yUp)
-    }} toList
+    }} toVector
   }
 }

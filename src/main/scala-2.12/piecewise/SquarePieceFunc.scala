@@ -50,13 +50,13 @@ case class SquarePieceFunc(val a : Double, val b : Double, val c : Double,
 }
 object SquarePieceFunc {
 
-  def apply(vals : List[(Double, Double)]): List[SquarePieceFunc] = {
+  def apply(vals : List[(Double, Double)]): Vector[SquarePieceFunc] = {
     if(vals.size != 3) throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
-    (vals, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
+    (vals.view, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
       val (a, b, c) = polynominals(v1, v2, v3)
       val interval = PieceFunction.makeInterval(v1._1, v3._1)
       new SquarePieceFunc(a, b, c, interval)
-    }}
+    }} toVector
   }
 
   private def polynominals(v1 : Tuple2[Double, Double],

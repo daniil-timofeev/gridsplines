@@ -51,15 +51,18 @@ object CHermitM1 {
   implicit val COARSE: String = "Coarse"
   implicit val COARSEST: String = "Coarsest"
 
-  def smooth(splines: List[CHermitM1]): List[CHermitM1] = {
-    if(splines.size == 1) splines
+  def smooth(splines: Vector[CHermitM1]): Vector[CHermitM1] = {
+    if(splines.size == 1) splines.toVector
     else{
+      val b = Vector.newBuilder[Double]
       /* На границе */
-      val atBound = (splines.head.dL, splines.last.dUp)
+      val (lowBound, upBound) = (splines.head.dL, splines.last.dUp)
+      b += lowBound
+      b += upBound
       /* Производные */
-      val derivatives =  atBound._1 :: (splines, splines drop 1).zipped.map{(spl1, spl2) => min(spl1.dUp, spl2.dL)} :::
-        atBound._2 :: Nil
 
+      (splines.view, splines drop 1).zipped.map{(spl1, spl2) => min(spl1.dUp, spl2.dL)}.foreach(b += _)
+      val derivatives = b.result()
       (splines, derivatives, derivatives drop 1).zipped.map{(spline, dd, dd1) => {
         val copied = spline.copy(dL = dd, dUp = dd1)
         spline match {
@@ -72,12 +75,12 @@ object CHermitM1 {
       }}
   }}
 
-  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): List[CHermitM1] = {
+  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): Vector[CHermitM1] = {
     val splines = CHermit(values)
     smooth(splines.map(spl => spl.monotone(mType)))
   }
 
-  def apply(x: List[Double], y: List[Double])(implicit mType: String = COARSE): List[CHermitM1] = {
+  def apply(x: List[Double], y: List[Double])(implicit mType: String = COARSE): Vector[CHermitM1] = {
     val splines = CHermit(x, y)
     smooth(splines.map(spl => spl.monotone(mType)))
   }
