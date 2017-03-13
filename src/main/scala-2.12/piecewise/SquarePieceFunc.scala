@@ -47,6 +47,20 @@ case class SquarePieceFunc(val a : Double, val b : Double, val c : Double,
     else f"$value%1.2f" + "·" + f"10^$power%1.0f"
   }
 
+  override def sliceTo(value: Double): SquarePieceFunc = {
+    val i = PieceFunction.sliceIntervalTo(value, interval)
+    new SquarePieceFunc(a, b, c, i)
+  }
+
+  override def sliceFrom(value: Double): SquarePieceFunc = {
+    val i = PieceFunction.sliceIntervalFrom(value, interval)
+    new SquarePieceFunc(a, b, c, i)
+  }
+
+  override def slice(from: Double, to: Double): SquarePieceFunc = {
+    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
+    new SquarePieceFunc(a, b, c, i)
+  }
 }
 object SquarePieceFunc {
 

@@ -13,7 +13,7 @@ import scala.math._
   * @version 0.5.0
   * @author Даниил
   */
-case class CHermitM1(yL : Double, yUp : Double, dL : Double, dUp : Double,
+case class CHermitM1(yL: Double, yUp: Double, dL: Double, dUp: Double,
                          override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
   extends Hermit(interval) {
 
@@ -43,6 +43,27 @@ case class CHermitM1(yL : Double, yUp : Double, dL : Double, dUp : Double,
   }
 
   private def fi = alpha - 1.0 / 3.0 * pow(2.0 * alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
+
+  override def sliceTo(value: Double): CHermitM1 = {
+    val i = PieceFunction.sliceIntervalTo(value, interval)
+    val dLow = derivative(i.lower.lower)
+    val dUp = derivative(i.upper.upper)
+    new CHermitM1(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
+  }
+
+  override def sliceFrom(value: Double): CHermitM1 = {
+   val i = PieceFunction.sliceIntervalFrom(value, interval)
+   val dLow = derivative(i.lower.lower)
+   val dUp = derivative(i.upper.upper)
+   new CHermitM1(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
+  }
+
+  override def slice(from: Double, to: Double): CHermitM1 = {
+    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
+    val dLow = derivative(i.lower.lower)
+    val dUp = derivative(i.upper.upper)
+    new CHermitM1(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
+  }
 }
 object CHermitM1 {
 

@@ -62,13 +62,38 @@ case class Line(override val interval: Intersection[InclusiveLower, ExclusiveUpp
   private[this]  val nullVal = PieceFunction.interpolate(interval.lower.lower, interval.upper.upper, yL, yUp, 0)
   private[this]  val k = derivative(interval.lower.lower)
 
+  override def sliceTo(value: Double): Line = {
+    val i = PieceFunction.sliceIntervalTo(value, interval)
+    new Line(i, apply(i.lower.lower), apply(i.upper.upper))
+  }
+
+  override def sliceFrom(value: Double): Line = {
+    val i = PieceFunction.sliceIntervalFrom(value, interval)
+    new Line(i, apply(i.lower.lower), apply(i.upper.upper))
+  }
+
+  override def slice(from: Double, to: Double): Line = {
+    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
+    new Line(i, apply(i.lower.lower), apply(i.upper.upper))
+  }
 }
 object Line{
 
   def apply(argVals: List[Double], funVals: List[Double]): Vector[Line] = {
-    {argVals.view zip (argVals drop 1) zip (funVals zip (funVals drop 1))} map{t =>{
+    val argView = argVals.view
+    val funView = funVals.view
+
+    {argView.zip(argView.drop(1)) zip (funView.zip((funView.drop(1))))} map{t =>{
       val ((xLow, xUp),(yLow, yUp)) = t
       new Line(PieceFunction.makeInterval(xLow, xUp), yLow, yUp)
+    }} toVector
+  }
+
+  def apply(points: List[(Double, Double)]): Vector[Line] = {
+    val viewPoints = points.view
+    (viewPoints zip (viewPoints drop 1)) map{p => {
+      val ((x1, y1),(x2, y2)) = p
+      new Line(PieceFunction.makeInterval(x1, x2), y1, y2)
     }} toVector
   }
 }

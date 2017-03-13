@@ -46,6 +46,21 @@ case class CLagrange(a: Double, b: Double, c: Double, d: Double,
   override def integral(x: Double): Double = ???
 
   override def extremum = ???
+
+  override def sliceTo(value: Double): CLagrange = {
+    val i = PieceFunction.sliceIntervalTo(value, interval)
+    new CLagrange(a, b, c, d, i)
+  }
+
+  override def sliceFrom(value: Double): CLagrange = {
+    val i = PieceFunction.sliceIntervalFrom(value, interval)
+    new CLagrange(a, b, c, d, i)
+  }
+
+  override def slice(from: Double, to: Double): CLagrange = {
+    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
+    new CLagrange(a, b, c, d, i)
+  }
 }
 object CLagrange{
 

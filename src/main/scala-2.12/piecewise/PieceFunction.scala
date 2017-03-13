@@ -48,6 +48,12 @@ abstract class PieceFunction(val interval: Intersection[InclusiveLower, Exclusiv
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
   final def int(x: Double): Double = integral(x)
 
+  def sliceTo(value: Double): PieceFunction
+
+  def sliceFrom(value: Double): PieceFunction
+
+  def slice(from: Double, to: Double): PieceFunction
+
   /** Суммирует значения кусочных функций, и возвращает новый сплайн
     *
     *   otherFunc другая функция
@@ -261,6 +267,19 @@ object PieceFunction{
       case SoEmpty() => throw new IllegalArgumentException("Interval must not be empty")
     }
   }
+
+  def sliceIntervalFrom(value: Double,
+                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+  : Intersection[InclusiveLower, ExclusiveUpper, Double] = {
+    if(interval.contains(value)) new Intersection(InclusiveLower(value), interval.upper) else interval
+  }
+
+  def sliceIntervalTo(value: Double,
+                      interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+  : Intersection[InclusiveLower, ExclusiveUpper, Double] = {
+    if(interval.contains(value)) new Intersection(interval.lower, new ExclusiveUpper(value)) else interval
+  }
+
 
   /** General rule of Gorner for polynomial function valu finder
     * @param x argument position
