@@ -167,8 +167,7 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
             writer.newLine()
           })
         }
-
-        @tailrec def takeRows(lengths: List[Int], indent: List[Int], grid: List[Double]): Unit = {
+        @tailrec def writeRows(lengths: List[Int], indent: List[Int], grid: List[Double]): Unit = {
           if (lengths.nonEmpty) {
             val result: String = {
               List.fill(indent.head)(Double.NaN) ++
@@ -177,7 +176,7 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
             }.reduce(form.format(_) + columnSeparator + form.format(_))
             writer.write(result)
             writer.newLine()
-            takeRows(lengths.tail, indent.tail, grid.drop(tallestXLength))
+            writeRows(lengths.tail, indent.tail, grid.drop(tallestXLength))
           }
         }
       }
