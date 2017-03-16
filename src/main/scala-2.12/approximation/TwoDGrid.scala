@@ -1,10 +1,20 @@
 package approximation
 
+
+import java.nio.file.StandardOpenOption
+import java.text.NumberFormat
+import java.util.Locale
+
 import approximation.passion.iteration
+
 import scala.math._
 import piecewise.{PieceFunction, Spline}
 import com.twitter.algebird.matrix._
+
+import scala.annotation.tailrec
 import org.slf4j._
+
+import scala.collection.mutable.ListBuffer
 //TODO make all arrays immutable (scala 2.13)
 /**
   *
@@ -21,74 +31,94 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
                                                    sigma: Double
                                                  )(implicit val dir1: D1, implicit val dir2: D2) {
 
+  assert(rangeX.length == rangeY.length)
+  assert(xBeginAt.length == rangeX.length)
+  private val tallestXRange = rangeX.maxBy(_.length)
+  private val tallestXLength = tallestXRange.length
+
   private val logger = LoggerFactory.getLogger(getClass)
   logger.info("Creating two dimensional grid...")
-  protected val grid = Array.fill(rangeY.length * rangeX.map(_.length).max)(4.0)
-  logger.info(s"Innitial grid size ${rangeY.length * rangeX.map(_.length).max}")
+  protected val grid = Array.fill(rangeY.length * tallestXLength)(4.0)
+  logger.info(s"Innitial grid size ${rangeY.length * tallestXLength}")
   protected val afterFirstIteration = grid.clone()
   protected val predicted = grid.clone()
   protected val result = grid.clone()
   logger.trace("Copies of the grid was successfuly created")
   assert(grid.length == conductivities.length)
+
   protected def index(row: Int, col: Int): Int = {
     row * col + col
   }
+
   logger.info("Acessing for each Y (row)...")
   logger.info("indexes:")
 
-  private val xLoop: Array[Int] =
-    {(rangeX.view zip xBeginAt).zipWithIndex flatMap{(zipped: ((Array[Double], Int), Int)) =>{
-        val ((x: Array[Double], x0: Int), y: Int) = zipped //for each y
-        x.indices.map((xI: Int) => {
-          val ind = index(y, xI + x0)
-          logger.info(s"((y:${y}, x:${xI + x0}) -> ${ind});")
-          ind}) // calculate index with the same y and existing x
-    }}}.toArray
+  private val xLoop: Array[Int] = {
+    (rangeX.view zip xBeginAt).zipWithIndex flatMap { (zipped: ((Array[Double], Int), Int)) => {
+      val ((x: Array[Double], x0: Int), y: Int) = zipped //for each y
+      x.indices.map((xI: Int) => {
+        val ind = index(y, xI + x0)
+        logger.info(s"((y:${y}, x:${xI + x0}) -> ${ind});")
+        ind
+      }) // calculate index with the same y and existing x
+    }
+    }
+  }.toArray
 
-  private val yLoop: Array[Int] =
-    {rangeX.maxBy(_.length).indices flatMap{x =>{ //for each x
-      rangeY.indices.view collect{
-        { // for each y find where x exist
+  private val yLoop: Array[Int] = {
+    tallestXRange.indices flatMap { x => {
+      //for each x
+      rangeY.indices.view collect {
+        {
+          // for each y find where x exist
           case y if rangeX(y).indices.contains(x - xBeginAt(y)) => {
             val ind = index(y, x)
             logger.info(s"((y:${y}, x:${x}) -> ${ind});")
             ind
           }
         }
-      }}
-    }}.toArray
+      }
+    }
+    }
+  }.toArray
   logger.info("---")
 
 
   private val xLengths = rangeX.map((xRow: Array[Double]) => xRow.length)
   private val yLengths: Array[Int] = {
-    rangeX.maxBy(_.length).indices.map{(x: Int) =>{ //for each x
-      rangeY.indices.count{y =>{
+    rangeX.maxBy(_.length).indices.map { (x: Int) => {
+      //for each x
+      rangeY.indices.count { y => {
         // if row must contain non null value count it
         rangeX(y).indices.contains(x - xBeginAt(y))
-      }}
-    }}
+      }
+      }
+    }
+    }
   }.toArray
 
   private val xPreDef: Array[Array[Double]] =
-  (leftX, rangeX, rightX).zipped
-    .map((lX: Double, ranX: Array[Double], rX: Double) => dir1.preDef(lX, ranX, rX, sigma)).reduce(_ ++ _)
+    (leftX, rangeX, rightX).zipped
+      .map((lX: Double, ranX: Array[Double], rX: Double) => dir1.preDef(lX, ranX, rX, sigma)).reduce(_ ++ _)
 
   private val whereYHas = rangeX.maxBy(_.length).indices
-    .map{{x: Int =>{
-      rangeY.zipWithIndex collect{
-        {
-          case (yL, yI) if rangeX(yI).indices.contains(x - xBeginAt(yI)) => yL
+    .map {
+      { x: Int => {
+        rangeY.zipWithIndex collect {
+          {
+            case (yL, yI) if rangeX(yI).indices.contains(x - xBeginAt(yI)) => yL
+          }
         }
       }
+      }
     }
-    }}
 
   private val yPreDef: Array[Array[Double]] =
     (leftY, whereYHas, rightY).zipped
-      .map{(lY: Double, midY: Array[Double], rY: Double) => {
+      .map { (lY: Double, midY: Array[Double], rY: Double) => {
         dir2.preDef(lY, midY, rY, sigma)
-      }}
+      }
+      }
       .reduce(_ ++ _)
 
   private val toPassion = Array.fill(max(rangeX.map(_.length).max, whereYHas.map(_.length).max))(new Array[Double](2))
@@ -106,38 +136,54 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
       yPreDef, conductivities, toPassion)
 
     var i = 0
-    while(i != grid.length){
+    while (i != grid.length) {
       result.update(i, arraygrid.aVal(grid(i), result(i)))
       grid.update(i, result(i))
       i += 1
     }
   }
 
-}
-object TwoDGrid{
+  import ammonite.ops._
 
-  /** Get column of grid at index `x`
-    *
-    * @param grid grid with rows and columns
-    * @param colArray mutable column array, for avoid its allocation
-    * @param x column index
-    * @return
-    */
-  def gridColumn(grid: Array[Array[Double]], colArray: Array[Double], x: Int): Array[Double] = {
-    var c = 0
-    while(c < colArray.length){
-      colArray.update(c, grid(c)(x))
-      c += 1
-    }
-    colArray
-  }
+  def write(columnSeparator: String, dir: Path,
+            fileName: String, fileExtension: String,
+            commentSign: String, comments: List[String]) = {
+    import java.nio.file.Files
+    val form = NumberFormat.getNumberInstance(Locale.ROOT)
+    form.setMaximumFractionDigits(3)
 
-  def gridColumn(colArray: Array[Double], grid: Array[Array[Double]], x: Int): Array[Array[Double]] = {
-    var c = 0
-    while(c < colArray.length){
-      grid(c).update(x, colArray(c))
-      c += 1
+    val file = dir / {
+      fileName + fileExtension
     }
-    grid
+    import scala.concurrent.Future
+    import scala.concurrent.ExecutionContext.Implicits._
+    Future {
+      val writer = Files.newBufferedWriter(file.toNIO, StandardOpenOption.TRUNCATE_EXISTING)
+      try {
+        val writer = Files.newBufferedWriter(file.toNIO, StandardOpenOption.TRUNCATE_EXISTING)
+        if (comments.nonEmpty) {
+          comments.foreach(comment => {
+            writer.write(commentSign + comment)
+            writer.newLine()
+          })
+        }
+
+        @tailrec def takeRows(lengths: List[Int], indent: List[Int], grid: List[Double]): Unit = {
+          if (lengths.nonEmpty) {
+            val result: String = {
+              List.fill(indent.head)(Double.NaN) ++
+                grid.take(lengths.head + indent.head) ++
+                List.fill(tallestXLength - lengths.head - indent.head)(Double.NaN)
+            }.reduce(form.format(_) + columnSeparator + form.format(_))
+            writer.write(result)
+            writer.newLine()
+            takeRows(lengths.tail, indent.tail, grid.drop(tallestXLength))
+          }
+        }
+      }
+      finally writer.close()
+    }
+
   }
 }
+
