@@ -59,5 +59,4 @@ abstract class Hermit(interval: Intersection[InclusiveLower, ExclusiveUpper, Dou
       body + f" $yL%+1.4f"
   }
 
-
 }

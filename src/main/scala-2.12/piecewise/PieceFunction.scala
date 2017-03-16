@@ -19,31 +19,31 @@ abstract class PieceFunction(val interval: Intersection[InclusiveLower, Exclusiv
   protected def u: Double = interval.upper.upper
 
   /** Значение функции в точке {@code x}
-    * value of function at {@code x} point
+    * v of function at {@code x} point
     *
     * @param x точка, в которой ищется значение / point, where is yL of function searched */
   def apply(x: Double): Double
 
   /** Значение производной функции в точке {@code x}
-    * value of derivative of function at {@code x} point
+    * v of derivative of function at {@code x} point
     *
     * @param x точка, в которой ищется значение производной / point, where is yL of function derivative searched */
   def derivative(x: Double): Double
 
   /** Значение производной функции в точке {@code x}
-    * value of derivative of function at {@code x} point
+    * v of derivative of function at {@code x} point
     *
     * @param x точка, в которой ищется значение производной / point, where is yL of function derivative searched */
   final def der(x: Double): Double = derivative(x)
 
   /** Значение интеграла функции в точке {@code x}
-    * value of integral of function at {@code x} point
+    * v of integral of function at {@code x} point
     *
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
   def integral(x: Double): Double
 
   /** Значение интеграла функции в точке {@code x}
-    * value of integral of function at {@code x} point
+    * v of integral of function at {@code x} point
     *
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
   final def int(x: Double): Double = integral(x)
@@ -310,7 +310,7 @@ object PieceFunction{
   }
 
 
-  /** General rule of Gorner for quad degree polynomial function value finder
+  /** General rule of Gorner for quad degree polynomial function v finder
     * @param x argument position
     * @param a4 coef at x^4^
     * @param a3 coef at x^3^
@@ -323,7 +323,8 @@ object PieceFunction{
     (((a4 * x + a3) * x + a2) * x + a1) * x + a0
   }
 
-  /** General rule of Gorner for third degree polynomial function value finder
+
+  /** General rule of Gorner for third degree polynomial function v finder
     * @param x argument position
     * @param a3 coef at x^3^
     * @param a2 coef at x^2^
@@ -335,7 +336,7 @@ object PieceFunction{
     ((a3 * x + a2) * x + a1) * x + a0
   }
 
-  /** General rule of Gorner for second degree polynomial function value finder
+  /** General rule of Gorner for second degree polynomial function v finder
     * @param x argument position
     * @param a2 coef at x^2^
     * @param a1 coef at x^1^

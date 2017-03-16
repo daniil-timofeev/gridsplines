@@ -33,16 +33,16 @@ case class Line(override val interval: Intersection[InclusiveLower, ExclusiveUpp
 
   //override def +(otherFunc: (A) forSome {type A <: PieceFunction}): (B) forSome {type B <: PieceFunction} = {
   //  otherFunc match {
-  // case mcspline : MCSpline => mcspline.copy(f = mcspline.f + value(from),
-  //      f1 = mcspline.f1 + value(to),
+  // case mcspline : MCSpline => mcspline.copy(f = mcspline.f + v(from),
+  //      f1 = mcspline.f1 + v(to),
   //      d = mcspline.d + derivative(from),
   //      d1 = mcspline.d1 + derivative(to))
-  //    case qpf : SquarePieceFunc => {
+  //    case qpf : Lagrange2 => {
   //      val center = (from + to)/2.0
-  //      val points : List[(Double, Double)] = List(from , center, to).map(x => (x, qpf.value(x) + value(x)))
-  //      SquarePieceFunc(points)
+  //      val points : List[(Double, Double)] = List(from , center, to).map(x => (x, qpf.v(x) + v(x)))
+  //      Lagrange2(points)
   //    }
-  //    case lspl : LineSpline => this.copy(f = f + lspl.value(from), f1 = f1 + lspl.value(to))
+  //    case lspl : LineSpline => this.copy(f = f + lspl.v(from), f1 = f1 + lspl.v(to))
   //  }
   //}
 

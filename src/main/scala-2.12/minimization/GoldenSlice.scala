@@ -77,5 +77,4 @@ object GoldenSlice {
       case 3 =>  x02
     }
   }
-
 }

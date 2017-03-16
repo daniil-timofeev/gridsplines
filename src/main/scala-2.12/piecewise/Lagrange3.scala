@@ -27,7 +27,7 @@ import scala.math._
   * @author Тимофеев Д.В. / Timofeev D.V.
   *
   */
-case class CLagrange(a: Double, b: Double, c: Double, d: Double,
+case class Lagrange3(a: Double, b: Double, c: Double, d: Double,
                      override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
   extends PieceFunction(interval){
 
@@ -40,41 +40,41 @@ case class CLagrange(a: Double, b: Double, c: Double, d: Double,
   override def derivative(x: Double) = PieceFunction.squaredRuleOfGorner(x, derD, derC, b)
 
   /** Значение интеграла функции в точке {@code x}
-    * value of integral of function at {@code x} point
+    * v of integral of function at {@code x} point
     *
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
   override def integral(x: Double): Double = ???
 
   override def extremum = ???
 
-  override def sliceTo(value: Double): CLagrange = {
+  override def sliceTo(value: Double): Lagrange3 = {
     val i = PieceFunction.sliceIntervalTo(value, interval)
-    new CLagrange(a, b, c, d, i)
+    new Lagrange3(a, b, c, d, i)
   }
 
-  override def sliceFrom(value: Double): CLagrange = {
+  override def sliceFrom(value: Double): Lagrange3 = {
     val i = PieceFunction.sliceIntervalFrom(value, interval)
-    new CLagrange(a, b, c, d, i)
+    new Lagrange3(a, b, c, d, i)
   }
 
-  override def slice(from: Double, to: Double): CLagrange = {
+  override def slice(from: Double, to: Double): Lagrange3 = {
     val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    new CLagrange(a, b, c, d, i)
+    new Lagrange3(a, b, c, d, i)
   }
 }
-object CLagrange{
+object Lagrange3{
 
-  def apply(values : List[Tuple2[Double, Double]]): Vector[CLagrange] = {
+  def apply(values : List[Tuple2[Double, Double]]): Vector[Lagrange3] = {
     var c = cCoefs(values)
     var d = dCoefs(values, c)
     var b = bCoefs(values, c, d)
     var a = aCoefs(values)
     var to = values.drop(1).map(_._1); var from = values.map(_._1)
-    val result = Vector.newBuilder[CLagrange]
+    val result = Vector.newBuilder[Lagrange3]
 
     while(c.nonEmpty) {
       val interval = PieceFunction.makeInterval(min(from.head, to.head), max(from.head, to.head))
-      result += new CLagrange(a.head, b.head, c.head, d.head, interval)
+      result += new Lagrange3(a.head, b.head, c.head, d.head, interval)
       a = a.tail; b = b.tail; c = c.tail; d = d.tail; to = to.tail; from = from.tail
     }
     result.result()

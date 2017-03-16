@@ -8,8 +8,8 @@ import scala.math._
 /** Кусочная кваратичная функция
   * Created by Даниил on 06.02.2016.
   */
-case class SquarePieceFunc(val a : Double, val b : Double, val c : Double,
-                           override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double] )
+case class Lagrange2(val a : Double, val b : Double, val c : Double,
+                     override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double] )
   extends PieceFunction(interval) {
 
    def this(coef: (Double, Double, Double), interval: Intersection[InclusiveLower, ExclusiveUpper, Double]) = {
@@ -17,11 +17,10 @@ case class SquarePieceFunc(val a : Double, val b : Double, val c : Double,
   }
 
   def this(v1 : Tuple2[Double, Double], v2 : Tuple2[Double, Double], v3 : Tuple2[Double, Double]) = {
-    this(SquarePieceFunc.polynominals(v1, v2, v3), PieceFunction.makeInterval(v1._1, v3._1))
+    this(Lagrange2.polynominals(v1, v2, v3), PieceFunction.makeInterval(v1._1, v3._1))
   }
 
-
-  def value(x: Double) : Double =  a * pow(x, 2) + b * x + c
+  override def apply(x: Double): Double = PieceFunction.squaredRuleOfGorner(x, a, b, c)
 
   def integral(x: Double) : Double = a / 3.0 * pow(x, 3) + b /
     2.0 * pow(x, 2) + c * x
@@ -47,29 +46,29 @@ case class SquarePieceFunc(val a : Double, val b : Double, val c : Double,
     else f"$value%1.2f" + "·" + f"10^$power%1.0f"
   }
 
-  override def sliceTo(value: Double): SquarePieceFunc = {
+  override def sliceTo(value: Double): Lagrange2 = {
     val i = PieceFunction.sliceIntervalTo(value, interval)
-    new SquarePieceFunc(a, b, c, i)
+    new Lagrange2(a, b, c, i)
   }
 
-  override def sliceFrom(value: Double): SquarePieceFunc = {
+  override def sliceFrom(value: Double): Lagrange2 = {
     val i = PieceFunction.sliceIntervalFrom(value, interval)
-    new SquarePieceFunc(a, b, c, i)
+    new Lagrange2(a, b, c, i)
   }
 
-  override def slice(from: Double, to: Double): SquarePieceFunc = {
+  override def slice(from: Double, to: Double): Lagrange2 = {
     val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    new SquarePieceFunc(a, b, c, i)
+    new Lagrange2(a, b, c, i)
   }
 }
-object SquarePieceFunc {
+object Lagrange2 {
 
-  def apply(vals : List[(Double, Double)]): Vector[SquarePieceFunc] = {
+  def apply(vals : List[(Double, Double)]): Vector[Lagrange2] = {
     if(vals.size != 3) throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
     (vals.view, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
       val (a, b, c) = polynominals(v1, v2, v3)
       val interval = PieceFunction.makeInterval(v1._1, v3._1)
-      new SquarePieceFunc(a, b, c, interval)
+      new Lagrange2(a, b, c, interval)
     }} toVector
   }
 

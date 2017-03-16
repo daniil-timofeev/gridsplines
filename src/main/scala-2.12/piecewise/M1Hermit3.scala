@@ -13,8 +13,8 @@ import scala.math._
   * @version 0.5.0
   * @author Даниил
   */
-case class CHermitM1(yL: Double, yUp: Double, dL: Double, dUp: Double,
-                         override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+case class M1Hermit3(yL: Double, yUp: Double, dL: Double, dUp: Double,
+                     override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
   extends Hermit(interval) {
 
   //TODO get desired spline smoothness
@@ -33,10 +33,10 @@ case class CHermitM1(yL: Double, yUp: Double, dL: Double, dUp: Double,
     */
   def smoothness = {
     true match {
-      case `fi1` => CHermitM1 SMOOTH
-      case `fi2` => CHermitM1 NORMAL
-      case `fi3` => CHermitM1 COARSE
-      case `fi4` => CHermitM1 COARSEST
+      case `fi1` => M1Hermit3 SMOOTH
+      case `fi2` => M1Hermit3 NORMAL
+      case `fi3` => M1Hermit3 COARSE
+      case `fi4` => M1Hermit3 COARSEST
       case _ if isMonotone => "Monotone"
       case _ => "No monotone"
     }
@@ -44,35 +44,35 @@ case class CHermitM1(yL: Double, yUp: Double, dL: Double, dUp: Double,
 
   private def fi = alpha - 1.0 / 3.0 * pow(2.0 * alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
 
-  override def sliceTo(value: Double): CHermitM1 = {
+  override def sliceTo(value: Double): M1Hermit3 = {
     val i = PieceFunction.sliceIntervalTo(value, interval)
     val dLow = derivative(i.lower.lower)
     val dUp = derivative(i.upper.upper)
-    new CHermitM1(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
+    new M1Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
   }
 
-  override def sliceFrom(value: Double): CHermitM1 = {
+  override def sliceFrom(value: Double): M1Hermit3 = {
    val i = PieceFunction.sliceIntervalFrom(value, interval)
    val dLow = derivative(i.lower.lower)
    val dUp = derivative(i.upper.upper)
-   new CHermitM1(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
+   new M1Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
   }
 
-  override def slice(from: Double, to: Double): CHermitM1 = {
+  override def slice(from: Double, to: Double): M1Hermit3 = {
     val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
     val dLow = derivative(i.lower.lower)
     val dUp = derivative(i.upper.upper)
-    new CHermitM1(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
+    new M1Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
   }
 }
-object CHermitM1 {
+object M1Hermit3 {
 
   implicit val SMOOTH: String = "Smooth"
   implicit val NORMAL: String = "Normal"
   implicit val COARSE: String = "Coarse"
   implicit val COARSEST: String = "Coarsest"
 
-  def smooth(splines: Vector[CHermitM1]): Vector[CHermitM1] = {
+  def smooth(splines: Vector[M1Hermit3]): Vector[M1Hermit3] = {
     if(splines.size == 1) splines.toVector
     else{
       val b = Vector.newBuilder[Double]
@@ -96,14 +96,14 @@ object CHermitM1 {
       }}
   }}
 
-  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): Vector[CHermitM1] = {
-    val splines = CHermit(values)
+  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): Vector[M1Hermit3] = {
+    val splines = Hermit3(values)
     smooth(splines.map(spl => spl.monotone(mType)))
   }
 
-  def apply(x: List[Double], y: List[Double])(implicit mType: String = COARSE): Vector[CHermitM1] = {
-    val splines = CHermit(x, y)
-    smooth(splines.map(spl => spl.monotone(mType)))
+  def apply(x: List[Double], y: List[Double]): Vector[M1Hermit3] = {
+    val splines = Hermit3(x, y)
+    smooth(splines.map(spl => spl.monotone(COARSE)))
   }
 
 }
