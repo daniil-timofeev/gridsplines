@@ -1,5 +1,6 @@
 package piecewise
 import approximation.passion.{ListPassion, Passion}
+import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
 
 import scala.annotation.tailrec
@@ -27,40 +28,27 @@ import scala.math._
   * @author Тимофеев Д.В. / Timofeev D.V.
   *
   */
-case class Lagrange3(a: Double, b: Double, c: Double, d: Double,
-                     override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+case class Lagrange3(coefs: Array[Double],
+                     override val interval: InLowExUp[Double])
   extends PieceFunction(interval){
 
 
-  def apply(x: Double): Double = PieceFunction.cubicRuleOfGorner(x - l, d, c, b, a)
+  override def apply(x: Double): Double =
+    PieceFunction.cubicRuleOfGorner(x - lower, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  private val derD = 3.0 * d
-  private val derC = 2.0 * c
+  private val derD = 3.0 * coefs(3)
+  private val derC = 2.0 * coefs(2)
 
-  override def derivative(x: Double) = PieceFunction.squaredRuleOfGorner(x, derD, derC, b)
+  override def derivative(x: Double) =
+    PieceFunction.quadraticRuleOfGorner(x, coefs(1), derC, derD)
 
   /** Значение интеграла функции в точке {@code x}
     * v of integral of function at {@code x} point
     *
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
-  override def integral(x: Double): Double = ???
+  override def integral(x: Double): Double = PieceFunction.cubicGornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
 
   override def extremum = ???
-
-  override def sliceTo(value: Double): Lagrange3 = {
-    val i = PieceFunction.sliceIntervalTo(value, interval)
-    new Lagrange3(a, b, c, d, i)
-  }
-
-  override def sliceFrom(value: Double): Lagrange3 = {
-    val i = PieceFunction.sliceIntervalFrom(value, interval)
-    new Lagrange3(a, b, c, d, i)
-  }
-
-  override def slice(from: Double, to: Double): Lagrange3 = {
-    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    new Lagrange3(a, b, c, d, i)
-  }
 }
 object Lagrange3{
 
@@ -74,7 +62,7 @@ object Lagrange3{
 
     while(c.nonEmpty) {
       val interval = PieceFunction.makeInterval(min(from.head, to.head), max(from.head, to.head))
-      result += new Lagrange3(a.head, b.head, c.head, d.head, interval)
+      result += new Lagrange3(Array(d.head, c.head, b.head, a.head), interval)
       a = a.tail; b = b.tail; c = c.tail; d = d.tail; to = to.tail; from = from.tail
     }
     result.result()

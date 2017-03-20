@@ -1,12 +1,12 @@
 package piecewise
-import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
+import com.twitter.algebird.Interval.InLowExUp
 
 import scala.math.{abs, pow, signum}
 
 /**
   * Created by Даниил on 19.02.2017.
   */
-abstract class Hermit(interval: Intersection[InclusiveLower, ExclusiveUpper, Double]) extends PieceFunction(interval){
+abstract class Hermit(interval: InLowExUp[Double]) extends Polynomial(interval){
 
   val yL, yUp, dL, dUp : Double
 
@@ -23,11 +23,14 @@ abstract class Hermit(interval: Intersection[InclusiveLower, ExclusiveUpper, Dou
   protected lazy val h = interval.upper.upper - interval.lower.lower
 
   private def fi = alpha - 1.0/3.0*pow(2*alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
+
   protected val delta = (yUp - yL) / h
 
-  private val a: Double = (dL + dUp - 2 * delta) / pow(h, 2.0)
-
-  private val b: Double = (-2 * dL - dUp + 3 * delta) / h
+  override val coefs: Array[Double] = Array(
+    yL, dL,
+    (-2.0 * dL - dUp + 3.0 * delta) / h,
+    (dL + dUp - 2.0 * delta) / pow(h, 2.0)
+  )
 
   protected lazy val alpha  = abs(dL / delta)
 
@@ -43,20 +46,16 @@ abstract class Hermit(interval: Intersection[InclusiveLower, ExclusiveUpper, Dou
 
   private[this] val l = interval.lower.lower
 
-  override def apply(x: Double): Double = a * pow(x - l, 3) +
-    b * pow(x - l, 2) + dL * (x - l) + yL
-
-  override def derivative(x: Double): Double = 3 * a * pow(x - l, 2) +
-    2 * b * pow(x - interval.lower.lower, 2) + dL
-
-  override def integral(x: Double): Double = 0.25 * a * pow(x - l, 4) + 1.0 / 3.0 * b * pow(x - l, 3) +
-    0.5 * dL * pow(x - l, 2) + yL * (x - l)
-
   private lazy val body = f"*(x${-interval.lower.lower}%+.7f)"
 
   override lazy val toString = {
-    f"$a%1.4f" + body + f"^3 $b%+1.4f" + body + f"^2  $dL%+1.4f" +
+    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  $dL%+1.4f" +
       body + f" $yL%+1.4f"
   }
 
 }
+object Hermit{
+
+
+}
+

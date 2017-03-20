@@ -9,14 +9,14 @@ import scala.math.{ pow, sqrt }
  * Кривая, предназначеная для аппроксимации явлений физической реальности, где требуется монотонность
  * / Сurve, that serve for approximation physical reality definitions, where is monotonic property required
  *
- * @see Fritsch, F. N. Monotone piecewise cubic interpolation
- *      / F. N. Fritsch, R. E. Carlson // SIAM J. Numer. Anal. — 1980. — 17. № 2. — pp. 238 — 246.
+ * @see Fritsch, F. N. Monotone piecewise cubic interpolation / F. N. Fritsch, R. E. Carlson // SIAM J. Numer. Anal. — 1980. — 17. № 2. — pp. 238 — 246.
  * @version 0.5.0
  * @author Даниил
  */
 case class Hermit3(val yL: Double, val yUp: Double,
                    val dL: Double, val dUp: Double,
-                   override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double]) extends Hermit(interval) {
+                   override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+  extends Hermit(interval) with Poly3 {
 
   /**
    * Трансформирует функцию так, чтобы она была монотонной /
@@ -64,28 +64,6 @@ case class Hermit3(val yL: Double, val yUp: Double,
         }
       }
     }
-  }
-
-
-  override def sliceTo(value: Double): Hermit3 = {
-    val i = PieceFunction.sliceIntervalTo(value, interval)
-    val dLow = derivative(i.lower.lower)
-    val dUp = derivative(i.upper.upper)
-    new Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
-  }
-
-  override def sliceFrom(value: Double): Hermit3 = {
-    val i = PieceFunction.sliceIntervalFrom(value, interval)
-    val dLow = derivative(i.lower.lower)
-    val dUp = derivative(i.upper.upper)
-    new Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
-  }
-
-  override def slice(from: Double, to: Double): Hermit3 = {
-    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    val dLow = derivative(i.lower.lower)
-    val dUp = derivative(i.upper.upper)
-    new Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
   }
 }
 object Hermit3 {

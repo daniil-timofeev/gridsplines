@@ -1,21 +1,37 @@
 package piecewise
+import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird._
 /** Just line at interval
   *
   */
-case class Line(override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double],
-                yL : Double, yUp : Double) extends PieceFunction(interval){
+case class Line(override val interval: InLowExUp[Double],
+yL: Double, yUp: Double) extends Lagrange(interval){
 
   def this(val1: (Double, Double), val2: (Double, Double)){
-    this(PieceFunction.makeInterval(val1._1, val2._1), val1._2, val2._2)
-  }
+  this(PieceFunction.makeInterval(val1._1, val2._1), val1._2, val2._2)
+}
 
   def this(x1: Double, y1: Double, x2: Double, y2: Double){
-    this(PieceFunction.makeInterval(x1, x2), y1, y2)
+  this(PieceFunction.makeInterval(x1, x2), y1, y2)
+}
+
+  def sliceUpper(to: Double) = {
+    new Line(Intersection(interval.lower, interval.upper.copy(to)), yL, apply(to))
+  }
+  def sliceLower(from: Double) = {
+    new Line(Intersection(interval.lower.copy(from), interval.upper), apply(from), yUp)
   }
 
+  override protected val coefs: Array[Double] = Array(
+    PieceFunction.interpolate(interval.lower.lower, interval.upper.upper, yL, yUp, 0.0),
+    derivative(interval.lower.lower)
+  )
+
+  private[this]  val k = derivative(interval.lower.lower)
   private val intSize = interval.upper.upper - interval.lower.lower
 
+
+  override def derivative(x: Double): Double = (yUp - yL) / intSize
   /** Swap x and y places
     *
     * @return x = f(y) spline
@@ -26,9 +42,6 @@ case class Line(override val interval: Intersection[InclusiveLower, ExclusiveUpp
   }
 
   override protected def extremum: List[Double] = List(interval.lower.lower, interval.upper.upper)
-
-
-  override def derivative(x: Double): Double = (yUp - yL) / intSize
 
 
   //override def +(otherFunc: (A) forSome {type A <: PieceFunction}): (B) forSome {type B <: PieceFunction} = {
@@ -54,28 +67,10 @@ case class Line(override val interval: Intersection[InclusiveLower, ExclusiveUpp
   //  this.copy(f = f + func(from), f1 = f1 + func(to))
 
 
-  override def apply(x: Double): Double = k * x + nullVal
+  override def apply(x: Double): Double = coefs(1) * x + coefs(0)
 
   override def integral(x: Double): Double = (yL + yUp) / 2.0 * intSize
 
-
-  private[this]  val nullVal = PieceFunction.interpolate(interval.lower.lower, interval.upper.upper, yL, yUp, 0)
-  private[this]  val k = derivative(interval.lower.lower)
-
-  override def sliceTo(value: Double): Line = {
-    val i = PieceFunction.sliceIntervalTo(value, interval)
-    new Line(i, apply(i.lower.lower), apply(i.upper.upper))
-  }
-
-  override def sliceFrom(value: Double): Line = {
-    val i = PieceFunction.sliceIntervalFrom(value, interval)
-    new Line(i, apply(i.lower.lower), apply(i.upper.upper))
-  }
-
-  override def slice(from: Double, to: Double): Line = {
-    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    new Line(i, apply(i.lower.lower), apply(i.upper.upper))
-  }
 }
 object Line{
 

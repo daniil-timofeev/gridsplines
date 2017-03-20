@@ -13,10 +13,10 @@ import com.twitter.algebird.Interval._
   * trait for piecewise functions
   * Created by Даниил on 06.02.2016.
   */
-abstract class PieceFunction(val interval: Intersection[InclusiveLower, ExclusiveUpper, Double]){
+abstract class PieceFunction(val interval: InLowExUp[Double]){
 
-  protected def l: Double = interval.lower.lower
-  protected def u: Double = interval.upper.upper
+  protected def lower: Double = interval.lower.lower
+  protected def upper: Double = interval.upper.upper
 
   /** Значение функции в точке {@code x}
     * v of function at {@code x} point
@@ -47,12 +47,6 @@ abstract class PieceFunction(val interval: Intersection[InclusiveLower, Exclusiv
     *
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
   final def int(x: Double): Double = integral(x)
-
-  def sliceTo(value: Double): PieceFunction
-
-  def sliceFrom(value: Double): PieceFunction
-
-  def slice(from: Double, to: Double): PieceFunction
 
   /** Суммирует значения кусочных функций, и возвращает новый сплайн
     *
@@ -268,16 +262,16 @@ object PieceFunction{
     }
   }
 
-  def sliceIntervalFrom(value: Double,
-                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+  def sliceUpper(value: Double,
+                 interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
   : Intersection[InclusiveLower, ExclusiveUpper, Double] = {
-    if(interval.contains(value)) new Intersection(InclusiveLower(value), interval.upper) else interval
+    Intersection.apply(interval.lower, ExclusiveUpper(value))
   }
 
-  def sliceIntervalTo(value: Double,
-                      interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+  def sliceLower(value: Double,
+                 interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
   : Intersection[InclusiveLower, ExclusiveUpper, Double] = {
-    if(interval.contains(value)) new Intersection(interval.lower, new ExclusiveUpper(value)) else interval
+    Intersection.apply(InclusiveLower(value), interval.upper)
   }
 
 
@@ -297,15 +291,12 @@ object PieceFunction{
   }
 
   final def polynomial(x: Double, a: Double*): Double = {
-    var res = 0.0
-    var pow = a.size - 1
-    var size = a.size
-    var i = 0
-    while(i != size){
-      res += math.pow(x, pow) * a(i)
-      i += 1
-      pow -= 1
-    }
+  var i = 0
+  var res = 0.0
+  while(i != a.size){
+    res += math.pow(x, i) * a(i)
+    i += 1
+  }
     res
   }
 
@@ -319,7 +310,7 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def quadRuleOfGorner(x: Double, a4: Double, a3: Double, a2: Double, a1: Double, a0: Double): Double = {
+  final def quadRuleOfGorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double, a4: Double): Double = {
     (((a4 * x + a3) * x + a2) * x + a1) * x + a0
   }
 
@@ -332,8 +323,16 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def cubicRuleOfGorner(x: Double, a3: Double, a2: Double, a1: Double, a0: Double): Double = {
+  final def cubicRuleOfGorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
     ((a3 * x + a2) * x + a1) * x + a0
+  }
+
+  final def cubicGornerIntegral(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+    quadRuleOfGorner(x, 0.0, a0, 0.5 * a1 , a2 / 3.0, 0.25 * a3)
+  }
+
+  final def cubicGornerDerivative(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+    quadraticRuleOfGorner(x, a1, 2.0 * a2, 3.0 * a3)
   }
 
   /** General rule of Gorner for second degree polynomial function v finder
@@ -343,10 +342,25 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def squaredRuleOfGorner(x: Double, a2: Double, a1: Double, a0: Double): Double = {
+  final def quadraticRuleOfGorner(x: Double, a0: Double, a1: Double, a2: Double): Double = {
     (a2 * x + a1) * x + a0
   }
 
+  final def quadraticGornerIntegral(x: Double, a0: Double, a1: Double, a2: Double): Double = {
+    cubicRuleOfGorner(x, 0.0, a0, a2 / 2.0, a2 / 3.0)
+  }
+
+  final def quadraticGornerDerivative(x: Double, a0: Double, a1: Double, a2: Double): Double = {
+    atLine(x, a1, 2.0 * a2)
+  }
+
+  final def atLine(x: Double, a0: Double, a1: Double) = {
+    a1 * x + a0
+  }
+
+  final def atLineIntegral(x: Double, a0: Double, a1: Double) = {
+    quadraticRuleOfGorner(x, 0.0, a0, a1 / 2.0)
+  }
 
   def interpolate(x1: Double, x2 : Double, y1 : Double, y2 : Double, x : Double) = {
     if(Objects.equals(x2-x1, 0.0)) y1
@@ -366,11 +380,11 @@ object PieceFunction{
   def interpolate2(value : Double, coll : List[Double], firstIndex : Int = 0) : List[Tuple2[Double, Int]] = {
     val size = coll.size
     @inline val solve = (x : List[Double]) => signum(x.last - value) != signum(x.head - value)
-    (size : @switch) match {
+    size match {
       case 2 => {
         val a = coll.head
         val b = coll.tail.head
-        (value : @switch) match {
+        value match {
           case `a` => List(Tuple2(a, firstIndex), Tuple2(a, firstIndex))
           case `b` => List(Tuple2(b, firstIndex + 1) , Tuple2(b, firstIndex + 1))
           case _ => List((a, firstIndex), (b, firstIndex + 1))

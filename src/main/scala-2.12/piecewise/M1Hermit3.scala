@@ -1,6 +1,6 @@
 package piecewise
+import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
-
 
 import scala.math._
 
@@ -14,8 +14,7 @@ import scala.math._
   * @author Даниил
   */
 case class M1Hermit3(yL: Double, yUp: Double, dL: Double, dUp: Double,
-                     override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
-  extends Hermit(interval) {
+                     override val interval: InLowExUp[Double]) extends Hermit(interval) with Poly3 {
 
   //TODO get desired spline smoothness
   private[this] lazy val fi4 = if(2 * alpha + beta < 3.0 || alpha + 2 * beta < 3.0) true else false
@@ -43,27 +42,6 @@ case class M1Hermit3(yL: Double, yUp: Double, dL: Double, dUp: Double,
   }
 
   private def fi = alpha - 1.0 / 3.0 * pow(2.0 * alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
-
-  override def sliceTo(value: Double): M1Hermit3 = {
-    val i = PieceFunction.sliceIntervalTo(value, interval)
-    val dLow = derivative(i.lower.lower)
-    val dUp = derivative(i.upper.upper)
-    new M1Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
-  }
-
-  override def sliceFrom(value: Double): M1Hermit3 = {
-   val i = PieceFunction.sliceIntervalFrom(value, interval)
-   val dLow = derivative(i.lower.lower)
-   val dUp = derivative(i.upper.upper)
-   new M1Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
-  }
-
-  override def slice(from: Double, to: Double): M1Hermit3 = {
-    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    val dLow = derivative(i.lower.lower)
-    val dUp = derivative(i.upper.upper)
-    new M1Hermit3(apply(i.lower.lower), apply(i.upper.upper), dLow, dUp, i)
-  }
 }
 object M1Hermit3 {
 

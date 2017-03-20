@@ -1,11 +1,12 @@
 package piecewise
 
+import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird._
 
 /**
   * Created by Даниил on 16.03.2017.
   */
-class Const(value: Double, override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
+case class Const(value: Double, override val interval: InLowExUp[Double])
   extends PieceFunction(interval){
 
   override def apply(x: Double): Double = value
@@ -14,15 +15,9 @@ class Const(value: Double, override val interval: Intersection[InclusiveLower, E
 
   override def integral(x: Double): Double = x * value
 
-  override def sliceTo(value: Double): PieceFunction = ???
-
-  override def sliceFrom(value: Double): PieceFunction = ???
-
-  override def slice(from: Double, to: Double): PieceFunction = ???
-
   /** Экстремум функции `x`
     * Extremum of function `x`
     *
     * @return экстремумы функции / extremums of function */
-  override protected def extremum: List[Double] = value
+  override protected def extremum: List[Double] = value :: Nil
 }

@@ -1,5 +1,6 @@
 package piecewise
 
+import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
 
 import scala.annotation.tailrec
@@ -8,31 +9,31 @@ import scala.math._
 /** Кусочная кваратичная функция
   * Created by Даниил on 06.02.2016.
   */
-case class Lagrange2(val a : Double, val b : Double, val c : Double,
-                     override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double] )
-  extends PieceFunction(interval) {
+case class Lagrange2(override val coefs: Array[Double],
+                     override val interval: InLowExUp[Double])
+  extends Lagrange(interval) {
 
-   def this(coef: (Double, Double, Double), interval: Intersection[InclusiveLower, ExclusiveUpper, Double]) = {
-    this(coef _1, coef _2, coef _3, interval)
+   def this(coef: (Double, Double, Double), interval: InLowExUp[Double]) = {
+    this(Array(coef _3, coef _2, coef _1), interval)
   }
 
-  def this(v1 : Tuple2[Double, Double], v2 : Tuple2[Double, Double], v3 : Tuple2[Double, Double]) = {
+  def this(v1: (Double, Double), v2: (Double, Double), v3: (Double, Double)) = {
     this(Lagrange2.polynominals(v1, v2, v3), PieceFunction.makeInterval(v1._1, v3._1))
   }
 
-  override def apply(x: Double): Double = PieceFunction.squaredRuleOfGorner(x, a, b, c)
+  override def apply(x: Double): Double = PieceFunction.quadraticRuleOfGorner(x, coefs(0), coefs(1), coefs(2))
 
-  def integral(x: Double) : Double = a / 3.0 * pow(x, 3) + b /
-    2.0 * pow(x, 2) + c * x
+  def integral(x: Double) : Double =
+    PieceFunction.cubicRuleOfGorner(x, 0.0, coefs(0), coefs(1) / 2.0, coefs(2) / 3.0)
 
-  def derivative(x: Double) : Double = a * 2 * x + b
+  override def derivative(x: Double) : Double = coefs(2) * 2.0 * x + coefs(1)
 
 
   /** Экстремум функции
     * extremum of function
     *
     * @return экстремумы функции / extremums of function */
-  override protected def extremum: List[Double] = List(- b / (2 * a))
+  override protected def extremum: List[Double] = List(- coefs(1) / (2 * coefs(2)))
 
   private[this] def format(d: Double) = d match {
     case a if a > 0 => " + " + formatKey(a)
@@ -46,20 +47,6 @@ case class Lagrange2(val a : Double, val b : Double, val c : Double,
     else f"$value%1.2f" + "·" + f"10^$power%1.0f"
   }
 
-  override def sliceTo(value: Double): Lagrange2 = {
-    val i = PieceFunction.sliceIntervalTo(value, interval)
-    new Lagrange2(a, b, c, i)
-  }
-
-  override def sliceFrom(value: Double): Lagrange2 = {
-    val i = PieceFunction.sliceIntervalFrom(value, interval)
-    new Lagrange2(a, b, c, i)
-  }
-
-  override def slice(from: Double, to: Double): Lagrange2 = {
-    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    new Lagrange2(a, b, c, i)
-  }
 }
 object Lagrange2 {
 
@@ -68,7 +55,7 @@ object Lagrange2 {
     (vals.view, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
       val (a, b, c) = polynominals(v1, v2, v3)
       val interval = PieceFunction.makeInterval(v1._1, v3._1)
-      new Lagrange2(a, b, c, interval)
+      new Lagrange2(Array(c, b, a), interval)
     }} toVector
   }
 

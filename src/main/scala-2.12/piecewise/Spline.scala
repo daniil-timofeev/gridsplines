@@ -1,17 +1,18 @@
 package piecewise
 
+import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird.{Intersection, _}
-import piecewise.Spline.MakePieceFunctions
+import piecewise.Spline.{MakePieceFunctions, SlicePieceFunction}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
-
+import Spline._
 /**
   * Created by Даниил on 24.01.2017.
   */
-case class Spline[+S <: PieceFunction: MakePieceFunctions](
+case class Spline[S <: PieceFunction](
                                 functions: Vector[S],
-                                interval: Intersection[InclusiveLower, ExclusiveUpper, Double],
+                                interval: InLowExUp[Double],
                                 findInterval: Line) {
 //TODO add possibility to find interval with some others piece functions types
 
@@ -20,19 +21,16 @@ case class Spline[+S <: PieceFunction: MakePieceFunctions](
     else ??? //TODO add decision of method behavior outside of spline interval
   }
 
-  def sliceFrom(value: Double): Spline[S] = {
-    val i = PieceFunction.sliceIntervalFrom(value, interval)
-    ??? //TODO implement method
+  def sliceUpper[R](to: Double)(implicit slicer: SlicePieceFunction[S]): Spline[S] = {
+    slicer.sliceUpper(this, to)
   }
 
-  def sliceTo(value: Double): Spline[S] = {
-    val i = PieceFunction.sliceIntervalTo(value, interval)
-    ??? //TODO implement method
+  def sliceLower(from: Double)(implicit slicer: SlicePieceFunction[S]): Spline[S] = {
+    slicer.sliceLower(this, from)
   }
 
-  def slice(from: Double, to: Double): Spline[S] = {
-    val i = PieceFunction.sliceIntervalTo(to, PieceFunction.sliceIntervalFrom(from, interval))
-    ??? //TODO implement method
+  def slice(from: Double, to: Double)(implicit slicer: SlicePieceFunction[S]): Spline[S] = {
+   slicer.sliceUpper(slicer.sliceLower(this, from), to)
   }
 
 }
@@ -166,4 +164,136 @@ object Spline{
       Lagrange2(atInterval)
     }
   }
+
+  abstract class SlicePieceFunction[S <: PieceFunction]{
+
+    protected def dropUpper(spline: Spline[S], to: Double): Vector[S] = {
+      import com.twitter.algebird.Intersection._
+      import com.twitter.algebird.Interval._
+      spline.functions.takeWhile(f => {
+          f.interval.intersect(ExclusiveUpper(to)) match{
+            case empty: Empty[_] => true
+            case _ => false
+          }
+        })
+    }
+
+    protected def dropLower(spline: Spline[S], from: Double): Vector[S] = {
+      spline.functions.dropWhile(f => {
+        f.interval.intersect(InclusiveLower(from)) match{
+          case empty: Empty[_] => true
+          case _ => false
+        }
+      })
+    }
+
+    def sliceUpper(spline: Spline[S], to: Double): Spline[S] = {
+      val functions =
+      dropUpper(spline, to).collect(
+        {
+          case f if f.interval.contains(to) => slicePieceFunctionUpper(f, to)
+          case default => default
+        }
+      )
+      spline.copy[S](
+        functions,
+        Intersection(spline.interval.lower, spline.interval.upper.copy(to)),
+        spline.findInterval.sliceUpper(to))
+    }
+
+    def sliceLower(spline: Spline[S], from: Double): Spline[S] = {
+      val functions =
+        dropLower(spline, from).collect(
+          {
+            case f if f.interval.contains(from) => slicePieceFunctionLower(f, from)
+            case default => default
+          }
+        )
+      spline.copy[S](
+        functions,
+        Intersection(spline.interval.lower.copy(from), spline.interval.upper),
+        spline.findInterval.sliceLower(from))
+    }
+
+    def slicePieceFunctionUpper(pieceFunc: S, to: Double): S
+
+    def slicePieceFunctionLower(pieceFunc: S, from: Double): S
+
+  }
+
+  implicit object SliceHermit3 extends SlicePieceFunction[Hermit3]{
+
+    override def slicePieceFunctionUpper(pieceFunc: Hermit3, to: Double): Hermit3 = {
+      val Hermit3(
+      yL: Double, yUp: Double,
+      dL: Double, dUp: Double,
+      interval: InLowExUp[Double]) = pieceFunc
+      pieceFunc.copy(yL, pieceFunc(to), dL, pieceFunc.derivative(to), interval.copy(upper = interval.upper.copy(to)))
+    }
+
+    override def slicePieceFunctionLower(pieceFunc: Hermit3, from: Double): Hermit3 = {
+      val Hermit3(
+      yL: Double, yUp: Double,
+      dL: Double, dUp: Double,
+      interval: InLowExUp[Double]) = pieceFunc
+      pieceFunc.copy(pieceFunc(from), yUp, pieceFunc.derivative(from), dUp, interval.copy(lower = interval.lower.copy(from)))
+    }
+  }
+
+  implicit object SliceM1Hermit3 extends SlicePieceFunction[M1Hermit3]{
+    override def slicePieceFunctionUpper(pieceFunc: M1Hermit3, to: Double): M1Hermit3 = {
+      val M1Hermit3(
+      yL: Double, yUp: Double,
+      dL: Double, dUp: Double,
+      interval: InLowExUp[Double]) = pieceFunc
+      pieceFunc.copy(yL, pieceFunc(to), dL, pieceFunc.derivative(to), interval.copy(upper = interval.upper.copy(to)))
+    }
+
+    override def slicePieceFunctionLower(pieceFunc: M1Hermit3, from: Double): M1Hermit3 = {
+      val M1Hermit3(
+      yL: Double, yUp: Double,
+      dL: Double, dUp: Double,
+      interval: InLowExUp[Double]) = pieceFunc
+      pieceFunc.copy(pieceFunc(from), yUp, pieceFunc.derivative(from), dUp, interval.copy(lower = interval.lower.copy(from)))
+    }
+  }
+
+  implicit object SliceLagrange3 extends SlicePieceFunction[Lagrange3]{
+    override def slicePieceFunctionUpper(pieceFunc: Lagrange3, to: Double): Lagrange3 = {
+
+      pieceFunc.copy(interval = pieceFunc.interval.copy(upper = pieceFunc.interval.upper.copy(to)))
+    }
+
+    override def slicePieceFunctionLower(pieceFunc: Lagrange3, from: Double): Lagrange3 = {
+      pieceFunc.copy(interval = pieceFunc.interval.copy(lower = pieceFunc.interval.lower.copy(from)))
+    }
+  }
+
+  implicit object SliceLagrange2 extends SlicePieceFunction[Lagrange2]{
+    override def slicePieceFunctionUpper(pieceFunc: Lagrange2, to: Double): Lagrange2 = {
+      pieceFunc.copy(interval = pieceFunc.interval.copy(upper = pieceFunc.interval.upper.copy(to)))
+    }
+
+    override def slicePieceFunctionLower(pieceFunc: Lagrange2, from: Double): Lagrange2 = {
+      pieceFunc.copy(interval = pieceFunc.interval.copy(lower = pieceFunc.interval.lower.copy(from)))
+    }
+  }
+
+    implicit object SliceLine extends SlicePieceFunction[Line]{
+    override def slicePieceFunctionUpper(pieceFunc: Line, to: Double): Line= pieceFunc.sliceUpper(to)
+
+
+    override def slicePieceFunctionLower(pieceFunc: Line, from: Double): Line = pieceFunc.sliceLower(from)
+  }
+
+  implicit object SliceConst extends SlicePieceFunction[Const]{
+    override def slicePieceFunctionUpper(pieceFunc: Const, to: Double): Const = {
+      pieceFunc.copy(interval = pieceFunc.interval.copy(upper = pieceFunc.interval.upper.copy(to)))
+    }
+
+    override def slicePieceFunctionLower(pieceFunc: Const, from: Double): Const = {
+      pieceFunc.copy(interval = pieceFunc.interval.copy(lower = pieceFunc.interval.lower.copy(from)))
+    }
+  }
+
 }
