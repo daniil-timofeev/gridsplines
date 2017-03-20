@@ -173,7 +173,8 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
               List.fill(indent.head)(Double.NaN) ++
                 grid.take(lengths.head + indent.head) ++
                 List.fill(tallestXLength - lengths.head - indent.head)(Double.NaN)
-            }.reduce(form.format(_) + columnSeparator + form.format(_))
+            }.map(form.format)
+             .reduce(_ + columnSeparator + _)
             writer.write(result)
             writer.newLine()
             writeRows(lengths.tail, indent.tail, grid.drop(tallestXLength))

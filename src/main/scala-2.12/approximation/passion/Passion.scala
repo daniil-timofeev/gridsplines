@@ -32,7 +32,7 @@ class Passion(size: Int) {
       val c = array(i)(1)
       val d = array(i)(2)
       val vect = vector(i)
-      (i : @switch) match{
+      i match{
         case 0 => {
           forwardFirst(c, d, vect, afterForwardPassion(i))
         }
