@@ -9,9 +9,9 @@ trait Poly3{
   this: Polynomial =>
   assert(coefs.length == 4, "Cubic polynomial must have 4 coefficients")
 
-  override def apply(x: Double): Double = PieceFunction.cubicRuleOfGorner(x, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def apply(x: Double): Double = PieceFunction.cubicRuleOfHorner(x, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def derivative(x: Double): Double = PieceFunction.cubicGornerDerivative(x, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def derivative(x: Double): Double = PieceFunction.cubicHornerDerivative(x, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def integral(x: Double): Double = PieceFunction.cubicGornerIntegral(x, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(x, coefs(0), coefs(1), coefs(2), coefs(3))
 }

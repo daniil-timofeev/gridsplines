@@ -34,19 +34,19 @@ case class Lagrange3(coefs: Array[Double],
 
 
   override def apply(x: Double): Double =
-    PieceFunction.cubicRuleOfGorner(x - lower, coefs(0), coefs(1), coefs(2), coefs(3))
+    PieceFunction.cubicRuleOfHorner(x - lower, coefs(0), coefs(1), coefs(2), coefs(3))
 
   private val derD = 3.0 * coefs(3)
   private val derC = 2.0 * coefs(2)
 
   override def derivative(x: Double) =
-    PieceFunction.quadraticRuleOfGorner(x, coefs(1), derC, derD)
+    PieceFunction.quadraticRuleOfHorner(x, coefs(1), derC, derD)
 
   /** Значение интеграла функции в точке {@code x}
     * v of integral of function at {@code x} point
     *
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
-  override def integral(x: Double): Double = PieceFunction.cubicGornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
 
   override def extremum = ???
 }

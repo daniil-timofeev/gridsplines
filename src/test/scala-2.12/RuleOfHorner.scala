@@ -7,11 +7,11 @@ import piecewise.PieceFunction._
 /**
   * Created by Даниил on 17.02.2017.
   */
-object RuleOfGorner extends Properties("Rule of Gorner implementation") {
+object RuleOfHorner extends Properties("Rule of Gorner implementation") {
 
   property("Square Gorner coincidence") = Prop.forAll{ (a0: Double, a1: Double, a2: Double, x: Double) => {
     val genGorner = ruleOfGorner(x, a2, a1, a0)
-    val specGorner = quadraticRuleOfGorner(x, a0, a1, a2)
+    val specGorner = quadraticRuleOfHorner(x, a0, a1, a2)
     val accurate = polynomial(x, a2, a1, a0)
     all(
       //abs((genGorner - accurate) / accurate) < 1.00,
@@ -21,7 +21,7 @@ object RuleOfGorner extends Properties("Rule of Gorner implementation") {
 
   property("Cubic Gorner coincidence") = Prop.forAll{ (a0: Double, a1: Double, a2: Double, a3: Double, x: Double) => {
     val genGorner = ruleOfGorner(x, a3, a2, a1, a0)
-    val specGorner = cubicRuleOfGorner(x, a0, a1, a2, a3)
+    val specGorner = cubicRuleOfHorner(x, a0, a1, a2, a3)
     val accurate = polynomial(x, a3, a2, a1, a0)
     all(
       //abs((genGorner - accurate) / accurate) < 1.00,

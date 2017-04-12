@@ -21,10 +21,10 @@ case class Lagrange2(override val coefs: Array[Double],
     this(Lagrange2.polynominals(v1, v2, v3), PieceFunction.makeInterval(v1._1, v3._1))
   }
 
-  override def apply(x: Double): Double = PieceFunction.quadraticRuleOfGorner(x, coefs(0), coefs(1), coefs(2))
+  override def apply(x: Double): Double = PieceFunction.quadraticRuleOfHorner(x, coefs(0), coefs(1), coefs(2))
 
   def integral(x: Double) : Double =
-    PieceFunction.cubicRuleOfGorner(x, 0.0, coefs(0), coefs(1) / 2.0, coefs(2) / 3.0)
+    PieceFunction.cubicRuleOfHorner(x, 0.0, coefs(0), coefs(1) / 2.0, coefs(2) / 3.0)
 
   override def derivative(x: Double) : Double = coefs(2) * 2.0 * x + coefs(1)
 

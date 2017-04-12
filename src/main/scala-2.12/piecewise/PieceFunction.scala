@@ -323,16 +323,16 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def cubicRuleOfGorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+  final def cubicRuleOfHorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
     ((a3 * x + a2) * x + a1) * x + a0
   }
 
-  final def cubicGornerIntegral(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+  final def cubicHornerIntegral(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
     quadRuleOfGorner(x, 0.0, a0, 0.5 * a1 , a2 / 3.0, 0.25 * a3)
   }
 
-  final def cubicGornerDerivative(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
-    quadraticRuleOfGorner(x, a1, 2.0 * a2, 3.0 * a3)
+  final def cubicHornerDerivative(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+    quadraticRuleOfHorner(x, a1, 2.0 * a2, 3.0 * a3)
   }
 
   /** General rule of Gorner for second degree polynomial function v finder
@@ -342,15 +342,15 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def quadraticRuleOfGorner(x: Double, a0: Double, a1: Double, a2: Double): Double = {
+  final def quadraticRuleOfHorner(x: Double, a0: Double, a1: Double, a2: Double): Double = {
     (a2 * x + a1) * x + a0
   }
 
-  final def quadraticGornerIntegral(x: Double, a0: Double, a1: Double, a2: Double): Double = {
-    cubicRuleOfGorner(x, 0.0, a0, a2 / 2.0, a2 / 3.0)
+  final def quadraticHornerIntegral(x: Double, a0: Double, a1: Double, a2: Double): Double = {
+    cubicRuleOfHorner(x, 0.0, a0, a2 / 2.0, a2 / 3.0)
   }
 
-  final def quadraticGornerDerivative(x: Double, a0: Double, a1: Double, a2: Double): Double = {
+  final def quadraticHornerDerivative(x: Double, a0: Double, a1: Double, a2: Double): Double = {
     atLine(x, a1, 2.0 * a2)
   }
 
@@ -359,7 +359,7 @@ object PieceFunction{
   }
 
   final def atLineIntegral(x: Double, a0: Double, a1: Double) = {
-    quadraticRuleOfGorner(x, 0.0, a0, a1 / 2.0)
+    quadraticRuleOfHorner(x, 0.0, a0, a1 / 2.0)
   }
 
   def interpolate(x1: Double, x2 : Double, y1 : Double, y2 : Double, x : Double) = {
