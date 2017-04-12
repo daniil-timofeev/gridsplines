@@ -68,7 +68,7 @@ object GoldenSlice {
       }
     }
     val fx11 = f(x11)
-    val fx22 = f(x02)
+    val fx22 = f(x22)
 
     solver(fx01, fx11, fx22, fx02) match{
       case 0 =>  x01
