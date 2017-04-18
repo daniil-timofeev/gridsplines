@@ -6,7 +6,7 @@ import scala.math.{abs, pow, signum}
 /**
   * Created by Даниил on 19.02.2017.
   */
-abstract class Hermit(interval: InLowExUp[Double]) extends Polynomial(interval){
+abstract class Hermit(low: Double, upp: Double) extends Polynomial{
 
   val yL, yUp, dL, dUp : Double
 
@@ -16,13 +16,12 @@ abstract class Hermit(interval: InLowExUp[Double]) extends Polynomial(interval){
   if({dL :: dUp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные" +
     " значение производных должны быть вещественными числами / initial values of derivatives must be not NaN")
 
-  if({interval.lower.lower :: interval.upper.upper :: Nil} exists(_.isNaN)) throw
-    new IllegalArgumentException(" Исходные" +
+  if({low :: upp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные" +
       " значения аргументнов должны быть вещественными числами / initial values of arguments must be not NaN")
 
-  protected lazy val h = interval.upper.upper - interval.lower.lower
+  protected lazy val h = upp - low
 
-  private def fi = alpha - 1.0/3.0*pow(2*alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
+  private def fi = alpha - 1.0/3.0*pow(2.0*alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
 
   protected val delta = (yUp - yL) / h
 
@@ -36,7 +35,7 @@ abstract class Hermit(interval: InLowExUp[Double]) extends Polynomial(interval){
 
   protected lazy val beta = abs(dUp / delta)
 
-  lazy val extremum: List[Double] = List(interval.lower.lower + h / 3.0 * (2 * alpha + beta - 3.0)/(alpha + beta - 2))
+  lazy val extremum: List[Double] = List(low + h / 3.0 * (2 * alpha + beta - 3.0)/(alpha + beta - 2))
 
   lazy val isMonotone = {
     if(alpha + beta - 2.0 >= 0 && (signum(dL) == signum(dUp) || dL == 0 || dUp == 0)){
@@ -44,9 +43,8 @@ abstract class Hermit(interval: InLowExUp[Double]) extends Polynomial(interval){
     } else false
   }
 
-  private[this] val l = interval.lower.lower
 
-  private lazy val body = f"*(x${-interval.lower.lower}%+.7f)"
+  private lazy val body = f"*(x${-low}%+.7f)"
 
   override lazy val toString = {
     f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  $dL%+1.4f" +
