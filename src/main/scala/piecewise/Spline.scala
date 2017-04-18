@@ -1,61 +1,69 @@
 package piecewise
 
-import com.twitter.algebird.Interval.InLowExUp
+import com.twitter.algebird.Interval.{InLowExUp, MaybeEmpty}
 import com.twitter.algebird.{Intersection, _}
 import piecewise.Spline.{MakePieceFunctions, SlicePieceFunction}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import Spline._
+import piecewise.intervaltree.IntervalTree
 /**
   * Created by Даниил on 24.01.2017.
   */
-case class Spline[S <: PieceFunction](
-                                functions: Vector[S],
-                                interval: InLowExUp[Double],
-                                findInterval: Line) {
+ class Spline[S <: PieceFunction](private val content: Option[IntervalTree[Double, S]]){
 //TODO add possibility to find interval with some others piece functions types
 
   def apply(x: Double): Double = {
-    if(interval(x)) functions(math.round(findInterval(x)).toInt)(x)
-    else ??? //TODO add decision of method behavior outside of spline interval
+    IntervalTree.find(x, content).get.v.apply(x)
   }
 
-  def sliceUpper[R](to: Double)(implicit slicer: SlicePieceFunction[S]): Spline[S] = {
-    slicer.sliceUpper(this, to)
+  def applyOption(x: Double): Option[Double] = {
+    IntervalTree.find(x, content).map(_.v.apply(x))
   }
 
-  def sliceLower(from: Double)(implicit slicer: SlicePieceFunction[S]): Spline[S] = {
-    slicer.sliceLower(this, from)
+  def der(x: Double): Double = {
+    IntervalTree.find(x, content).get.v.derivative(x)
   }
 
-  def slice(from: Double, to: Double)(implicit slicer: SlicePieceFunction[S]): Spline[S] = {
-   slicer.sliceUpper(slicer.sliceLower(this, from), to)
+  def derOption(x: Double): Option[Double] = {
+    IntervalTree.find(x, content).map(_.v.der(x))
   }
+
+  def integral(x: Double): Double = {
+    IntervalTree.find(x, content).get.v.integral(x)
+  }
+
+  def integralOption(x: Double): Option[Double] = {
+    IntervalTree.find(x, content).map(_.v.integral(x))
+  }
+
+
+
+  def area(lower: Double, upper: Double): Double = ???
+
+  def areaOption(lower: Double, upper: Double): Option[Double] = ???
 
 }
 object Spline{
 
-  def apply[S <: PieceFunction: MakePieceFunctions](
-    args: Line,
-    func: (Double) => Double,
-    interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Spline[S] = {
+  def apply[S <: PieceFunction: MakePieceFunctions](vect: List[(Double, Double)]): Spline[S] = {
     val maker = implicitly[MakePieceFunctions[S]]
-    val argVals = getArgsWithIndexes((i: Int) => args(i), interval)
-    val a = argVals.view.map(x => x._1)
-    val f = a.map(func(_))
-    val functions = maker(a.toList, f.toList, interval)
-    val mapper = a.zipWithIndex.toIndexedSeq
-    val firstX = (mapper(0)._1 + mapper(1)._1) / 2.0
-    val firstY = 0
-    val secondX = (mapper(0)._2 + mapper(1)._2) / 2.0
-    val secondY = mapper.length - 2
-    val argFunc =
-      Line((firstX, firstY.toDouble) :: (secondX, secondY.toDouble) :: Nil).head
-    new Spline[S](functions, interval, argFunc)
+    val pieceFunctions = maker(vect)
+    val initial = (vect, vect drop 1, pieceFunctions).zipped.map{(f, s, pf) =>{
+      (Interval.leftClosedRightOpen(f._1, s._1), pf)
+    }}.collect{
+      case (MaybeEmpty.NotSoEmpty(i: InLowExUp[Double]), func) => (i, func)
+    }.toVector
+    new Spline[S](IntervalTree.apply(initial))
   }
 
+  def empty = new Spline[PieceFunction](None)
+
   abstract class MakePieceFunctions[P <: PieceFunction]{
+
+    def apply(args: List[(Double, Double)]): Vector[P]
+
     def apply(args: (Int) => Double,
               funcs: (Double) => Double,
               interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[P]
@@ -89,6 +97,11 @@ object Spline{
   }
 
   implicit object MakeCHermitPieceFunctions extends MakePieceFunctions[Hermit3]{
+
+    override def apply(vect: List[(Double, Double)]): Vector[Hermit3] = {
+      Hermit3.apply(vect.toList)
+    }
+
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
               interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Hermit3] = {
@@ -103,6 +116,11 @@ object Spline{
   }
 
   implicit object MakeCHermitM1PieceFunctions extends MakePieceFunctions[M1Hermit3]{
+
+    override def apply(vect: List[(Double, Double)]): Vector[M1Hermit3] = {
+      M1Hermit3.apply(vect.toList)
+    }
+
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[M1Hermit3] = {
@@ -117,6 +135,12 @@ object Spline{
   }
 
   implicit object MakeLinePieceFunctions extends MakePieceFunctions[Line]{
+
+    override def apply(vect: List[(Double, Double)]): Vector[Line] = {
+      Line.apply(vect.toList)
+    }
+
+
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Line] = {
@@ -131,6 +155,11 @@ object Spline{
   }
 
   implicit object MakeCLangrangePieceFunctions extends MakePieceFunctions[Lagrange3]{
+
+    override def apply(vect: List[(Double, Double)]): Vector[Lagrange3] = {
+      Lagrange3.apply(vect.toList)
+    }
+
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange3] = {
@@ -148,6 +177,11 @@ object Spline{
   }
 
   implicit object MakeSquarePieceFunctions extends MakePieceFunctions[Lagrange2]{
+
+    override def apply(vect: List[(Double, Double)]): Vector[Lagrange2] = {
+      Lagrange2.apply(vect.toList)
+    }
+
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange2] = {
@@ -160,60 +194,11 @@ object Spline{
                        funcVals: List[Double],
                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange2] = {
       val atInterval = (argVals zip funcVals).filter((point: (Double, Double)) => interval(point._1))
-
       Lagrange2(atInterval)
     }
   }
 
   abstract class SlicePieceFunction[S <: PieceFunction]{
-
-    protected def dropUpper(spline: Spline[S], to: Double): Vector[S] = {
-      import com.twitter.algebird.Intersection._
-      import com.twitter.algebird.Interval._
-      spline.functions.takeWhile(f => {
-          f.interval.intersect(ExclusiveUpper(to)) match{
-            case empty: Empty[_] => true
-            case _ => false
-          }
-        })
-    }
-
-    protected def dropLower(spline: Spline[S], from: Double): Vector[S] = {
-      spline.functions.dropWhile(f => {
-        f.interval.intersect(InclusiveLower(from)) match{
-          case empty: Empty[_] => true
-          case _ => false
-        }
-      })
-    }
-
-    def sliceUpper(spline: Spline[S], to: Double): Spline[S] = {
-      val functions =
-      dropUpper(spline, to).collect(
-        {
-          case f if f.interval.contains(to) => slicePieceFunctionUpper(f, to)
-          case default => default
-        }
-      )
-      spline.copy[S](
-        functions,
-        Intersection(spline.interval.lower, spline.interval.upper.copy(to)),
-        spline.findInterval.sliceUpper(to))
-    }
-
-    def sliceLower(spline: Spline[S], from: Double): Spline[S] = {
-      val functions =
-        dropLower(spline, from).collect(
-          {
-            case f if f.interval.contains(from) => slicePieceFunctionLower(f, from)
-            case default => default
-          }
-        )
-      spline.copy[S](
-        functions,
-        Intersection(spline.interval.lower.copy(from), spline.interval.upper),
-        spline.findInterval.sliceLower(from))
-    }
 
     def slicePieceFunctionUpper(pieceFunc: S, to: Double): S
 
