@@ -9,16 +9,15 @@ import scala.math._
 /** Кусочная кваратичная функция
   * Created by Даниил on 06.02.2016.
   */
-case class Lagrange2(override val coefs: Array[Double],
-                     override val interval: InLowExUp[Double])
-  extends Lagrange(interval) {
+case class Lagrange2(override protected val coefs: Array[Double])
+  extends Lagrange{
 
-   def this(coef: (Double, Double, Double), interval: InLowExUp[Double]) = {
-    this(Array(coef _3, coef _2, coef _1), interval)
+   def this(coef: (Double, Double, Double)) = {
+  this(Array(coef _3, coef _2, coef _1))
   }
 
   def this(v1: (Double, Double), v2: (Double, Double), v3: (Double, Double)) = {
-    this(Lagrange2.polynominals(v1, v2, v3), PieceFunction.makeInterval(v1._1, v3._1))
+    this(Lagrange2.polynominals(v1, v2, v3))
   }
 
   override def apply(x: Double): Double = PieceFunction.quadraticRuleOfHorner(x, coefs(0), coefs(1), coefs(2))
@@ -55,7 +54,7 @@ object Lagrange2 {
     (vals.view, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
       val (a, b, c) = polynominals(v1, v2, v3)
       val interval = PieceFunction.makeInterval(v1._1, v3._1)
-      new Lagrange2(Array(c, b, a), interval)
+      new Lagrange2(Array(c, b, a))
     }} toVector
   }
 
