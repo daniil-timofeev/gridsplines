@@ -28,13 +28,12 @@ import scala.math._
   * @author Тимофеев Д.В. / Timofeev D.V.
   *
   */
-case class Lagrange3(coefs: Array[Double],
-                     override val interval: InLowExUp[Double])
-  extends PieceFunction(interval){
+case class Lagrange3(protected val coefs: Array[Double], protected val low: Double, protected val upp: Double)
+  extends PieceFunction{
 
 
   override def apply(x: Double): Double =
-    PieceFunction.cubicRuleOfHorner(x - lower, coefs(0), coefs(1), coefs(2), coefs(3))
+    PieceFunction.cubicRuleOfHorner(x - low, coefs(0), coefs(1), coefs(2), coefs(3))
 
   private val derD = 3.0 * coefs(3)
   private val derC = 2.0 * coefs(2)
@@ -61,8 +60,7 @@ object Lagrange3{
     val result = Vector.newBuilder[Lagrange3]
 
     while(c.nonEmpty) {
-      val interval = PieceFunction.makeInterval(min(from.head, to.head), max(from.head, to.head))
-      result += new Lagrange3(Array(d.head, c.head, b.head, a.head), interval)
+      result += new Lagrange3(Array(d.head, c.head, b.head, a.head), min(from.head, to.head), max(from.head, to.head))
       a = a.tail; b = b.tail; c = c.tail; d = d.tail; to = to.tail; from = from.tail
     }
     result.result()
