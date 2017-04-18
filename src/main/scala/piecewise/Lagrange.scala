@@ -5,7 +5,7 @@ import PieceFunction._
 /**
   * Created by Даниил on 16.03.2017.
   */
-abstract class Lagrange(override val interval: InLowExUp[Double]) extends Polynomial(interval){
+abstract class Lagrange extends Polynomial{
 
   override def apply(x: Double) = ruleOfGorner(x, coefs: _*)
 
