@@ -13,10 +13,10 @@ import scala.math.{ pow, sqrt }
  * @version 0.5.0
  * @author Даниил
  */
-case class Hermit3(val yL: Double, val yUp: Double,
-                   val dL: Double, val dUp: Double,
-                   override val interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
-  extends Hermit(interval) with Poly3 {
+case class Hermite3(protected val yL: Double, protected val yUp: Double,
+                    protected val dL: Double, protected val dUp: Double,
+                    override protected val low: Double, override protected val upp: Double)
+  extends Hermite(low, upp) with Poly3 {
 
   /**
    * Трансформирует функцию так, чтобы она была монотонной /
@@ -29,7 +29,7 @@ case class Hermit3(val yL: Double, val yUp: Double,
    *           If one smoothness required for all created splines, you may import implicit val from CubicHermitM1 object
    * @return монотонная функция / monotonic function
    */
-  def monotone(implicit fi: String): M1Hermit3 = {
+  def monotone(implicit fi: String): M1Hermite3 = {
 
     def lessOf(a: Double, b: Double): Double = {
       if (a < 0 && a < b) b
@@ -39,64 +39,64 @@ case class Hermit3(val yL: Double, val yUp: Double,
       else math.min(a, b)
     }
 
-    if (alpha.isNaN || beta.isNaN || alpha.isInfinity || beta.isInfinite) M1Hermit3(yL, yUp, 0.0, 0.0, interval)
+    if (alpha.isNaN || beta.isNaN || alpha.isInfinity || beta.isInfinite) M1Hermite3(yL, yUp, 0.0, 0.0, low, upp)
     else {
       fi match {
         case "Smooth" => {
-          M1Hermit3(yL, yUp, lessOf(dL, 3.0 * delta), lessOf(dUp, 3.0 * delta), interval)
+          M1Hermite3(yL, yUp, lessOf(dL, 3.0 * delta), lessOf(dUp, 3.0 * delta), low, upp)
         }
         case "Normal" => {
           val tau = 3 / sqrt(pow(alpha, 2.0) + pow(beta, 2.0))
-          M1Hermit3(yL, yUp, lessOf(dL, tau * alpha * delta), lessOf(dUp, tau * beta * delta), interval)
+          M1Hermite3(yL, yUp, lessOf(dL, tau * alpha * delta), lessOf(dUp, tau * beta * delta), low, upp)
         }
         case "Coarse" => {
-          M1Hermit3(yL, yUp,
+          M1Hermite3(yL, yUp,
             lessOf(dL, 3.0 / (1.0 + beta / alpha) * delta),
             lessOf(dUp, 3.0 / (1.0 + alpha / beta) * delta),
-            interval)
+            low, upp)
         }
         case "Coarsest" => {
           val c = if (alpha > beta) (1.0, 2.0) else (2.0, 1.0)
-          M1Hermit3(yL, yUp,
+          M1Hermite3(yL, yUp,
             lessOf(dL, 3.0 / (c._2 + c._1 * beta / alpha) * delta),
             lessOf(dUp, 3.0 / (c._1 + c._2 * alpha / beta) * delta),
-            interval)
+            low, upp)
         }
       }
     }
   }
 }
-object Hermit3 {
+object Hermite3 {
 
   def exception() = {
     throw new IllegalArgumentException(" размер values должен быть больше или равен двум /" +
       "/ the size of values must equal or more than two")
   }
 
-  def apply(values: List[(Double, Double)]): Vector[Hermit3] = {
+  def apply(values: List[(Double, Double)]): Vector[Hermite3] = {
 
 
     values.sortBy(_ _1) match {
       case Nil => exception()
       case any :: Nil => exception()
-      case v1 :: v2 :: Nil => Vector(new Hermit3(v1._2, v2._2, 0.0, 0.0, PieceFunction.makeInterval(v1._1, v2._1)))
+      case v1 :: v2 :: Nil => Vector(new Hermite3(v1._2, v2._2, 0.0, 0.0, v1._1, v2._1))
       case v1 :: v2 :: v3 :: Nil => {
         val der1 = der(v1, v3)
-        Vector(new Hermit3(v1._2, v2._2, 0.0, der1, PieceFunction.makeInterval(v1._1, v2._1)),
-          new Hermit3(v1._2, v2._2, der1, 0.0, PieceFunction.makeInterval(v2._1, v3._1)))
+        Vector(new Hermite3(v1._2, v2._2, 0.0, der1, v1._1, v2._1),
+               new Hermite3(v1._2, v2._2, der1, 0.0, v2._1, v3._1))
       }
       case vals => {
         val v = vals.toVector
         val dervs = derivatives(v)
         ((v zip (v drop (1))) zip (dervs zip (dervs drop (1)))).map(tuple => {
           val (((x1, y1), (x2, y2)), (d1, d2)) = tuple
-          new Hermit3(y1, y2, d1, d2, PieceFunction.makeInterval(x1, x2))
+          new Hermite3(y1, y2, d1, d2, x1, x2)
         })
       }
     }
   }
 
-  def apply(x: List[Double], y: List[Double]): Vector[Hermit3] = {
+  def apply(x: List[Double], y: List[Double]): Vector[Hermite3] = {
     if (x.length != y.length) throw new IllegalArgumentException("x array length must be same as y array length")
     //TODO Rewrite method to avoid data tupling
     apply(x.zip(y))

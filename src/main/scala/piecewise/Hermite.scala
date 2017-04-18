@@ -6,7 +6,7 @@ import scala.math.{abs, pow, signum}
 /**
   * Created by Даниил on 19.02.2017.
   */
-abstract class Hermit(low: Double, upp: Double) extends Polynomial{
+abstract class Hermite(protected val low: Double, protected val upp: Double) extends Polynomial{
 
   val yL, yUp, dL, dUp : Double
 
@@ -52,7 +52,7 @@ abstract class Hermit(low: Double, upp: Double) extends Polynomial{
   }
 
 }
-object Hermit{
+object Hermite{
 
 
 }

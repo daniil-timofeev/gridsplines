@@ -6,8 +6,7 @@ import com.twitter.algebird._
 /**
   * Created by Даниил on 16.03.2017.
   */
-case class Const(value: Double, override val interval: InLowExUp[Double])
-  extends PieceFunction(interval){
+case class Const(value: Double) extends PieceFunction{
 
   override def apply(x: Double): Double = value
 

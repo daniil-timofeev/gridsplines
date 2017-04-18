@@ -15,8 +15,7 @@ libraryDependencies ++= "org.slf4j" % "slf4j-api" % "1.7.22" ::
                         "ch.qos.logback" % "logback-classic" % "1.1.8" ::
                         "com.twitter" %% "algebird-core" % "0.12.4" ::
                         "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"  ::
-                        "com.lihaoyi" %% "ammonite-ops" % "0.8.1" ::
-                        "xyz.hyperreal" %% "b-tree" % "0.3" :: Nil
+                        "com.lihaoyi" %% "ammonite-ops" % "0.8.1" :: Nil
 
 
 

@@ -6,15 +6,15 @@ import scala.math._
 
 /** Монотонная кусочная кубическая кривая для интерполяции / Monotonic piecewise cubic curve for interpolation
   * Кривая, предназначеная для аппроксимации явлений физической реальности, где требуется монотонность
-  * / Сurve, that serve for approximation physical reality definitions, where is monotonic property required
+  * / Сurve, that serve for approximation physical reality definitions, where monotonic property required
  *
   * @see Fritsch, F. N. Monotone piecewise cubic interpolation
   *      / F. N. Fritsch, R. E. Carlson // SIAM J. Numer. Anal. — 1980. — 17. № 2. — pp. 238 — 246.
   * @version 0.5.0
   * @author Даниил
   */
-case class M1Hermit3(yL: Double, yUp: Double, dL: Double, dUp: Double,
-                     override val interval: InLowExUp[Double]) extends Hermit(interval) with Poly3 {
+case class M1Hermite3(protected val yL: Double, protected val yUp: Double, protected val dL: Double, protected val dUp: Double,
+                      override protected val low: Double, override protected val upp: Double) extends Hermite(low, upp) with Poly3 {
 
   //TODO get desired spline smoothness
   private[this] lazy val fi4 = if(2 * alpha + beta < 3.0 || alpha + 2 * beta < 3.0) true else false
@@ -32,10 +32,10 @@ case class M1Hermit3(yL: Double, yUp: Double, dL: Double, dUp: Double,
     */
   def smoothness = {
     true match {
-      case `fi1` => M1Hermit3 SMOOTH
-      case `fi2` => M1Hermit3 NORMAL
-      case `fi3` => M1Hermit3 COARSE
-      case `fi4` => M1Hermit3 COARSEST
+      case `fi1` => M1Hermite3 SMOOTH
+      case `fi2` => M1Hermite3 NORMAL
+      case `fi3` => M1Hermite3 COARSE
+      case `fi4` => M1Hermite3 COARSEST
       case _ if isMonotone => "Monotone"
       case _ => "No monotone"
     }
@@ -43,14 +43,14 @@ case class M1Hermit3(yL: Double, yUp: Double, dL: Double, dUp: Double,
 
   private def fi = alpha - 1.0 / 3.0 * pow(2.0 * alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
 }
-object M1Hermit3 {
+object M1Hermite3 {
 
   implicit val SMOOTH: String = "Smooth"
   implicit val NORMAL: String = "Normal"
   implicit val COARSE: String = "Coarse"
   implicit val COARSEST: String = "Coarsest"
 
-  def smooth(splines: Vector[M1Hermit3]): Vector[M1Hermit3] = {
+  def smooth(splines: Vector[M1Hermite3]): Vector[M1Hermite3] = {
     if(splines.size == 1) splines.toVector
     else{
       val b = Vector.newBuilder[Double]
@@ -74,13 +74,13 @@ object M1Hermit3 {
       }}
   }}
 
-  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): Vector[M1Hermit3] = {
-    val splines = Hermit3(values)
+  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): Vector[M1Hermite3] = {
+    val splines = Hermite3(values)
     smooth(splines.map(spl => spl.monotone(mType)))
   }
 
-  def apply(x: List[Double], y: List[Double]): Vector[M1Hermit3] = {
-    val splines = Hermit3(x, y)
+  def apply(x: List[Double], y: List[Double]): Vector[M1Hermite3] = {
+    val splines = Hermite3(x, y)
     smooth(splines.map(spl => spl.monotone(COARSE)))
   }
 
