@@ -3,7 +3,7 @@ name := "GridSplines"
 
 version := "0.01"
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.12.2"
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 resolvers += Resolver.bintrayRepo("edadma", "maven")
