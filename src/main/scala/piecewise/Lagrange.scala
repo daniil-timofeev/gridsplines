@@ -11,5 +11,4 @@ abstract class Lagrange extends Polynomial{
 
   override def derivative(x: Double) = ruleOfGorner(x, coefs.drop(1).zipWithIndex map(t => t._1 * (t._2 + 1)): _*)
 
-
 }

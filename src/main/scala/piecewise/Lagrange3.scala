@@ -29,8 +29,9 @@ import scala.math._
   *
   */
 case class Lagrange3(protected val coefs: Array[Double], protected val low: Double, protected val upp: Double)
-  extends PieceFunction{
+  extends PieceFunction with Slicer{
 
+  type SliceType = Lagrange3
 
   override def apply(x: Double): Double =
     PieceFunction.cubicRuleOfHorner(x - low, coefs(0), coefs(1), coefs(2), coefs(3))
@@ -48,6 +49,11 @@ case class Lagrange3(protected val coefs: Array[Double], protected val low: Doub
   override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
 
   override def extremum = ???
+
+
+  def sliceUpper(upper: Double): SliceType = this
+
+  def sliceLower(lower: Double): SliceType = this
 }
 object Lagrange3{
 

@@ -6,9 +6,9 @@ import scala.math.{abs, pow, signum}
 /**
   * Created by Даниил on 19.02.2017.
   */
-abstract class Hermite(protected val low: Double, protected val upp: Double) extends Polynomial{
+abstract class Hermite(protected val low: Double, protected val upp: Double) extends Polynomial with Slicer{
 
-  val yL, yUp, dL, dUp : Double
+  protected val yL, yUp, dL, dUp : Double
 
   if({yL :: yUp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные " +
     " значения функции должны быть вещественными числами / initial values of function must be not NaN")
@@ -50,6 +50,8 @@ abstract class Hermite(protected val low: Double, protected val upp: Double) ext
     f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  $dL%+1.4f" +
       body + f" $yL%+1.4f"
   }
+
+
 
 }
 object Hermite{

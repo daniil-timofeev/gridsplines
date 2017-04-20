@@ -4,8 +4,10 @@ import com.twitter.algebird.{InclusiveLower, Intersection, Monoid}
 import com.twitter.algebird.Interval.InLowExUp
 
 import scala.Option
+import com.twitter.algebird.monad._
+import com.twitter.algebird.monad.Trampoline._
+
 import scala.annotation.tailrec
-import scala.util.control.TailCalls.TailRec
 
 
 /**
@@ -24,7 +26,7 @@ abstract class IntervalTree[K: Ordering, V](val interval: InLowExUp[K], val v: V
 object IntervalTree{
 
   @tailrec
-  def find[K, V](x: K, tree: Option[IntervalTree[K, V]]): Option[IntervalTree[K, V]] = {
+  def find[K: Ordering, V](x: K, tree: Option[IntervalTree[K, V]]): Option[IntervalTree[K, V]] = {
     if(tree.nonEmpty) tree.get match{
       case internal: InternalNode[K, V] =>{
         x match{
@@ -34,20 +36,30 @@ object IntervalTree{
           case _  => None
         }
       }
-      case leaf: Leaf[K, V] =>{
+      case leaf: Leaf[K, V] => {
         if(leaf.interval.contains(x)) tree else None
     }
   } else None
 }
 
-  def apply[K: Ordering, V](list: Vector[(InLowExUp[K], V)]): Option[IntervalTree[K, V]] = {
-    val sorted = list.sortBy(t => t._1)
-    buildLeft(sorted).result
+  def apply[K: Ordering, V](vect: Vector[(InLowExUp[K], V)]): Option[IntervalTree[K, V]] = {
+
+    implicit object Ordering extends Ordering[InLowExUp[K]]{
+      override def compare(x: InLowExUp[K], y: InLowExUp[K]): Int =
+        if(x.lower.contains(y.lower.lower)){
+          if(x.upper.contains(y.upper.upper)) 0
+          else - 1
+        }
+        else if(y.lower.contains(x.lower.lower) && y.upper.contains(x.upper.upper)) 0
+        else 1
+    }
+
+    val sorted = vect.sortBy(t => t._1)
+    Trampoline.run(buildLeft(sorted))
   }
 
-  import scala.util.control.TailCalls._
 
-  def area[K: Ordering, V](lower: K, upper: K, tree: Option[IntervalTree[K, V]]): TailRec[List[(InLowExUp[K], V)]] = {
+  def area[K: Ordering, V](lower: K, upper: K, tree: Option[IntervalTree[K, V]]): Trampoline[List[(InLowExUp[K], V)]] = {
     def contain(interval: InLowExUp[K]): Boolean = {
       interval.lower.contains(upper) || interval.upper.contains(lower)
     }
@@ -56,30 +68,33 @@ object IntervalTree{
       case Some(InternalNode(interval, v, left, right)) => {
         val mid = if(contain(interval)) (interval, v) :: Nil else Nil
         for{
-          l <- tailcall(area[K, V](lower, upper, left))
-          r <- tailcall(area[K, V](lower, upper, right))
+          l <- call(area[K, V](lower, upper, left))
+          r <- call(area[K, V](lower, upper, right))
         }yield{ l ::: mid ::: r }
       }
-      case Some(Leaf(interval, v)) if contain(interval) => done((interval, v) :: Nil)
-      case _ => done(Nil)
+      case Some(Leaf(interval, v)) if contain(interval) => Done((interval, v) :: Nil)
+      case _ => Done(Nil)
     }
   }
 
-  def toVector[K, V](tree: Option[IntervalTree[K, V]]): TailRec[Vector[(InLowExUp[K], V)]] = {
+  def toVector[K: Ordering, V](tree: Option[IntervalTree[K, V]]): Trampoline[Vector[(InLowExUp[K], V)]] = {
     tree match{
-      case None => done(Vector.empty[(InLowExUp[K], V)])
+      case None => Done(Vector.empty[(InLowExUp[K], V)])
 
       case Some(InternalNode(interval, v, left, right)) => {
         for {
-          l: Vector[(InLowExUp[K], V)] <- tailcall(toVector(left))
-          r: Vector[(InLowExUp[K], V)] <- tailcall(toVector(right))
-        } yield l ++ Vector[(InLowExUp[K], V)](interval, v) ++ r
+          l <- call(toVector(left))
+          r <- call(toVector(right))
+        } yield {
+          l ++ Vector[(InLowExUp[K], V)]((interval, v)) ++ r
+        }
       }
-      case Some(Leaf(interval, v)) => done(Vector((interval, v)))
+      case Some(Leaf(interval, v)) => Done(Vector((interval, v)))
     }
   }
 
-  case class InternalNode[K, V](override val interval: InLowExUp[K],
+  case class InternalNode[K: Ordering, V](
+                                           override val interval: InLowExUp[K],
                                 override val v: V,
                                 left: Option[IntervalTree[K, V]],
                                 right: Option[IntervalTree[K, V]]) extends IntervalTree[K, V](interval, v){
@@ -88,8 +103,11 @@ object IntervalTree{
     }
 
 
+    implicit def monoid[K: Ordering, V] = Monoid.from[Option[IntervalTree[K, V]]](None)((l, r) =>{
+      val vect = Trampoline.run(toVector(l)) ++ Trampoline.run(toVector(r))
+      IntervalTree.apply(vect)
+    })
 
-    override
     def sliceUpper(x: K): IntervalTree[K, V] = {
       x match{
         case center if interval.contains(x) => {
@@ -104,7 +122,6 @@ object IntervalTree{
       }
     }
 
-    override
     def sliceLower(x: K): IntervalTree[K, V] = {
       x match{
         case center if interval.contains(x) => {
@@ -123,22 +140,17 @@ object IntervalTree{
 
   }
 
-  case class Leaf[K, V](override val interval: InLowExUp[K], override val v: V) extends IntervalTree[K, V](interval, v){
+  case class Leaf[K: Ordering, V](override val interval: InLowExUp[K], override val v: V) extends IntervalTree[K, V](interval, v){
+
     def this(map: (InLowExUp[K], V)){
       this(map._1, map._2)
     }
 
-    def find(k: K): IntervalTree[K, V] = {
-      if(interval.contains(k)) this else ???
-    }
-
-    override
     def sliceUpper(x: K): IntervalTree[K, V] = {
       if(interval.contains(x)) this.copy(interval = Intersection.apply(interval.lower, interval.upper.copy(x)))
       else this //assumed what intervals  at tree are continuous
     }
 
-    override
     def sliceLower(x: K): IntervalTree[K, V] = {
       if(interval.contains(x)) this.copy(interval = Intersection.apply(interval.lower.copy(x), interval.upper))
       else this //assumed what intervals at tree are continuous
@@ -146,14 +158,12 @@ object IntervalTree{
 
   }
 
-
-
-  final def buildLeft[K, V](vals: Vector[(InLowExUp[K], V)]): TailRec[Option[IntervalTree[K, V]]] = {
+  final def buildLeft[K: Ordering, V](vals: Vector[(InLowExUp[K], V)]): Trampoline[Option[IntervalTree[K, V]]] = {
     vals match{
-      case Vector(one) => done(Some(new Leaf[K, V](one)))
-      case Vector(leaf, internal) => done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leaf)), None)))
+      case Vector(one) => Done(Some(new Leaf[K, V](one)))
+      case Vector(leaf, internal) => Done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leaf)), None)))
       case Vector(leftLeaf, internal, rightLeaf) => {
-        done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leftLeaf)), Some(new Leaf[K, V](rightLeaf)))))
+        Done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leftLeaf)), Some(new Leaf[K, V](rightLeaf)))))
       }
       case default: Vector[((InLowExUp[K], V))] => {
         val size = vals.size - 1
@@ -162,18 +172,18 @@ object IntervalTree{
           else size / 2
         val rightSize = size - leftSize - 1
         for{
-          leftNode: Option[IntervalTree[K, V]] <- tailcall(buildLeft(default.take(leftSize)))
-          rightNode: Option[IntervalTree[K, V]] <- tailcall(buildRight(default.takeRight(rightSize)))
+          leftNode <- call(buildLeft(default.take(leftSize)))
+          rightNode <- call(buildRight(default.takeRight(rightSize)))
         } yield Some(new InternalNode[K, V](default(leftSize), leftNode, rightNode))
       }
     }}
 
-  final def buildRight[K, V](vals: Vector[(InLowExUp[K], V)]): TailRec[Option[IntervalTree[K, V]]] = {
+  final def buildRight[K: Ordering, V](vals: Vector[(InLowExUp[K], V)]): Trampoline[Option[IntervalTree[K, V]]] = {
     vals match{
-      case Vector(one) => done(Some(new Leaf[K, V](one)))
-      case Vector(internal, leaf) => done(Some(new InternalNode[K, V](internal, None, Some(new Leaf[K, V](leaf)))))
+      case Vector(one) => Done(Some(new Leaf[K, V](one)))
+      case Vector(internal, leaf) => Done(Some(new InternalNode[K, V](internal, None, Some(new Leaf[K, V](leaf)))))
       case Vector(leftLeaf, internal, rightLeaf) => {
-        done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leftLeaf)), Some(new Leaf[K, V](rightLeaf)))))
+        Done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leftLeaf)), Some(new Leaf[K, V](rightLeaf)))))
       }
       case default: Vector[((InLowExUp[K], V))] => {
         val size = vals.size - 1
@@ -182,8 +192,8 @@ object IntervalTree{
           else size / 2
         val rightSize = size - leftSize - 1
         for{
-          leftNode: Option[IntervalTree[K, V]] <- tailcall(buildLeft(default.take(leftSize)))
-          rightNode: Option[IntervalTree[K, V]] <- tailcall(buildRight(default.takeRight(rightSize)))
+          leftNode <- call(buildLeft(default.take(leftSize)))
+          rightNode <- call(buildRight(default.takeRight(rightSize)))
         } yield Some(new InternalNode[K, V](default(leftSize), leftNode, rightNode))
       }
     }

@@ -14,7 +14,9 @@ import scala.math._
   * @author Даниил
   */
 case class M1Hermite3(protected val yL: Double, protected val yUp: Double, protected val dL: Double, protected val dUp: Double,
-                      override protected val low: Double, override protected val upp: Double) extends Hermite(low, upp) with Poly3 {
+                      override protected val low: Double, override protected val upp: Double) extends Hermite(low, upp) with Poly3{
+
+  type SliceType = M1Hermite3
 
   //TODO get desired spline smoothness
   private[this] lazy val fi4 = if(2 * alpha + beta < 3.0 || alpha + 2 * beta < 3.0) true else false
@@ -40,6 +42,10 @@ case class M1Hermite3(protected val yL: Double, protected val yUp: Double, prote
       case _ => "No monotone"
     }
   }
+
+  def sliceUpper(upper: Double): SliceType = this.copy(yUp = apply(upper), dUp = derivative(upper), upp = upper)
+
+  def sliceLower(lower: Double): SliceType = this.copy(yL = apply(lower), dL = derivative(lower), low = lower)
 
   private def fi = alpha - 1.0 / 3.0 * pow(2.0 * alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
 }

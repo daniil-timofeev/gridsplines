@@ -10,7 +10,9 @@ import scala.math._
   * Created by Даниил on 06.02.2016.
   */
 case class Lagrange2(override protected val coefs: Array[Double])
-  extends Lagrange{
+  extends Lagrange with Slicer{
+
+  type SliceType = Lagrange2
 
    def this(coef: (Double, Double, Double)) = {
   this(Array(coef _3, coef _2, coef _1))
@@ -45,6 +47,11 @@ case class Lagrange2(override protected val coefs: Array[Double])
     else if (value > 100.0) formatKey(value / 10, power + 1)
     else f"$value%1.2f" + "·" + f"10^$power%1.0f"
   }
+
+
+  def sliceUpper(upper: Double): SliceType = this
+
+  def sliceLower(lower: Double): SliceType = this
 
 }
 object Lagrange2 {

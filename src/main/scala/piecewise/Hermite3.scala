@@ -18,6 +18,7 @@ case class Hermite3(protected val yL: Double, protected val yUp: Double,
                     override protected val low: Double, override protected val upp: Double)
   extends Hermite(low, upp) with Poly3 {
 
+  type SliceType = Hermite3
   /**
    * Трансформирует функцию так, чтобы она была монотонной /
    * Transform function to make it monotone
@@ -65,6 +66,10 @@ case class Hermite3(protected val yL: Double, protected val yUp: Double,
       }
     }
   }
+  def sliceUpper(upper: Double): SliceType = this.copy(yUp = apply(upper), dUp = derivative(upper), upp = upper)
+
+  def sliceLower(lower: Double): SliceType = this.copy(yL = apply(lower), dL = derivative(lower), low = lower)
+
 }
 object Hermite3 {
 
