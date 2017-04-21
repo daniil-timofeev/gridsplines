@@ -6,9 +6,9 @@ import scala.math.{abs, pow, signum}
 /**
   * Created by Даниил on 19.02.2017.
   */
-abstract class Hermite(protected val low: Double, protected val upp: Double) extends Polynomial with Slicer{
+abstract class Hermite extends Polynomial with Slicer{
 
-  protected val yL, yUp, dL, dUp : Double
+  protected val low, upp, yL, yUp, dL, dUp : Double
 
   if({yL :: yUp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные " +
     " значения функции должны быть вещественными числами / initial values of function must be not NaN")

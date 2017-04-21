@@ -16,8 +16,8 @@ import scala.math.{pow, sqrt}
  */
 case class Hermite3(protected val yL: Double, protected val yUp: Double,
                     protected val dL: Double, protected val dUp: Double,
-                    override protected val low: Double, override protected val upp: Double)
-  extends Hermite(low, upp) with Poly3 {
+                    protected val low: Double, protected val upp: Double)
+  extends Hermite with Poly3 {
 
   type SliceType = Hermite3
   /**
