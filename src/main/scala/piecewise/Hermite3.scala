@@ -1,8 +1,9 @@
 package piecewise
 
-import com.twitter.algebird.{ ExclusiveUpper, InclusiveLower, Intersection }
+import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
 
-import scala.math.{ pow, sqrt }
+import scala.collection.mutable.ListBuffer
+import scala.math.{pow, sqrt}
 
 /**
  * Монотонная кусочная кубическая кривая для интерполяции / Monotonic piecewise cubic curve for interpolation
@@ -91,13 +92,12 @@ object Hermite3 {
                new Hermite3(v1._2, v2._2, der1, 0.0, v2._1, v3._1))
       }
       case vals => {
-        val v = vals.toVector
-        val dervs = derivatives(v)
-        ((v zip (v drop (1))) zip (dervs zip (dervs drop (1)))).map(tuple => {
+        val dervs = derivatives(vals)
+        ((vals zip (vals drop 1)) zip (dervs zip (dervs drop (1)))).map(tuple => {
           val (((x1, y1), (x2, y2)), (d1, d2)) = tuple
           new Hermite3(y1, y2, d1, d2, x1, x2)
         })
-      }
+      }.toVector
     }
   }
 
@@ -107,10 +107,9 @@ object Hermite3 {
     apply(x.zip(y))
   }
 
-  private def derivatives(values: Vector[(Double, Double)]): Vector[Double] = {
+  private def derivatives(values: List[(Double, Double)]): List[Double] = {
     val onBound = boundDervs(values)
-    List.newBuilder[Double]
-    val b = Vector.newBuilder[Double]
+    val b = ListBuffer.empty[Double]
     b += onBound._1
     for (i <- 2 until values.size) {
       b += der(values(i - 2), values(i))
@@ -119,12 +118,14 @@ object Hermite3 {
     b.result()
   }
 
-  private def boundDervs(values: Vector[(Double, Double)]) = {
+  private def boundDervs(values: List[(Double, Double)]) = {
     val rightVals = values takeRight 2
     val der1 = der(values.head, values.tail.head)
     val der2 = der(rightVals.head, rightVals.tail.head)
     (der1, der2)
   }
+
+
 
   private def der(xy1: (Double, Double), xy2: (Double, Double)) = (xy2._2 - xy1._2) / (xy2._1 - xy1._1)
 
