@@ -312,7 +312,7 @@ object PieceFunction{
         val b = coll.tail.head
         val c = coll.tail.tail.head
         val first = coll.dropRight(1)
-        (value : @switch) match{
+        value match{
           case `a` => List((a, firstIndex), (b, firstIndex))
           case `b` => List((b, firstIndex + 1), (b, firstIndex + 1))
           case `c` => List((c, firstIndex + 2), (c, firstIndex + 2))

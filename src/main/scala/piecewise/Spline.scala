@@ -45,13 +45,14 @@ import piecewise.intervaltree.IntervalTree
 object Spline{
 
   def apply[S <: PieceFunction: MakePieceFunctions](vect: List[(Double, Double)]): Spline[S] = {
+    val v = vect.sortBy(_._1)
     val maker = implicitly[MakePieceFunctions[S]]
-    val pieceFunctions = maker(vect)
-    val initial = (vect, vect drop 1, pieceFunctions).zipped.map{(f, s, pf) =>{
-      (Interval.leftClosedRightOpen(f._1, s._1), pf)
-    }}.collect{
-      case (MaybeEmpty.NotSoEmpty(i: InLowExUp[Double]), func) => (i, func)
-    }.toVector
+    val pieceFunctions = maker(v)
+    val initial = {{v zip {v drop 1}} zip pieceFunctions}
+      .collect{
+        case((f, s), pf) if (f._1 < s._1) =>{
+      (Intersection.apply(InclusiveLower(f._1), ExclusiveUpper(s._1)), pf)
+    }}
     new Spline[S](IntervalTree.apply(initial))
   }
 
@@ -59,15 +60,15 @@ object Spline{
 
   abstract class MakePieceFunctions[P <: PieceFunction]{
 
-    def apply(args: List[(Double, Double)]): Vector[P]
+    def apply(args: List[(Double, Double)]): List[P]
 
     def apply(args: (Int) => Double,
               funcs: (Double) => Double,
-              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[P]
+              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[P]
 
     def apply(argVals: List[Double],
               funcVals: List[Double],
-              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[P]
+              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[P]
   }
 
   @tailrec
@@ -84,8 +85,8 @@ object Spline{
 
   @tailrec final def getArgsWithIndexes(args: (Int) => Double,
                                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double],
-                                      res: collection.mutable.Builder[(Double, Int), Vector[(Double, Int)]] = Vector.newBuilder[(Double, Int)],
-                                      i: Int = 0): Vector[(Double, Int)] = {
+                                      res: ListBuffer[(Double, Int)] = ListBuffer.empty[(Double, Int)],
+                                      i: Int = 0): List[(Double, Int)] = {
     i match{
       case in if interval(args(i)) => getArgsWithIndexes(args, interval, res += Tuple2(args(i), i), i + 1)
       case before if !interval(args(i)) && interval.upper(args(i)) => getArgsWithIndexes(args, interval, res, i + 1)
@@ -95,13 +96,13 @@ object Spline{
 
   implicit object MakeCHermitPieceFunctions extends MakePieceFunctions[Hermite3]{
 
-    override def apply(vect: List[(Double, Double)]): Vector[Hermite3] = {
-      Hermite3.apply(vect.toList)
+    override def apply(vect: List[(Double, Double)]): List[Hermite3] = {
+      Hermite3.apply(vect)
     }
 
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
-              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Hermite3] = {
+              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Hermite3] = {
       val argVals = makeArgsFromFunc(args, interval)
       Hermite3(argVals, argVals.map(funcs(_)))
     }
@@ -114,13 +115,13 @@ object Spline{
 
   implicit object MakeCHermitM1PieceFunctions extends MakePieceFunctions[M1Hermite3]{
 
-    override def apply(vect: List[(Double, Double)]): Vector[M1Hermite3] = {
-      M1Hermite3.apply(vect.toList)
+    override def apply(vect: List[(Double, Double)]): List[M1Hermite3] = {
+      M1Hermite3.apply(vect)
     }
 
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[M1Hermite3] = {
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[M1Hermite3] = {
       val argVals = makeArgsFromFunc(args, interval)
       M1Hermite3(argVals, argVals map (funcs(_)))
     }
@@ -128,19 +129,19 @@ object Spline{
     //TODO implement typeclass apply() method with separated argument a function values
     override def apply(argVals: List[Double],
                        funcVals: List[Double],
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[M1Hermite3] = ???
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[M1Hermite3] = ???
   }
 
   implicit object MakeLinePieceFunctions extends MakePieceFunctions[Line]{
 
-    override def apply(vect: List[(Double, Double)]): Vector[Line] = {
-      Line.apply(vect.toList)
+    override def apply(vect: List[(Double, Double)]): List[Line] = {
+      Line.apply(vect)
     }
 
 
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Line] = {
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Line] = {
       val argVals = makeArgsFromFunc(args, interval)
       Line(argVals, argVals map(funcs(_)))
     }
@@ -148,18 +149,18 @@ object Spline{
     //TODO implement typeclass apply() method with separated argument a function values
     override def apply(argVals: List[Double],
                        funcVals: List[Double],
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Line] = ???
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Line] = ???
   }
 
   implicit object MakeCLangrangePieceFunctions extends MakePieceFunctions[Lagrange3]{
 
-    override def apply(vect: List[(Double, Double)]): Vector[Lagrange3] = {
-      Lagrange3.apply(vect.toList)
+    override def apply(vect: List[(Double, Double)]): List[Lagrange3] = {
+      Lagrange3.apply(vect)
     }
 
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange3] = {
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Lagrange3] = {
       val argVals = makeArgsFromFunc(args, interval)
       Lagrange3(argVals.map(x => (x, funcs(x))))
     }
@@ -167,7 +168,7 @@ object Spline{
     //TODO implement type class apply() method with separated argument a function values
     override def apply(argVals: List[Double],
                        funcVals: List[Double],
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange3] = {
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Lagrange3] = {
       val atInterval = (argVals zip funcVals).filter((point: (Double, Double)) => interval(point._1))
       Lagrange3(atInterval)
     }
@@ -175,13 +176,13 @@ object Spline{
 
   implicit object MakeSquarePieceFunctions extends MakePieceFunctions[Lagrange2]{
 
-    override def apply(vect: List[(Double, Double)]): Vector[Lagrange2] = {
+    override def apply(vect: List[(Double, Double)]): List[Lagrange2] = {
       Lagrange2.apply(vect.toList)
     }
 
     override def apply(args: (Int) => Double,
                        funcs: (Double) => Double,
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange2] = {
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Lagrange2] = {
       val argVals = makeArgsFromFunc(args, interval)
       Lagrange2(argVals.map(x => (x, funcs(x))))
     }
@@ -189,7 +190,7 @@ object Spline{
     //TODO implement type class apply() method with separated argument a function values
     override def apply(argVals: List[Double],
                        funcVals: List[Double],
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Vector[Lagrange2] = {
+                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): List[Lagrange2] = {
       val atInterval = (argVals zip funcVals).filter((point: (Double, Double)) => interval(point._1))
       Lagrange2(atInterval)
     }

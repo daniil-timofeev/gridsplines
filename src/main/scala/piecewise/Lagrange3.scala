@@ -57,13 +57,13 @@ case class Lagrange3(protected val coefs: Array[Double], protected val low: Doub
 }
 object Lagrange3{
 
-  def apply(values : List[Tuple2[Double, Double]]): Vector[Lagrange3] = {
+  def apply(values : List[Tuple2[Double, Double]]): List[Lagrange3] = {
     var c = cCoefs(values)
     var d = dCoefs(values, c)
     var b = bCoefs(values, c, d)
     var a = aCoefs(values)
     var to = values.drop(1).map(_._1); var from = values.map(_._1)
-    val result = Vector.newBuilder[Lagrange3]
+    val result = ListBuffer.empty[Lagrange3]
 
     while(c.nonEmpty) {
       result += new Lagrange3(Array(d.head, c.head, b.head, a.head), min(from.head, to.head), max(from.head, to.head))

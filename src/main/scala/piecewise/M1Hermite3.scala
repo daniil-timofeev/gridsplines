@@ -2,6 +2,7 @@ package piecewise
 import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
 
+import scala.collection.mutable.ListBuffer
 import scala.math._
 
 /** Монотонная кусочная кубическая кривая для интерполяции / Monotonic piecewise cubic curve for interpolation
@@ -13,81 +14,94 @@ import scala.math._
   * @version 0.5.0
   * @author Даниил
   */
-case class M1Hermite3(protected val yL: Double, protected val yUp: Double, protected val dL: Double, protected val dUp: Double,
-                      protected val low: Double, protected val upp: Double) extends Hermite with Poly3{
+case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 
   type SliceType = M1Hermite3
 
   //TODO get desired spline smoothness
-  private[this] lazy val fi4 = if(2 * alpha + beta < 3.0 || alpha + 2 * beta < 3.0) true else false
+  //private[this] lazy val fi4 = if(2 * alpha + beta < 3.0 || alpha + 2 * beta < 3.0) true else false
 
-  private[this] lazy val fi3 = if(alpha + beta < 3 || fi4 == false) true else false
+ // private[this] lazy val fi3 = if(alpha + beta < 3 || fi4 == false) true else false
 
-  private[this] lazy val fi2 = if(sqrt(pow(alpha,2) + pow(beta,2)) < 3.0 || fi3 == false) true else false
+ // private[this] lazy val fi2 = if(sqrt(pow(alpha,2) + pow(beta,2)) < 3.0 || fi3 == false) true else false
 
-  private[this] lazy val fi1 = if(alpha < 0.3 && beta < 0.3 || fi2 == false) true else false
+ // private[this] lazy val fi1 = if(alpha < 0.3 && beta < 0.3 || fi2 == false) true else false
 
   /** Гладкость сплайна / Spline smoothness
     *
     * @return строку со значениями "Smooth", "Normal", "Coarse", "Coarsest", в зависимости от гладкости /
     *         string with "Smooth", "Normal", "Coarse", "Coarsest", in dependence of curve smoothness
     */
-  def smoothness = {
-    true match {
-      case `fi1` => M1Hermite3 SMOOTH
-      case `fi2` => M1Hermite3 NORMAL
-      case `fi3` => M1Hermite3 COARSE
-      case `fi4` => M1Hermite3 COARSEST
-      case _ if isMonotone => "Monotone"
-      case _ => "No monotone"
-    }
-  }
+ // def smoothness = {
+  //  true match {
+  //    case `fi1` => M1Hermite3 SMOOTH
+  //    case `fi2` => M1Hermite3 NORMAL
+  //    case `fi3` => M1Hermite3 COARSE
+  //    case `fi4` => M1Hermite3 COARSEST
+  //    case _ if isMonotone => "Monotone"
+ //     case _ => "No monotone"
+ //   }
+ // }
 
-  def sliceUpper(upper: Double): SliceType = this.copy(yUp = apply(upper), dUp = derivative(upper), upp = upper)
+  def sliceUpper(upper: Double): SliceType = this
 
-  def sliceLower(lower: Double): SliceType = this.copy(yL = apply(lower), dL = derivative(lower), low = lower)
+  def sliceLower(lower: Double): SliceType = this
 
-  private def fi = alpha - 1.0 / 3.0 * pow(2.0 * alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
+  /** Экстремум функции `x`
+    * Extremum of function `x`
+    *
+    * @return экстремумы функции / extremums of function */
+
+  override protected def extremum: List[Double] = ???
+
 }
 object M1Hermite3 {
 
-  implicit val SMOOTH: String = "Smooth"
-  implicit val NORMAL: String = "Normal"
-  implicit val COARSE: String = "Coarse"
-  implicit val COARSEST: String = "Coarsest"
 
-  def smooth(splines: Vector[M1Hermite3]): Vector[M1Hermite3] = {
-    if(splines.size == 1) splines.toVector
-    else{
-      val b = Vector.newBuilder[Double]
-      /* На границе */
-      val (lowBound, upBound) = (splines.head.dL, splines.last.dUp)
-      b += lowBound
-      b += upBound
-      /* Производные */
-
-      (splines.view, splines drop 1).zipped.map{(spl1, spl2) => min(spl1.dUp, spl2.dL)}.foreach(b += _)
-      val derivatives = b.result()
-      (splines, derivatives, derivatives drop 1).zipped.map{(spline, dd, dd1) => {
-        val copied = spline.copy(dL = dd, dUp = dd1)
-        spline match {
-          case spl if copied.isMonotone => copied
-          case spl if spl.isMonotone => spl
-          case spl if spl.copy(dUp = dd1).isMonotone => spl.copy(dUp = dd1)
-          case spl  if spl.copy(dL = dd).isMonotone => spl.copy(dL = dd)
-          case spl => spl
-        }
-      }}
-  }}
-
-  def apply(values: List[(Double, Double)])(implicit mType: String = COARSE): Vector[M1Hermite3] = {
-    val splines = Hermite3(values)
-    smooth(splines.map(spl => spl.monotone(mType)))
+  def constructSpline(source: (Double, Double, Double, Double, Double, Double)): M1Hermite3 = {
+    val (yLow, yUpp, sdLow, sdUpp, xLow, xUpp) = source
+    val delta = Hermite3.delta(yLow, yUpp, xLow, xUpp)
+    val h = Hermite3.h(xLow, xUpp)
+    val coefs: Array[Double] = Array(
+        yLow, sdLow,
+        (-2.0 * sdLow - sdUpp + 3.0 * delta) / h,
+        (sdLow + sdUpp - 2.0 * delta) / pow(h, 2.0)
+    )
+    M1Hermite3(coefs, xLow)
   }
 
-  def apply(x: List[Double], y: List[Double]): Vector[M1Hermite3] = {
-    val splines = Hermite3(x, y)
-    smooth(splines.map(spl => spl.monotone(COARSE)))
+  def smoothness(prev: (Double, Double, Double, Double, Double, Double),
+                 next: (Double, Double, Double, Double, Double, Double))
+                     : (Double, Double, Double, Double, Double, Double) = {
+    val (_, _, _, dLeft, _, _) = prev
+    val (_, _, dRight, _, _, _) = next
+    val der = signum(dLeft) * min(abs(dRight), abs(dLeft))
+    prev.copy(_4 = der)
+  }
+
+  def apply(values: List[(Double, Double)]): List[M1Hermite3] = {
+    import Hermite3._
+    val sources = Hermite3.makeSources(values)
+      .map(monothone(_)(Normal)).iterator
+
+    val buffer = ListBuffer.empty[M1Hermite3]
+
+    var prevous = sources.next()
+    if(sources.hasNext) {
+      while (sources.hasNext) {
+        val next = sources.next()
+        val source = smoothness(prevous, next)
+        buffer += constructSpline(source)
+        if(sources.isEmpty) buffer += constructSpline(next.copy(_3 = prevous._4))
+        prevous = next
+      }
+    }
+    else buffer += constructSpline(prevous)
+    buffer.result()
+  }
+
+  def apply(x: List[Double], y: List[Double]): List[M1Hermite3] = {
+      ???
   }
 
 }

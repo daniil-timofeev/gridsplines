@@ -42,7 +42,7 @@ object IntervalTree{
   } else None
 }
 
-  def apply[K: Ordering, V](vect: Vector[(InLowExUp[K], V)]): Option[IntervalTree[K, V]] = {
+  def apply[K: Ordering, V](vect: List[(InLowExUp[K], V)]): Option[IntervalTree[K, V]] = {
 
     implicit object Ordering extends Ordering[InLowExUp[K]]{
       override def compare(x: InLowExUp[K], y: InLowExUp[K]): Int =
@@ -77,36 +77,35 @@ object IntervalTree{
     }
   }
 
-  def toVector[K: Ordering, V](tree: Option[IntervalTree[K, V]]): Trampoline[Vector[(InLowExUp[K], V)]] = {
+  def toList[K: Ordering, V](tree: Option[IntervalTree[K, V]]): Trampoline[List[(InLowExUp[K], V)]] = {
     tree match{
-      case None => Done(Vector.empty[(InLowExUp[K], V)])
-
+      case None => Done(List.empty[(InLowExUp[K], V)])
       case Some(InternalNode(interval, v, left, right)) => {
         for {
-          l <- call(toVector(left))
-          r <- call(toVector(right))
+          l <- call(toList(left))
+          r <- call(toList(right))
         } yield {
-          l ++ Vector[(InLowExUp[K], V)]((interval, v)) ++ r
+          l ::: List[(InLowExUp[K], V)]((interval, v)) ::: r
         }
       }
-      case Some(Leaf(interval, v)) => Done(Vector((interval, v)))
+      case Some(Leaf(interval, v)) => Done(List((interval, v)))
     }
   }
 
   case class InternalNode[K: Ordering, V](
-                                           override val interval: InLowExUp[K],
-                                override val v: V,
-                                left: Option[IntervalTree[K, V]],
-                                right: Option[IntervalTree[K, V]]) extends IntervalTree[K, V](interval, v){
+  override val interval: InLowExUp[K],
+  override val v: V,
+  left: Option[IntervalTree[K, V]],
+  right: Option[IntervalTree[K, V]]) extends IntervalTree[K, V](interval, v){
     def this(map: (InLowExUp[K], V), left: Option[IntervalTree[K, V]], right: Option[IntervalTree[K, V]]){
       this(map._1, map._2, left, right)
     }
 
-
     implicit def monoid[K: Ordering, V] = Monoid.from[Option[IntervalTree[K, V]]](None)((l, r) =>{
-      val vect = Trampoline.run(toVector(l)) ++ Trampoline.run(toVector(r))
+      val vect = Trampoline.run(toList(l)) ::: Trampoline.run(toList(r))
       IntervalTree.apply(vect)
     })
+
 
     def sliceUpper(x: K): IntervalTree[K, V] = {
       x match{
@@ -158,14 +157,19 @@ object IntervalTree{
 
   }
 
-  final def buildLeft[K: Ordering, V](vals: Vector[(InLowExUp[K], V)]): Trampoline[Option[IntervalTree[K, V]]] = {
+  final def buildLeft[K: Ordering, V](vals: List[(InLowExUp[K], V)]): Trampoline[Option[IntervalTree[K, V]]] = {
     vals match{
-      case Vector(one) => Done(Some(new Leaf[K, V](one)))
-      case Vector(leaf, internal) => Done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leaf)), None)))
-      case Vector(leftLeaf, internal, rightLeaf) => {
-        Done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leftLeaf)), Some(new Leaf[K, V](rightLeaf)))))
+      case one :: Nil => Done(Some(new Leaf[K, V](one)))
+      case leaf :: internal :: Nil => {
+        val l = new Leaf(leaf)
+        Done(Some(new InternalNode[K, V](internal, Some(l), None)))
       }
-      case default: Vector[((InLowExUp[K], V))] => {
+      case leftLeaf :: internal :: rightLeaf :: Nil => {
+        val left = new Leaf(leftLeaf)
+        val right = new Leaf(rightLeaf)
+        Done(Some(new InternalNode(internal, Some(left), Some(right))))
+      }
+      case default: List[((InLowExUp[K], V))] => {
         val size = vals.size - 1
         val leftSize =
           if(size % 2 == 0) (size + 1) / 2
@@ -178,14 +182,19 @@ object IntervalTree{
       }
     }}
 
-  final def buildRight[K: Ordering, V](vals: Vector[(InLowExUp[K], V)]): Trampoline[Option[IntervalTree[K, V]]] = {
+  final def buildRight[K: Ordering, V](vals: List[(InLowExUp[K], V)]): Trampoline[Option[IntervalTree[K, V]]] = {
     vals match{
-      case Vector(one) => Done(Some(new Leaf[K, V](one)))
-      case Vector(internal, leaf) => Done(Some(new InternalNode[K, V](internal, None, Some(new Leaf[K, V](leaf)))))
-      case Vector(leftLeaf, internal, rightLeaf) => {
-        Done(Some(new InternalNode[K, V](internal, Some(new Leaf[K, V](leftLeaf)), Some(new Leaf[K, V](rightLeaf)))))
+      case one :: Nil => Done(Some(new Leaf(one)))
+      case internal :: leaf :: Nil => {
+        val l = new Leaf(leaf)
+        Done(Some(new InternalNode[K, V](internal, None, Some(l))))
       }
-      case default: Vector[((InLowExUp[K], V))] => {
+      case leftLeaf :: internal :: rightLeaf :: Nil=> {
+        val left = new Leaf(leftLeaf)
+        val right = new Leaf(rightLeaf)
+        Done(Some(new InternalNode[K, V](internal, Some(left), Some(right))))
+      }
+      case default: List[((InLowExUp[K], V))] => {
         val size = vals.size - 1
         val leftSize =
           if(size % 2 == 0) (size - 1) / 2

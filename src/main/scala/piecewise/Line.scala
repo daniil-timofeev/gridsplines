@@ -64,7 +64,7 @@ object Line{
 
   def derivative(yUp: Double, yL: Double, upp: Double, low: Double): Double = (yUp - yL) / (upp - low)
 
-  def apply(argVals: List[Double], funVals: List[Double]): Vector[Line] = {
+  def apply(argVals: List[Double], funVals: List[Double]): List[Line] = {
     val argView = argVals.view
     val funView = funVals.view
 
@@ -73,17 +73,17 @@ object Line{
       val der = derivative(yUp, yLow, xUp, xLow)
       val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
       new Line(der, free)
-    }} toVector
+    }} toList
   }
 
-  def apply(points: List[(Double, Double)]): Vector[Line] = {
+  def apply(points: List[(Double, Double)]): List[Line] = {
     val viewPoints = points.view
     (viewPoints zip (viewPoints drop 1)) map{p => {
       val ((xLow, yLow),(xUp, yUp)) = p
       val der = derivative(yUp, yLow, xUp, xLow)
       val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
       new Line(der, free)
-    }} toVector
+    }} toList
   }
 
 

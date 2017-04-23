@@ -56,13 +56,13 @@ case class Lagrange2(override protected val coefs: Array[Double])
 }
 object Lagrange2 {
 
-  def apply(vals : List[(Double, Double)]): Vector[Lagrange2] = {
+  def apply(vals : List[(Double, Double)]): List[Lagrange2] = {
     if(vals.size != 3) throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
-    (vals.view, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
+    (vals, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
       val (a, b, c) = polynominals(v1, v2, v3)
       val interval = PieceFunction.makeInterval(v1._1, v3._1)
       new Lagrange2(Array(c, b, a))
-    }} toVector
+    }}
   }
 
   private def polynominals(v1 : Tuple2[Double, Double],

@@ -4,7 +4,7 @@ import scala.annotation.tailrec
 import scala.math._
 
 /** Поиск минимума при помощи метода золотого сечения.
-  * Find minimum with the golden slice method application
+  * Find minimum with the gold slice (gold slice) method application
   * Created by Даниил on 29.07.2016.
   */
 object GoldenSlice {

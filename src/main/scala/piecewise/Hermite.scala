@@ -8,49 +8,21 @@ import scala.math.{abs, pow, signum}
   */
 abstract class Hermite extends Polynomial with Slicer{
 
-  protected val low, upp, yL, yUp, dL, dUp : Double
+  val x0: Double
 
-  if({yL :: yUp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные " +
-    " значения функции должны быть вещественными числами / initial values of function must be not NaN")
+  override def apply(x: Double): Double = PieceFunction.cubicRuleOfHorner(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  if({dL :: dUp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные" +
-    " значение производных должны быть вещественными числами / initial values of derivatives must be not NaN")
+  override def derivative(x: Double): Double = PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  if({low :: upp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные" +
-      " значения аргументнов должны быть вещественными числами / initial values of arguments must be not NaN")
-
-  protected lazy val h = upp - low
-
-  private def fi = alpha - 1.0/3.0*pow(2.0*alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
-
-  protected val delta = (yUp - yL) / h
-
-  override val coefs: Array[Double] = Array(
-    yL, dL,
-    (-2.0 * dL - dUp + 3.0 * delta) / h,
-    (dL + dUp - 2.0 * delta) / pow(h, 2.0)
-  )
-
-  protected lazy val alpha  = abs(dL / delta)
-
-  protected lazy val beta = abs(dUp / delta)
-
-  lazy val extremum: List[Double] = List(low + h / 3.0 * (2 * alpha + beta - 3.0)/(alpha + beta - 2))
-
-  lazy val isMonotone = {
-    if(alpha + beta - 2.0 >= 0 && (signum(dL) == signum(dUp) || dL == 0 || dUp == 0)){
-      if(2 * alpha + beta - 3 <= 0.0 || alpha + 2 * beta - 3.0 <= 0 || fi >= 0) true else false
-    } else false
-  }
+  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
 
-  private lazy val body = f"*(x${-low}%+.7f)"
+  private lazy val body = f"*(x${-x0}%+.7f)"
 
   override lazy val toString = {
-    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  $dL%+1.4f" +
-      body + f" $yL%+1.4f"
+    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  ${coefs(1)}%+1.4f" +
+      body + f" ${coefs(0)}%+1.4f"
   }
-
 
 
 }
