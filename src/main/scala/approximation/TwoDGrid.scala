@@ -1,40 +1,41 @@
 package approximation
 
-
-import java.nio.file.StandardOpenOption
 import java.text.NumberFormat
 import java.util.Locale
 
+import approximation.TwoDGrid.{Dir, Side, X, Y}
 import approximation.passion.iteration
 
 import scala.math._
 import piecewise.{PieceFunction, Spline}
-import com.twitter.algebird.matrix._
 
 import scala.annotation.tailrec
 import org.slf4j._
 
-import scala.collection.mutable.ListBuffer
 //TODO make all arrays immutable (scala 2.13)
 /**
   *
   */
-case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
-                                                   leftX: Array[Double],
-                                                   rangeX: Array[Array[Double]],
-                                                   rightX: Array[Double],
-                                                   xBeginAt: Array[Int],
-                                                   leftY: Array[Double],
-                                                   rangeY: Array[Double],
-                                                   rightY: Array[Double],
-                                                   conductivities: Array[Spline[PieceFunction]],
-                                                   sigma: Double
-                                                 )(implicit val dir1: D1, implicit val dir2: D2) {
+ class TwoDGrid[XDir <: TypeDir, YDir <: TypeDir](leftX: Array[Double],
+                                                  rangeX: Array[Double],
+                                                  rightX: Array[Double],
+                                                  xBeginAt: Array[Int],
+                                                  xEndAt: Array[Int],
+                                                  leftY: Array[Double],
+                                                  rangeY: Array[Double],
+                                                  rightY: Array[Double],
+                                                  conductivities: Array[Spline[PieceFunction]],
+                                                  weight: Double
+                                                 )(implicit val xDir: XDir, implicit val yDir: YDir) {
 
   assert(rangeX.length == rangeY.length)
   assert(xBeginAt.length == rangeX.length)
-  private val tallestXRange = rangeX.maxBy(_.length)
-  private val tallestXLength = tallestXRange.length
+
+  private def tallestXRange = (xBeginAt, xEndAt).zipped.map((x0, xn) => x0 to xn by 1).maxBy(_.length)
+
+  private def tallestXLength = tallestXRange.length
+
+  private def isDeterminedAt(colI: Int, rowI: Int): Boolean = xBeginAt(colI) < rowI && rowI < xEndAt(colI)
 
   private val logger = LoggerFactory.getLogger(getClass)
   logger.info("Creating two dimensional grid...")
@@ -54,24 +55,23 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
   logger.info("indexes:")
 
   private val xLoop: Array[Int] = {
-    (rangeX.view zip xBeginAt).zipWithIndex flatMap { (zipped: ((Array[Double], Int), Int)) => {
-      val ((x: Array[Double], x0: Int), y: Int) = zipped //for each y
-      x.indices.map((xI: Int) => {
+    (xBeginAt zip xEndAt).zipWithIndex flatMap {(zipped: ((Int, Int), Int)) =>
+      val ((x0: Int, xn: Int), y: Int) = zipped //for each y
+      x0.to(xn, 1).map{(xI: Int) =>
         val ind = index(y, xI + x0)
         logger.info(s"((y:${y}, x:${xI + x0}) -> ${ind});")
         ind
-      }) // calculate index with the same y and existing x
-    }
+      } // calculate index with the same y and existing x
     }
   }.toArray
 
   private val yLoop: Array[Int] = {
-    tallestXRange.indices flatMap { x => {
+    tallestXRange.indices flatMap { x =>
       //for each x
       rangeY.indices.view collect {
         {
           // for each y find where x exist
-          case y if rangeX(y).indices.contains(x - xBeginAt(y)) => {
+          case y if (xBeginAt(y) to xEndAt(y) by 1).indices.contains(x - xBeginAt(y)) => {
             val ind = index(y, x)
             logger.info(s"((y:${y}, x:${x}) -> ${ind});")
             ind
@@ -79,50 +79,45 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
         }
       }
     }
-    }
   }.toArray
   logger.info("---")
 
 
-  private val xLengths = rangeX.map((xRow: Array[Double]) => xRow.length)
+  private val xLengths = (xBeginAt, xEndAt).zipped.map((x0, xn) => (x0 to xn by 1).length)
+  //remake
   private val yLengths: Array[Int] = {
-    rangeX.maxBy(_.length).indices.map { (x: Int) => {
+    rangeX.indices.map { (x: Int) =>
       //for each x
-      rangeY.indices.count { y => {
-        // if row must contain non null value count it
-        rangeX(y).indices.contains(x - xBeginAt(y))
-      }
-      }
-    }
+      rangeY.indices.count (y => isDeterminedAt(y, x)
+      )
     }
   }.toArray
 
-  private val xPreDef: Array[Array[Double]] =
-    (leftX, rangeX, rightX).zipped
-      .map((lX: Double, ranX: Array[Double], rX: Double) => dir1.preDef(lX, ranX, rX, sigma)).reduce(_ ++ _)
+  private val xPreDef: Array[Array[Double]] = {
 
-  private val whereYHas = rangeX.maxBy(_.length).indices
-    .map {
-      { x: Int => {
-        rangeY.zipWithIndex collect {
-          {
-            case (yL, yI) if rangeX(yI).indices.contains(x - xBeginAt(yI)) => yL
-          }
-        }
-      }
-      }
+    val ranges: Array[Array[Double]] = (xBeginAt, xEndAt).zipped.map((x0, xn) => TwoDGrid.sliceX(x0, rangeX, xn))
+
+
+    (leftX, ranges, rightX).zipped
+      .map((lX: Double, ranX: Array[Double], rX: Double) => xDir.preDef(lX, ranX, rX, weight)).reduce(_ ++ _)
+  }
+
+  private def whereYHas = rangeX.indices
+    .map { x: Int =>
+       rangeY.zipWithIndex collect {
+         case (yL, yI) if isDeterminedAt(yI, x) => yL
+       }
     }
 
   private val yPreDef: Array[Array[Double]] =
     (leftY, whereYHas, rightY).zipped
-      .map { (lY: Double, midY: Array[Double], rY: Double) => {
-        dir2.preDef(lY, midY, rY, sigma)
-      }
+      .map {(lY: Double, midY: Array[Double], rY: Double) =>
+        yDir.preDef(lY, midY, rY, weight)
       }
       .reduce(_ ++ _)
 
-  private val toPassion = Array.fill(max(rangeX.map(_.length).max, whereYHas.map(_.length).max))(new Array[Double](2))
-  private val localResult = new Array[Double](max(rangeX.map(_.length).max, whereYHas.map(_.length).max))
+  private val toPassion = Array.fill(max(rangeX.length, whereYHas.map(_.length).max))(new Array[Double](2))
+  private val localResult = toPassion.map(_(0))
 
   def step(time: Double,
            leftTX: Array[Double], rightTX: Array[Double],
@@ -143,8 +138,7 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
     }
   }
 
-  import ammonite.ops._
-
+  import java.nio.file._
   def write(columnSeparator: String, dir: Path,
             fileName: String, fileExtension: String,
             commentSign: String, comments: List[String]) = {
@@ -152,15 +146,13 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
     val form = NumberFormat.getNumberInstance(Locale.ROOT)
     form.setMaximumFractionDigits(3)
 
-    val file = dir / {
-      fileName + fileExtension
-    }
+    val file = dir.resolve(fileName + fileExtension)
+
     import scala.concurrent.Future
     import scala.concurrent.ExecutionContext.Implicits._
     Future {
-      val writer = Files.newBufferedWriter(file.toNIO, StandardOpenOption.TRUNCATE_EXISTING)
+      val writer = Files.newBufferedWriter(file, StandardOpenOption.TRUNCATE_EXISTING)
       try {
-        val writer = Files.newBufferedWriter(file.toNIO, StandardOpenOption.TRUNCATE_EXISTING)
         if (comments.nonEmpty) {
           comments.foreach(comment => {
             writer.write(commentSign + comment)
@@ -185,5 +177,60 @@ case class TwoDGrid[D1 <: GridDir, D2 <: GridDir](
     }
 
   }
+
+
+
+
+  private[approximation] def overlapBound[D <: Dir, S <: Side](width: Int)(implicit dir: D, side: S): TypeDir = {
+    import TwoDGrid._
+    dir match{
+      case x: X => {
+        side match {
+          case left: Left => ???
+          case right: Right => ???
+        }
+      }
+      case y: Y => {
+        side match{
+          case left: Left => ???
+          case right: Right =>  ???
+        }
+      }
+    }
+  }
+
+}
+object TwoDGrid{
+
+  def apply[xDir <: TypeDir, yDir <: TypeDir](leftX: Array[Double], coordX: Array[Double], rightX: Array[Double],
+                                              leftY: Array[Double], coordY: Array[Double], rightY: Array[Double],
+                                              conductivities: Array[Spline[PieceFunction]], weight: Double)
+                                             (implicit dir1: xDir, dir2: yDir): TwoDGrid[xDir, yDir] = {
+
+    def xStartAt = leftX.map{x =>
+     coordX.indexWhere(coord => coord > x)
+    }
+
+    def xEndsAt = rightX.map{x =>
+      coordX.indexWhere(coord => x >= coord) - 1
+    }
+
+    new TwoDGrid[xDir, yDir](leftX, coordX, rightX, xStartAt, xEndsAt, leftY, coordY, rightY, conductivities, weight)
+    }
+
+  def sliceX(beginAt: Int, coordX: Array[Double], endAt: Int): Array[Double] = {
+    coordX.slice(beginAt, endAt + 1)
+  }
+
+  abstract class Dir
+
+  class X extends Dir
+  class Y extends Dir
+
+  abstract class Side
+  class Left extends Side
+  class Right extends Side
+
+
 }
 
