@@ -10,4 +10,6 @@ package object piecewise {
       def length = interval.upper.upper - interval.lower.lower
   }
 
+
+
 }

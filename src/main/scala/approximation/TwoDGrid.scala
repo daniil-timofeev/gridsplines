@@ -3,7 +3,7 @@ package approximation
 import java.text.NumberFormat
 import java.util.Locale
 
-import approximation.TwoDGrid.{Dir, Side, X, Y}
+import approximation.TwoDGrid.{Dir, Side, XDir, YDir}
 import approximation.passion.iteration
 
 import scala.math._
@@ -12,11 +12,13 @@ import piecewise.{PieceFunction, Spline}
 import scala.annotation.tailrec
 import org.slf4j._
 
+import scala.collection.mutable
+
 //TODO make all arrays immutable (scala 2.13)
 /**
   *
   */
- class TwoDGrid[XDir <: TypeDir, YDir <: TypeDir](leftX: Array[Double],
+ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](leftX: Array[Double],
                                                   rangeX: Array[Double],
                                                   rightX: Array[Double],
                                                   xBeginAt: Array[Int],
@@ -26,7 +28,7 @@ import org.slf4j._
                                                   rightY: Array[Double],
                                                   conductivities: Array[Spline[PieceFunction]],
                                                   weight: Double
-                                                 )(implicit val xDir: XDir, implicit val yDir: YDir) {
+                                                 )(implicit val xDir: XType, implicit val yDir: YType) {
 
   assert(rangeX.length == rangeY.length)
   assert(xBeginAt.length == rangeX.length)
@@ -136,6 +138,7 @@ import org.slf4j._
       grid.update(i, result(i))
       i += 1
     }
+    updateOverlaps()
   }
 
   import java.nio.file._
@@ -178,22 +181,80 @@ import org.slf4j._
 
   }
 
+  private def rowLength(rowPos: Int): Int = {
+    {xBeginAt(rowPos) to xEndAt(rowPos) by 1}.length
+  }
+
+  private def rowIndexes(rowPos: Int): Array[Int] = {
+    {xBeginAt(rowPos) to xEndAt(rowPos) by 1}.map(colPos => index(rowPos, colPos)).toArray
+  }
+
+  private def columnLength(colPos: Int): Int = {
+    xBeginAt.collect{
+      case fCol if colPos >= fCol => fCol
+    }.length
+  }
+
+  private def columnIndexes(colPos: Int): Array[Int] = {
+    xBeginAt.zipWithIndex.collect{
+      case (fCol, rowPos)if colPos >= fCol => {
+        index(rowPos, colPos)
+      }
+    }
+  }
+
+  private val overlaps = new Array[Array[Double]](4)
+  private val overlapIndexes = new Array[Array[Int]](4)
+
+  overlaps(0) = Array.fill(columnLength(0))(4.0)
+
+  overlapIndexes(0) = columnIndexes(0)
+
+  overlaps(1) = {
+    val lastIndex = xEndAt.max
+    Array.fill(columnLength(lastIndex))(4.0)
+  }
+
+  overlapIndexes(1) = {
+    val lastIndex = xEndAt.max
+    columnIndexes(lastIndex)
+  }
+
+  overlaps(2) = Array.fill(rowLength(0))(4.0)
+
+  overlapIndexes(2) = rowIndexes(0)
+
+  overlaps(3) = Array.fill(rowLength(rangeY.length - 1))(4.0)
+
+  overlapIndexes(3) = rowIndexes(rangeY.length - 1)
 
 
+  private def updateOverlaps(): Unit = {
+    var i = 0
+    while(i != 4){
+      var o = 0
+      while(o != overlapIndexes(i).length){
+        val k = overlapIndexes(i)(o)
+        overlaps(i).update(o, grid(k))
+        o += 1
+      }
+      i += 1
+    }
+  }
 
-  private[approximation] def overlapBound[D <: Dir, S <: Side](width: Int)(implicit dir: D, side: S): TypeDir = {
+  private[approximation] def overlapBound[D <: Dir, S <: Side](implicit dir: D, side: S): Array[Double] = {
     import TwoDGrid._
     dir match{
-      case x: X => {
+      case x: XDir => {
         side match {
-          case left: Left => ???
-          case right: Right => ???
+          case left: Left => overlaps(2)
+          case right: Right => overlaps(3)
         }
       }
-      case y: Y => {
+      case y: YDir => {
         side match{
-          case left: Left => ???
-          case right: Right =>  ???
+          case left: Left => overlaps(0)
+          case right: Right =>  overlaps(0)
         }
       }
     }
@@ -202,10 +263,10 @@ import org.slf4j._
 }
 object TwoDGrid{
 
-  def apply[xDir <: TypeDir, yDir <: TypeDir](leftX: Array[Double], coordX: Array[Double], rightX: Array[Double],
+  def apply[XType <: TypeDir, YType  <: TypeDir](leftX: Array[Double], coordX: Array[Double], rightX: Array[Double],
                                               leftY: Array[Double], coordY: Array[Double], rightY: Array[Double],
                                               conductivities: Array[Spline[PieceFunction]], weight: Double)
-                                             (implicit dir1: xDir, dir2: yDir): TwoDGrid[xDir, yDir] = {
+                                             (implicit dir1: XType, dir2: YType): TwoDGrid[XType, YType] = {
 
     def xStartAt = leftX.map{x =>
      coordX.indexWhere(coord => coord > x)
@@ -215,7 +276,9 @@ object TwoDGrid{
       coordX.indexWhere(coord => x >= coord) - 1
     }
 
-    new TwoDGrid[xDir, yDir](leftX, coordX, rightX, xStartAt, xEndsAt, leftY, coordY, rightY, conductivities, weight)
+
+
+    new TwoDGrid[XType, YType](leftX, coordX, rightX, xStartAt, xEndsAt, leftY, coordY, rightY, conductivities, weight)
     }
 
   def sliceX(beginAt: Int, coordX: Array[Double], endAt: Int): Array[Double] = {
@@ -223,9 +286,8 @@ object TwoDGrid{
   }
 
   abstract class Dir
-
-  class X extends Dir
-  class Y extends Dir
+  class XDir extends Dir
+  class YDir extends Dir
 
   abstract class Side
   class Left extends Side

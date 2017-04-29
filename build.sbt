@@ -14,8 +14,10 @@ libraryDependencies ++= "org.slf4j" % "slf4j-api" % "1.7.22" ::
                         "ch.qos.logback" % "logback-core" % "1.1.8" ::
                         "ch.qos.logback" % "logback-classic" % "1.1.8" ::
                         "com.twitter" %% "algebird-core" % "0.12.4" ::
-                        "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"  ::
-                        "com.lihaoyi" %% "ammonite-ops" % "0.8.1" :: Nil
+                        "org.scalacheck" %% "scalacheck" % "1.13.4" % "test" ::
+                        "org.specs2" %% "specs2-core" % "3.8.9" % "test" :: Nil
+
+scalacOptions in Test ++= Seq("-Yrangepos")
 
 
 

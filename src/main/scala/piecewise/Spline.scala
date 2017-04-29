@@ -41,6 +41,9 @@ import piecewise.intervaltree.IntervalTree
 
   def areaOption(lower: Double, upper: Double): Option[Double] = ???
 
+  import com.twitter.algebird.monad._
+  def sources = Trampoline.run(IntervalTree.toList(content))
+
 }
 object Spline{
 

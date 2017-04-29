@@ -3,7 +3,6 @@ package approximation
 import java.text.NumberFormat
 import java.time.LocalDateTime
 import java.util.Locale
-import ammonite.ops._
 import passion._
 import piecewise._
 import OneDGrid._
@@ -12,7 +11,7 @@ import OneDGrid._
 /**
   *
   */
-case class OneDGrid[Dir <: GridDir](leftX: Double,
+case class OneDGrid[Dir <: TypeDir](leftX: Double,
                                     rangeX: Array[Double],
                                     rightX: Double,
                                     conductivities: Array[Spline[PieceFunction]], sigma: Double)(implicit dir: Dir){
@@ -39,6 +38,7 @@ case class OneDGrid[Dir <: GridDir](leftX: Double,
     }
   }
 
+  import java.nio.file._
   def writeGrid(at: LocalDateTime, path: Path): Unit = {
 
     val format2 = NumberFormat.getNumberInstance(Locale.ROOT)
@@ -46,26 +46,26 @@ case class OneDGrid[Dir <: GridDir](leftX: Double,
     val format3 = NumberFormat.getNumberInstance(Locale.ROOT)
     format3.setMaximumFractionDigits(3)
 
-    mkdir! path
+    Files.createDirectories(path)
 
     val rI = rangeX.iterator
     val rG = grid.iterator
 
-    val filePath: Path = path/s"grid ${at.getMonth} ${at.getDayOfMonth}d ${at.getHour}h ${at.getYear}.dat"
+    val filePath: Path = path.resolve(s"grid ${at.getMonth} ${at.getDayOfMonth}d ${at.getHour}h ${at.getYear}.dat")
     val iter =
     Iterator.single("# One dimension grid output results\r\n# Coords \t Temperatures\r\n") ++
     Iterator.tabulate(rangeX.length){i =>
       s"${format2.format(rangeX(i))}\t${format3.format(grid(i))}\r\n"
     }
-    write.over(filePath, iter)
+    Files.write(filePath, scala.collection.JavaConverters.asJavaIterable(iter.toIterable), StandardOpenOption.TRUNCATE_EXISTING)
   }
 }
 
 object OneDGrid{
 
   //TODO add "implicit not found" annotation
-  def apply[Dir <: GridDir](leftX: Double, rangeX: Array[Double], rightX: Double,
-  conductivity: Spline[PieceFunction], sigma: Double)(implicit  dir: Dir) = {
+  def apply[Dir <: TypeDir](leftX: Double, rangeX: Array[Double], rightX: Double,
+                            conductivity: Spline[PieceFunction], sigma: Double)(implicit  dir: Dir) = {
     val array: Array[Spline[PieceFunction]] = Array.fill(rangeX.length)(conductivity)
     new OneDGrid[Dir](leftX, rangeX, rightX, array, sigma)
   }
