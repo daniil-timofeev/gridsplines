@@ -121,6 +121,28 @@ import scala.collection.mutable
   private val toPassion = Array.fill(max(rangeX.length, whereYHas.map(_.length).max))(new Array[Double](2))
   private val localResult = toPassion.map(_(0))
 
+  def stepLeftXBound(time: Double, leftTX: Array[Double]): Unit = {
+    step(time, leftTX, overlaps(1), overlaps(2), overlaps(3))
+  }
+  def stepRightXBound(time: Double, rightTX: Array[Double]): Unit = {
+    step(time, overlaps(0), rightTX: Array[Double], overlaps(2), overlaps(3))
+  }
+  def stepLeftRightXBound(time: Double, leftTX: Array[Double], rightTX: Array[Double]) = {
+    step(time, leftTX, rightTX, overlaps(2), overlaps(3))
+  }
+  def stepLeftYBound(time: Double, leftTY: Array[Double]): Unit = {
+    step(time, overlaps(0), overlaps(1), leftTY, overlaps(3))
+  }
+
+  def stepRightYBound(time: Double, rightTY: Array[Double]): Unit = {
+    step(time, overlaps(0), overlaps(1), overlaps(2), rightTY)
+  }
+
+  def stepLeftRightYBound(time: Double, leftTY: Array[Double], rightTY: Array[Double]): Unit = {
+    step(time, overlaps(0), overlaps(1), leftTY, rightTY)
+  }
+
+
   def step(time: Double,
            leftTX: Array[Double], rightTX: Array[Double],
            leftTY: Array[Double], rightTY: Array[Double]): Unit = {
@@ -185,22 +207,42 @@ import scala.collection.mutable
     {xBeginAt(rowPos) to xEndAt(rowPos) by 1}.length
   }
 
-  private def rowIndexes(rowPos: Int): Array[Int] = {
+  private def rowInds(rowPos: Int): Array[Int] = {
     {xBeginAt(rowPos) to xEndAt(rowPos) by 1}.map(colPos => index(rowPos, colPos)).toArray
   }
 
-  private def columnLength(colPos: Int): Int = {
-    xBeginAt.collect{
-      case fCol if colPos >= fCol => fCol
-    }.length
+  def row(rowPos: Int): Array[Double] = {
+    val res: Array[Double] = new Array(rowLength(rowPos))
+    val indexes = rowInds(rowPos).iterator
+    while(indexes.hasNext){
+      val next = indexes.next()
+      res.update(next, grid.apply(next))
+    }
+    res
   }
 
-  private def columnIndexes(colPos: Int): Array[Int] = {
-    xBeginAt.zipWithIndex.collect{
-      case (fCol, rowPos)if colPos >= fCol => {
-        index(rowPos, colPos)
+  private def columnLength(colPos: Int): Int = {
+      xBeginAt.collect{
+        case fCol if colPos >= fCol => fCol
+      }.length
+  }
+
+  private def colInds(colPos: Int): Array[Int] = {
+      xBeginAt.zipWithIndex.collect{
+        case (fCol, rowPos)if colPos >= fCol => {
+            index(rowPos, colPos)
+        }
       }
+  }
+
+  def col(colPos: Int): Array[Double] = {
+    val res: Array[Double] = new Array(columnLength(colPos))
+    val indexes = colInds(colPos).iterator
+    while(indexes.hasNext){
+      val next = indexes.next()
+      res.update(next, grid.apply(next))
     }
+    res
   }
 
   private val overlaps = new Array[Array[Double]](4)
@@ -208,7 +250,7 @@ import scala.collection.mutable
 
   overlaps(0) = Array.fill(columnLength(0))(4.0)
 
-  overlapIndexes(0) = columnIndexes(0)
+  overlapIndexes(0) = colInds(0)
 
   overlaps(1) = {
     val lastIndex = xEndAt.max
@@ -217,16 +259,16 @@ import scala.collection.mutable
 
   overlapIndexes(1) = {
     val lastIndex = xEndAt.max
-    columnIndexes(lastIndex)
+    colInds(lastIndex)
   }
 
   overlaps(2) = Array.fill(rowLength(0))(4.0)
 
-  overlapIndexes(2) = rowIndexes(0)
+  overlapIndexes(2) = rowInds(0)
 
   overlaps(3) = Array.fill(rowLength(rangeY.length - 1))(4.0)
 
-  overlapIndexes(3) = rowIndexes(rangeY.length - 1)
+  overlapIndexes(3) = rowInds(rangeY.length - 1)
 
 
   private def updateOverlaps(): Unit = {
@@ -247,14 +289,14 @@ import scala.collection.mutable
     dir match{
       case x: XDir => {
         side match {
-          case left: Left => overlaps(2)
-          case right: Right => overlaps(3)
+          case left: Left => overlaps(0)
+          case right: Right => overlaps(1)
         }
       }
       case y: YDir => {
         side match{
-          case left: Left => overlaps(0)
-          case right: Right =>  overlaps(0)
+          case left: Left => overlaps(2)
+          case right: Right =>  overlaps(3)
         }
       }
     }

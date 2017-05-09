@@ -194,10 +194,10 @@ object PieceFunction{
 
   /** General rule of Gorner for polynomial function valu finder
     * @param x argument position
-    * @param a coefficients. a(0)at maximum extent, a(size - 1) at 0 extent
+    * @param a coefficients. a(0) at 0, a(size - 1) at maximum extent
     * @return polynominal root
     * */
-  final def ruleOfGorner(x: Double, a: Double*): Double = {
+  final def ruleOfHorner(x: Double, a: Double*): Double = {
     var res = a.last
     var i = a.size - 2
     while(i != -1){
@@ -227,7 +227,7 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def quadRuleOfGorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double, a4: Double): Double = {
+  final def quadRuleOfHorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double, a4: Double): Double = {
     (((a4 * x + a3) * x + a2) * x + a1) * x + a0
   }
 
@@ -245,7 +245,7 @@ object PieceFunction{
   }
 
   final def cubicHornerIntegral(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
-    quadRuleOfGorner(x, 0.0, a0, 0.5 * a1 , a2 / 3.0, 0.25 * a3)
+    quadRuleOfHorner(x, 0.0, a0, 0.5 * a1 , a2 / 3.0, 0.25 * a3)
   }
 
   final def cubicHornerDerivative(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {

@@ -1,5 +1,8 @@
 import sbt._
-name := "GridSplines"
+organization := "org.msuce.daniil"
+
+name := "gridsplines"
+
 
 version := "0.01"
 
