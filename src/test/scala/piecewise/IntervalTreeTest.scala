@@ -21,7 +21,9 @@ object IntervalTreeTest extends Properties("Interval Tree"){
   val doubleInterSection: Gen[InLowExUp[Double]] = for{
            low <- Arbitrary.arbDouble.arbitrary
            upp <- Arbitrary.arbDouble.arbitrary.suchThat(u => u > low)
-  } yield{Intersection[InclusiveLower, ExclusiveUpper, Double](InclusiveLower(low), ExclusiveUpper(upp))}
+  } yield{
+    Intersection[InclusiveLower, ExclusiveUpper, Double](
+      InclusiveLower(low), ExclusiveUpper(upp))}
 
 
   val intervals = listOfN(5, doubleInterSection)
@@ -33,9 +35,11 @@ object IntervalTreeTest extends Properties("Interval Tree"){
     (intr zip vals)
   }
 
-  property(" Can build") = forAll(sources suchThat(list => list.size > 0)){(s : List[(Interval.InLowExUp[Double], Int)]) =>
-    val tree = IntervalTree(s)
-    tree.nonEmpty
+  property(" Can build") =
+    forAll(sources suchThat(list => list.size > 0)){
+      (s : List[(Interval.InLowExUp[Double], Int)]) =>
+        val tree = IntervalTree(s)
+        tree.nonEmpty
     }
 }
 

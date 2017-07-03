@@ -26,7 +26,7 @@ import scala.collection.mutable
                                                   leftY: Array[Double],
                                                   rangeY: Array[Double],
                                                   rightY: Array[Double],
-                                                  conductivities: Array[Spline[PieceFunction]],
+                                                  conductivities: Array[Array[Spline[PieceFunction]]],
                                                   weight: Double
                                                  )(implicit val xDir: XType, implicit val yDir: YType) {
 
@@ -157,9 +157,10 @@ import scala.collection.mutable
     var i = 0
     while (i != grid.length) {
       result.update(i, arraygrid.aVal(grid(i), result(i)))
-      grid.update(i, result(i))
       i += 1
     }
+
+    System.arraycopy(result, 0, grid, 0, grid.length)
     updateOverlaps()
   }
 
@@ -307,7 +308,7 @@ object TwoDGrid{
 
   def apply[XType <: TypeDir, YType  <: TypeDir](leftX: Array[Double], coordX: Array[Double], rightX: Array[Double],
                                               leftY: Array[Double], coordY: Array[Double], rightY: Array[Double],
-                                              conductivities: Array[Spline[PieceFunction]], weight: Double)
+                                              conductivities: Array[Array[Spline[PieceFunction]]], weight: Double)
                                              (implicit dir1: XType, dir2: YType): TwoDGrid[XType, YType] = {
 
     def xStartAt = leftX.map{x =>
@@ -317,8 +318,6 @@ object TwoDGrid{
     def xEndsAt = rightX.map{x =>
       coordX.indexWhere(coord => x >= coord) - 1
     }
-
-
 
     new TwoDGrid[XType, YType](leftX, coordX, rightX, xStartAt, xEndsAt, leftY, coordY, rightY, conductivities, weight)
     }

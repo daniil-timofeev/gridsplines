@@ -6,7 +6,10 @@ import com.twitter.algebird.{Intersection, _}
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import Spline._
+import com.twitter.algebird.monad.Trampoline.call
+import com.twitter.algebird.monad.{Done, Trampoline}
 import piecewise.intervaltree.IntervalTree
+import piecewise.intervaltree.IntervalTree.InternalNode
 /**
   * Created by Даниил on 24.01.2017.
   */
@@ -44,8 +47,31 @@ import piecewise.intervaltree.IntervalTree
   import com.twitter.algebird.monad._
   def sources = Trampoline.run(IntervalTree.toList(content))
 
+  def points: List[(Double, Double)] = Trampoline.run(Spline.points[S](content))
+
 }
 object Spline{
+
+  def points[V <: PieceFunction](tree: Option[IntervalTree[Double, V]])
+  : Trampoline[List[(Double, Double)]] = {
+    tree match{
+      case None => Done(List.empty[(Double, Double)])
+      case Some(InternalNode(interval, v, left, right)) => {
+        for{
+          l <- call(points(left))
+          r <- call(points(right))
+        } yield {
+          val low = interval.lower.lower
+          if(l.nonEmpty)
+            l ::: List[(Double, Double)]((low, v.apply(low))) ::: r
+          else{
+            val upp = interval.upper.upper
+            l ::: List[(Double, Double)]((low, v.apply(low)), (upp, v.apply(upp)))
+          }
+        }
+      }
+    }
+  }
 
   def apply[S <: PieceFunction: MakePieceFunctions](vect: List[(Double, Double)]): Spline[S] = {
     val v = vect.sortBy(_._1)

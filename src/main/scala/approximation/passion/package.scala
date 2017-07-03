@@ -24,8 +24,19 @@ package object passion{
   }
 
   @inline
+  final def iterateFirst(timeStep: Double, pVal1: Double,
+                    val2: Double,
+                    pVal2: Double, pVal3: Double,
+                    pDef: Array[Double], conds: Array[Spline[PieceFunction]], toPassion: Array[Double]): Unit = {
+    val a = cons(pVal1, pVal2, pDef(0), conds(0))
+    val c = cons(pVal2, pVal3, pDef(1), conds(1))
+    val vect = - val2 / timeStep - a * pVal1
+    forwardFirst(- (a + c) - 1.0 / timeStep, c, vect, toPassion)
+  }
+
+  @inline
   final def iteration(time: Double, firstT: Double, t: Array[Double], lastT: Double,
-  predict: Array[Double], preDef: Array[Array[Double]], conductivities: Array[Spline[PieceFunction]],
+  predict: Array[Double], preDef: Array[Array[Double]], conductivities: Array[Array[Spline[PieceFunction]]],
   toPassion: Array[Array[Double]], result: Array[Double]): Unit = {
 
     var z = 0
@@ -33,8 +44,8 @@ package object passion{
     var t2: Double = predict(z)
     var t3: Double = predict(z + 1)
 
-    var a: Double = cons(t1, t2, preDef(z)(0), conductivities(z))
-    var c: Double = cons(t2, t3, preDef(z)(1), conductivities(z + 1))
+    var a: Double = cons(t1, t2, preDef(z)(0), conductivities(z)(0))
+    var c: Double = cons(t2, t3, preDef(z)(1), conductivities(z)(1))
     var vect = - t(z) / time - a * t1
 
     forwardFirst(- (a + c) - 1.0 / time, c, vect, toPassion(z))
@@ -45,8 +56,8 @@ package object passion{
       t2 = predict(z)
       t3 = predict(z + 1)
 
-      a  = cons(t1, t2, preDef(z)(0), conductivities(z))
-      c  = cons(t2, t3, preDef(z)(1), conductivities(z + 1))
+      a  = cons(t1, t2, preDef(z)(0), conductivities(z)(0))
+      c  = cons(t2, t3, preDef(z)(1), conductivities(z)(1))
       vect = - t(z) / time
 
       forwardUnit(a, - (a + c) - 1.0 / time, c,  vect,
@@ -58,8 +69,8 @@ package object passion{
     t2 = predict(z)
     t3 = lastT
 
-    a = cons(t1, t2, preDef(z)(0), conductivities(z))
-    c = cons(t2, t3, preDef(z)(1), conductivities(z))
+    a = cons(t1, t2, preDef(z)(0), conductivities(z)(0))
+    c = cons(t2, t3, preDef(z)(1), conductivities(z)(1))
     vect = - t(z) / time - c * t3
 
     forwardLast(a, - (a + c) - 1.0 / time, c, vect,
@@ -134,7 +145,7 @@ package object passion{
   @inline
   final def iteration(time: Double, indices: Array[Int], lengths: Array[Int], upper: Array[Double],
                       grid: Array[Double], predicted: Array[Double], localResult: Array[Double], result: Array[Double],
-                      lower: Array[Double], preDef: Array[Array[Double]], conds: Array[Spline[PieceFunction]],
+                      lower: Array[Double], preDef: Array[Array[Double]], conds: Array[Array[Spline[PieceFunction]]],
                       toPassion: Array[Array[Double]]) = {
     var line = 0 // Indexes, passed to upper and lower bounds arrays
     var flatten = 0 // Indexes, passed to preDef array
@@ -147,8 +158,8 @@ package object passion{
         var t2: Double = predicted(global)
         var t3: Double = predicted(global + 1)
 
-        var a: Double = cons(t1, t2, preDef(flatten)(0), conds(global))
-        var c: Double = cons(t2, t3, preDef(flatten)(1), conds(global + 1))
+        var a: Double = cons(t1, t2, preDef(flatten)(0), conds(flatten)(0))
+        var c: Double = cons(t2, t3, preDef(flatten)(1), conds(flatten)(1))
         var vect = - grid(global) / time - a * t1
 
         forwardFirst(-(a + c) - 1.0 / time, c, vect, toPassion(local))
@@ -162,8 +173,8 @@ package object passion{
           t2 = predicted(global)
           t3 = predicted(global + 1)
 
-          a = cons(t1, t2, preDef(flatten)(0), conds(global))
-          c = cons(t2, t3, preDef(flatten)(1), conds(global + 1))
+          a = cons(t1, t2, preDef(flatten)(0), conds(flatten)(0))
+          c = cons(t2, t3, preDef(flatten)(1), conds(flatten)(1))
           vect = - grid(global) / time
 
           forwardUnit(a, -(a + c) - 1.0 / time, c, vect,
@@ -177,8 +188,8 @@ package object passion{
         t2 = predicted(local)
         t3 = lower(line)
 
-        a = cons(t1, t2, preDef(flatten)(0), conds(global))
-        c = cons(t2, t3, preDef(flatten)(1), conds(global))
+        a = cons(t1, t2, preDef(flatten)(0), conds(flatten)(0))
+        c = cons(t2, t3, preDef(flatten)(1), conds(flatten)(1))
         vect = - grid(global) / time - c * t3
 
         forwardLast(a, -(a + c) - 1.0 / time, c, vect,
@@ -206,6 +217,11 @@ package object passion{
   private final def lam(r: Double, b: Double, lambda: Double, del: Double): Double = (r - b * lambda) / del
 
 
+  @inline
+  final def forwardFirst(a: Double, c: Double, time: Double, vect: Double, res: Array[Double]): Unit = {
+    forwardFirst(- (a + c) - 1.0 / time, c, vect, res)
+  }
+
   /** Первый крайний шаблон прогонки
     * @param c коэффициент по центру
     * @param d коэффициент справа */
@@ -213,6 +229,11 @@ package object passion{
   final def forwardFirst(c: Double, d: Double, vect: Double, res: Array[Double]): Unit = {
     res.update(0, - d / c)
     res.update(1, vect / c)
+  }
+
+  @inline
+  final def forwardUnit(a: Double, c: Double, time: Double, vect: Double, res: Array[Double]): Unit = {
+    forwardFirst(- (a + c) - 1.0 / time, c, vect, res)
   }
 
   @inline
@@ -250,14 +271,14 @@ package object passion{
   def backwardPassion(coefficients: Array[Array[Double]], result: Array[Double], length: Int): Unit = {
 
     /** Расчёт результата */
-    @inline def point(vals : Array[Double], prev : Double) : Double = {
+    @inline def point(vals: Array[Double], prev: Double): Double = {
       val delta = vals(0); val lambda = vals(1)
       delta * prev + lambda
     }
 
     var i = length - 1
     var inter = 0.0
-    while(i > -1){
+    while (i > -1){
       // Расчёт текущего значения (записывается для использования на следующем шаге)
       inter = point(coefficients(i), inter)
       result.update(i, inter)

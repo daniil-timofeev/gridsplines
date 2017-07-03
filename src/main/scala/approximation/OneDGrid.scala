@@ -14,13 +14,7 @@ import OneDGrid._
 case class OneDGrid[Dir <: TypeDir](leftX: Double,
                                     rangeX: Array[Double],
                                     rightX: Double,
-                                    conductivities: Array[Spline[PieceFunction]], sigma: Double)(implicit dir: Dir){
-
-  def this(leftX: Double, rangeX: Array[Double], rightX: Double,
-           conductivity: Spline[PieceFunction], sigma: Double)(implicit  dir: Dir){
-    this(leftX, rangeX, rightX, Array.fill(rangeX.length)(conductivity), sigma)(dir)
-  }
-
+                                    conductivities: Array[Array[Spline[PieceFunction]]], sigma: Double)(implicit dir: Dir){
 
   val grid = Array.fill(rangeX.length)(4.0)
   private val predict = Array.fill(rangeX.length)(4.0)
@@ -33,9 +27,9 @@ case class OneDGrid[Dir <: TypeDir](leftX: Double,
     var i = 0
     while(i != predict.size){
       predict.update(i, arraygrid.aVal(grid(i), result(i)))
-      grid.update(i, result(i))
       i += 1
     }
+    System.arraycopy(result, 0, grid, 0, grid.length)
   }
 
   import java.nio.file._
@@ -57,7 +51,14 @@ case class OneDGrid[Dir <: TypeDir](leftX: Double,
     Iterator.tabulate(rangeX.length){i =>
       s"${format2.format(rangeX(i))}\t${format3.format(grid(i))}\r\n"
     }
-    Files.write(filePath, scala.collection.JavaConverters.asJavaIterable(iter.toIterable), StandardOpenOption.TRUNCATE_EXISTING)
+    val writer =
+      Files.newBufferedWriter(filePath, StandardOpenOption.TRUNCATE_EXISTING)
+    try{
+      while(iter.hasNext){
+        writer.write(iter.next())
+        writer.newLine()
+      }
+    } finally writer.close()
   }
 }
 
@@ -66,7 +67,8 @@ object OneDGrid{
   //TODO add "implicit not found" annotation
   def apply[Dir <: TypeDir](leftX: Double, rangeX: Array[Double], rightX: Double,
                             conductivity: Spline[PieceFunction], sigma: Double)(implicit  dir: Dir) = {
-    val array: Array[Spline[PieceFunction]] = Array.fill(rangeX.length)(conductivity)
+    val array: Array[Array[Spline[PieceFunction]]] =
+      Array.fill(rangeX.length)(Array(conductivity, conductivity))
     new OneDGrid[Dir](leftX, rangeX, rightX, array, sigma)
   }
 }

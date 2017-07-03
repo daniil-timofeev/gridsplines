@@ -6,6 +6,7 @@ import com.twitter.algebird.Interval.InLowExUp
 import scala.Option
 import com.twitter.algebird.monad._
 import com.twitter.algebird.monad.Trampoline._
+import piecewise.PieceFunction
 
 import scala.annotation.tailrec
 
@@ -77,7 +78,8 @@ object IntervalTree{
     }
   }
 
-  def toList[K: Ordering, V](tree: Option[IntervalTree[K, V]]): Trampoline[List[(InLowExUp[K], V)]] = {
+  def toList[K: Ordering, V](tree: Option[IntervalTree[K, V]])
+  : Trampoline[List[(InLowExUp[K], V)]] = {
     tree match{
       case None => Done(List.empty[(InLowExUp[K], V)])
       case Some(InternalNode(interval, v, left, right)) => {
@@ -170,15 +172,15 @@ object IntervalTree{
         Done(Some(new InternalNode(internal, Some(left), Some(right))))
       }
       case default: List[((InLowExUp[K], V))] => {
-        val size = vals.size - 1
-        val leftSize =
+        val size = vals.size
+        val leftIndex =
           if(size % 2 == 0) (size + 1) / 2
           else size / 2
-        val rightSize = size - leftSize - 1
+        val rightSize = size - leftIndex - 1
         for{
-          leftNode <- call(buildLeft(default.take(leftSize)))
+          leftNode <- call(buildLeft(default.take(leftIndex)))
           rightNode <- call(buildRight(default.takeRight(rightSize)))
-        } yield Some(new InternalNode[K, V](default(leftSize), leftNode, rightNode))
+        } yield Some(new InternalNode[K, V](default(leftIndex), leftNode, rightNode))
       }
     }}
 
@@ -195,15 +197,15 @@ object IntervalTree{
         Done(Some(new InternalNode[K, V](internal, Some(left), Some(right))))
       }
       case default: List[((InLowExUp[K], V))] => {
-        val size = vals.size - 1
-        val leftSize =
+        val size = vals.size
+        val leftIndex =
           if(size % 2 == 0) (size - 1) / 2
           else size / 2
-        val rightSize = size - leftSize - 1
+        val rightSize = size - leftIndex - 1
         for{
-          leftNode <- call(buildLeft(default.take(leftSize)))
+          leftNode <- call(buildLeft(default.take(leftIndex)))
           rightNode <- call(buildRight(default.takeRight(rightSize)))
-        } yield Some(new InternalNode[K, V](default(leftSize), leftNode, rightNode))
+        } yield Some(new InternalNode[K, V](default(leftIndex), leftNode, rightNode))
       }
     }
   }
