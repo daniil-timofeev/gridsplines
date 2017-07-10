@@ -17,7 +17,8 @@ object GoldenSlice {
     * @param f функция минимизации. Minimized function
     * @return значение x минимума. x of the minimum
     */
-  def apply(x01: Double, x02: Double, f: (Double) => Double): Double = {
+  def apply(x01: Double, x02: Double, f: (Double) => Double,
+            tol: Double = 0.0001): Double = {
     assert(!x01.isNaN || !x02.isNaN, s"left boundary ${x01} or right boundary ${x02} must be not NaN")
     assert(x01 < x02, f"left boundary ${x01}%.2f must be lower, than right boundary ${x02}%.2f")
     val fx01 = f(x01)
@@ -26,7 +27,7 @@ object GoldenSlice {
     val x22 = x02 - 0.38*(x02 - x01)
 
     @inline
-    def solver(fx1 : Double, fx2 : Double, fx3 : Double, fx4 : Double) : Int = {
+    def solver(fx1: Double, fx2: Double, fx3: Double, fx4: Double): Int = {
       var min : Int = 0
       @inline
       val first = if(fx1 < fx2){
@@ -48,9 +49,10 @@ object GoldenSlice {
 
     @tailrec
     def goldenSliceNext(x1 : Double, x2 : Double, x3 : Double,
-                        fx1 : Double, fx2 : Double, fx3 : Double, f : (Double) => Double) : Double = {
+                        fx1 : Double, fx2 : Double, fx3 : Double,
+                        f : (Double) => Double) : Double = {
       @inline
-      def ready = {abs(x1 - x2) < 0.0001 || abs(x2 - x3) < 0.0001}
+      def ready = {abs(x1 - x2) < tol || abs(x2 - x3) < tol}
       val x = x3 + x1 - x2
       if(x < x2) {
         val fx = f(x)

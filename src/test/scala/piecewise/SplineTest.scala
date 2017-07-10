@@ -2,12 +2,31 @@ package piecewise
 
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
-import org.scalacheck.Properties
+import org.scalacheck.{Gen, Properties}
 
 /**
   * @author Даниил
   */
 object SplineTest extends Properties("Сплайн / Spline"){
+
+  val pointGen = for {
+    from <- choose(-100.0, 100.0)
+    end <- choose(from, 100.0)
+    x <- choose(from, end)
+    y <- choose(0.0, 100.0)
+  } yield (x, y)
+
+  val listGen: Gen[List[(Double, Double)]] = for{
+    g <- nonEmptyListOf[(Double, Double)](pointGen)
+  } yield g
+
+  property(" get building points") =
+    forAll(listGen){(vals: List[(Double, Double)]) => {
+    import piecewise._
+    val spline = Spline[Line](vals)
+    val points = spline.points
+    vals == points
+  }}
 
   //property(" Cовпадение в точках при целых числах / coincidence in points with int numbers") = {
   //  forAll(intPointListGen ){points : List[(Int, Int)] => {
