@@ -1,9 +1,11 @@
 package piecewise
 import intervaltree._
 import com.twitter.algebird
+import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
 import com.twitter.algebird.Interval.InLowExUp
 import com.twitter.algebird.Interval.MaybeEmpty.NotSoEmpty
 import com.twitter.algebird.monad.Trampoline
+import piecewise.Spline.MakePieceFunctions
 
 import scala.collection.mutable.ListBuffer
 /**
@@ -76,6 +78,19 @@ object UniSpline{
   def apply[S <: PieceFunction](spline: Spline[S]): UniSpline[S] =
     spline.toUniSpline
 
+
+    def apply[S <: PieceFunction: MakePieceFunctions](
+              vect: List[(Double, Double)]): UniSpline[S] = {
+      val v = vect.sortBy(_._1)
+      val maker = implicitly[MakePieceFunctions[S]]
+      val pieceFunctions = maker(v)
+      val initial = {{v zip {v drop 1}} zip pieceFunctions}
+        .collect{
+          case((f, s), pf) if f._1 < s._1 =>{
+            (Intersection.apply(InclusiveLower(f._1), ExclusiveUpper(s._1)), pf)
+          }}
+      new UniSpline[S](IntervalTree.apply(initial))
+    }
 
   def asSpline[S <: PieceFunction](spline: Spline[S]): Spline[PieceFunction] = {
     Spline.makeUniSpline(spline)
