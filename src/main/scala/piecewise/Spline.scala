@@ -15,7 +15,7 @@ import scala.collection.mutable
 /**
   * Created by Даниил on 24.01.2017.
   */
- class Spline[+S <: PieceFunction](private val content: Option[IntervalTree[Double, S]]){
+ class Spline[+S <: PieceFunction](protected val content: Option[IntervalTree[Double, S]]){
 //TODO add possibility to find interval with some others piece functions types
 
   def apply(x: Double): Double = {
@@ -92,28 +92,77 @@ import scala.collection.mutable
     new Spline[S](content.map(c => c.sliceLower(bound)))
   }
 
-  def ++ [T <: PieceFunction](spl: Spline[T]): Spline[PieceFunction] = {
+  def ++ [T >: S <: PieceFunction](spl: Spline[T]): Spline[T] = {
     val mutSources = Trampoline.run(IntervalTree.toList(
       content,
       ListBuffer.empty[(InLowExUp[Double], S)]
     ))
-    val src = spl.sources
-    //TODO make checks if intervals adjacents
+    val src: List[(InLowExUp[Double], T)] = spl.sources
+    //TODO make checks if intervals adjascents
 
-    val resSources =
-      mutSources.asInstanceOf[ListBuffer[(InLowExUp[Double], PieceFunction)]].++=(src)
-    new Spline(Trampoline.run(
+    val resSources: ListBuffer[(InLowExUp[Double], T)] =
+      mutSources.asInstanceOf[ListBuffer[(InLowExUp[Double], T)]].++=(src)
+    new Spline[T](Trampoline.run(
       IntervalTree.buildLeft(resSources.result())
     ))
   }
 
+  def toUniSpline: UniSpline[S] = new UniSpline[S](content)
+
+  def asUniSpline: Spline[PieceFunction] = Spline.makeUniSpline(this)
 }
 object Spline{
 
+  def makeUniSpline[S <: PieceFunction](spline: Spline[S]): Spline[PieceFunction] = {
+    import com.twitter.algebird._
+    import com.twitter.algebird.Interval.MaybeEmpty._
+    val (lowerX, upperX, lower, upper) = Spline.boundsOf(spline)
+
+    val low = Const(lower)
+    val lowSource = Interval.leftClosedRightOpen(Double.MinValue, lowerX) match {
+      case NotSoEmpty(interval: InLowExUp[Double]) => Some((interval, low))
+      case SoEmpty() => None
+    }
+    val upp = Const(upper)
+    val uppSource = Interval.leftClosedRightOpen(upperX, Double.MaxValue) match {
+      case NotSoEmpty(interval: InLowExUp[Double]) => Some((interval, upp))
+      case SoEmpty() => None
+    }
+
+    val lb: ListBuffer[(InLowExUp[Double], PieceFunction)] =
+      Trampoline.run(IntervalTree.toList(
+        spline.content,
+        ListBuffer.empty[(InLowExUp[Double], S)]
+      )).asInstanceOf[ListBuffer[(InLowExUp[Double], PieceFunction)]]
+
+    if (lowSource.nonEmpty) lb.prepend(lowSource.get)
+    if (uppSource.nonEmpty) lb.append(uppSource.get)
+
+    new Spline[PieceFunction](Trampoline.run(IntervalTree.buildLeft(lb.result())))
+  }
+
+  /** Bound points of spline
+    *
+    * @param spline spline, from which points is extracted
+    * @tparam T type of spline
+    * @return (lower x, upper x, lower y, upper y)
+    */
+  def boundsOf[T <: PieceFunction](spline: Spline[T])
+  : (Double, Double, Double, Double) = {
+    val p = spline.points
+    val (lowX, lowY) = p.next
+    var waitForLast: (Double, Double) = (0.0, 0.0)
+    while (p.hasNext) {
+      waitForLast = p.next()
+    }
+    val (uppX, uppY) = waitForLast
+    (lowX, uppX, lowY, uppY)
+  }
 
   def mutablePoint[V <: PieceFunction](tree: Option[IntervalTree[Double, V]],
                                        buffer: mutable.Builder[(Double, Double),
-                                       Iterator[(Double, Double)]], size: Int)
+                                       Iterator[(Double, Double)]],
+                                       size: Int)
   : Trampoline[Integer] = {
 
     def app(interval: InLowExUp[Double], v: V, buffer: mutable.Builder[(Double, Double),
