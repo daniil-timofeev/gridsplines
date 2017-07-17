@@ -16,42 +16,30 @@ class UniSpline[+S <: PieceFunction](content: Option[IntervalTree[Double, S]]) e
 
   private val (lowerX, upperX, lower, upper) = Spline.boundsOf(this)
 
-  private val partApply =
-    PartialFunction[Double, Double]((x: Double) => x match{
+  override def apply(x: Double): Double = x match{
       case low if low <= lowerX => lower
       case upp if upp >= upperX => upper
-    })
-
-  private val partDer =
-    PartialFunction((x: Double) => x match{
-      case low if low <= lowerX => 0.0
-      case upp if upp >= upperX => 0.0
-    })
-
-  private val partIntegral =
-    PartialFunction((x: Double) => x match{
-      case low if low <= lowerX => low * x
-      case upp if upp >= upperX => upp * x
-  })
-
-  override def apply(x: Double): Double = {
-    partApply.applyOrElse(x, (x: Double) => super.apply(x))
-  }
+      case cen => super.apply(cen)
+    }
 
   override def applyOption(x: Double): Option[Double] = {
     Some(apply(x))
   }
 
-  override def der(x: Double): Double = {
-    partDer.applyOrElse(x, (x: Double) => super.der(x))
+  override def der(x: Double): Double = x match{
+    case low if low <= lowerX => 0.0
+    case upp if upp >= upperX => 0.0
+    case cen => super.der(cen)
   }
 
   override def derOption(x: Double): Option[Double] = {
     Some(der(x))
   }
 
-  override def integral(x: Double): Double = {
-    partIntegral.applyOrElse(x, (x: Double) => super.integral(x))
+  override def integral(x: Double): Double = x match{
+    case low if low <= lowerX => low * x
+    case upp if upp >= upperX => upp * x
+    case cen => super.der(cen)
   }
 
   override def integralOption(x: Double): Option[Double] = {
@@ -95,4 +83,5 @@ object UniSpline{
   def asSpline[S <: PieceFunction](spline: Spline[S]): Spline[PieceFunction] = {
     Spline.makeUniSpline(spline)
   }
+
 }
