@@ -19,7 +19,9 @@ import scala.collection.mutable
 //TODO add possibility to find interval with some others piece functions types
 
   def apply(x: Double): Double = {
-    IntervalTree.find(x, content).get.v.apply(x)
+    IntervalTree.find(x, content).getOrElse(throw new java.util.NoSuchElementException(
+      f"Spline apply fails on $x input, with funcs: ${sources.toList.toString}"
+    )).v.apply(x)
   }
 
   def applyOption(x: Double): Option[Double] = {
