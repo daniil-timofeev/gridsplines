@@ -23,7 +23,7 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
           h: Double, delta: Double) {
    this(Array(
      yLow, dLow,
-     -2.0 * dLow - dUpp + 3.0 * delta / h,
+     (-2.0 * dLow - dUpp + 3.0 * delta) / h,
      (dLow + dUpp - 2.0 * delta) / pow(h, 2.0)
    ), low)
   }
@@ -100,12 +100,10 @@ object Hermite3 {
     * @return монотонная функция / monotonic function
     */
 
-  def monothone[S <: SmoothType](
-                                  sources: (Double, Double, Double, Double, Double, Double))(
-    implicit coarser: S): (Double, Double, Double, Double, Double, Double) = {
+  def monothone[S <: SmoothType](sources: Array[Double])(
+    implicit coarser: S): Array[Double] = {
 
-
-      val (yLow, yUpp, dLow, dUpp, xLow, xUpp) = sources
+      val Array(yLow, yUpp, dLow, dUpp, xLow, xUpp) = sources
 
       val h = xUpp - xLow
 
@@ -128,57 +126,57 @@ object Hermite3 {
       val (smoothAlpha, smoothBeta) = coarser.monotonize(alpha, beta)
       val sdLow = smoothAlpha * delta
       val sdUpp = smoothBeta * delta
-      if(!isMonotone(smoothAlpha, smoothBeta, sdLow, sdUpp, fi(smoothAlpha, smoothBeta))) throw new RuntimeException("Function after monotonization must be monothone")
+      if(!isMonotone(smoothAlpha, smoothBeta, sdLow, sdUpp, fi(smoothAlpha, smoothBeta)))
+        throw new RuntimeException("Function after monotonization must be monothone")
 
-      val coefs: Array[Double] = Array(
-        yLow, sdLow,
-        (-2.0 * sdLow - sdUpp + 3.0 * delta) / h,
-        (sdLow + sdUpp - 2.0 * delta) / pow(h, 2.0)
-      )
-
-      M1Hermite3(coefs, xLow)
-
-    (yLow, yUpp, sdLow, sdUpp, xLow, xUpp)
+    Array(yLow, yUpp, sdLow, sdUpp, xLow, xUpp)
   }
 
-  def extremum(xLow: Double, h: Double, alpha: Double, beta: Double): Double = xLow + h / 3.0 * (2 * alpha + beta - 3.0)/(alpha + beta - 2)
+  def extremum(xLow: Double, h: Double, alpha: Double, beta: Double): Double =
+    xLow + h / 3.0 * (2 * alpha + beta - 3.0)/(alpha + beta - 2)
 
   def exception() = {
     throw new IllegalArgumentException(" размер values должен быть больше или равен двум /" +
       "/ the size of values must equal or more than two")
   }
 
-  def makeSources(values: List[(Double, Double)]): SeqView[(Double, Double, Double, Double, Double, Double),
-                                                      List[(Double, Double, Double, Double, Double, Double)]] = {
-    val list =
+  def array(xLow: Double, xUpp: Double,
+            dLow: Double, dUpp: Double,
+            yLow: Double, yUpp: Double): Array[Double] = {
+    Array(xLow, xUpp, dLow, dUpp, yLow, yUpp)
+  }
+
+  def makeSources(values: List[(Double, Double)]): Iterator[Array[Double]] = {
     values match {
       case Nil => exception()
       case any :: Nil => exception()
       case v1 :: v2 :: Nil => {
-        List((v1._2, v2._2, 0.0, 0.0, v1._1, v2._1))
+        Iterator(array(v1._2, v2._2, 0.0, 0.0, v1._1, v2._1))
       }
       case v1 :: v2 :: v3 :: Nil => {
         val der1 = deriv(v1, v2)
         val der2 = deriv(v2, v3)
         val der = (der1 + der2) / 2.0
-        List((v1._2, v2._2, 0.0, der, v1._1, v2._1), (v2._2, v3._2, der, 0.0, v2._1, v3._1))
+        Iterator(
+          array(v1._2, v2._2, 0.0, der, v1._1, v2._1),
+          array(v2._2, v3._2, der, 0.0, v2._1, v3._1)
+        )
       }
       case vals => {
         val dervs = derivatives(vals)
-        ((vals zip (vals drop(1))) zip (dervs zip (dervs drop(1)))).map(tuple => {
-          val (((x1, y1), (x2, y2)), (d1, d2)) = tuple
-          (y1, y2, d1, d2, x1, x2)
+        (vals.sliding(2) zip dervs.sliding(2)).map(lists => {
+          val (((x1, y1) :: (x2, y2) :: Nil), Seq(d1, d2)) = lists
+          array(y1, y2, d1, d2, x1, x2)
         })
       }
     }
-    list.view
   }
 
   def apply(values: List[(Double, Double)]): List[Hermite3] = {
-    makeSources(values).map{t =>
-      val d_a = delta(t._1, t._2, t._5, t._6)
-      val h0 = h(t._5, t._6)
-      new Hermite3(t._1, t._2, t._3, t._4, t._5, t._6, d_a, h0)
+    makeSources(values).map{src =>
+      val d_a = delta(src(0), src(1), src(4), src(5))
+      val h0 = h(src(4), src(5))
+      new Hermite3(src(0), src(1), src(2), src(3), src(4), src(5), h0, d_a)
     }.toList
   }
 
@@ -188,10 +186,13 @@ object Hermite3 {
     apply(x.zip(y))
   }
 
-  private def derivatives(values : List[(Double, Double)]) = {
+  private def derivatives(values : List[(Double, Double)]): Iterator[Double] = {
     val onBound = boundDervs(values)
     onBound._1 :: (values, values drop 2).zipped.map(deriv) :::
       onBound._2 :: Nil
+    Iterator(onBound._1) ++
+    values.sliding(3).map(list => deriv(list(0), list(2))) ++
+    Iterator(onBound._2)
   }
 
   private def boundDervs(values: List[(Double, Double)]) = {

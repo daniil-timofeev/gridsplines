@@ -228,12 +228,12 @@ object Spline{
     val v = vect.sortBy(_._1)
     val maker = implicitly[MakePieceFunctions[S]]
     val pieceFunctions = maker(v)
-    val initial = {{v zip {v drop 1}} zip pieceFunctions}
+    val initial = v.sliding(2).zip(pieceFunctions.iterator)
       .collect{
-        case((f, s), pf) if f._1 < s._1 =>{
+        case(List(f, s), pf) if f._1 < s._1 =>{
       (Intersection.apply(InclusiveLower(f._1), ExclusiveUpper(s._1)), pf)
     }}
-    new Spline[S](IntervalTree.apply(initial))
+    new Spline[S](IntervalTree.apply(initial.toList))
   }
 
   def empty = new Spline[PieceFunction](None)

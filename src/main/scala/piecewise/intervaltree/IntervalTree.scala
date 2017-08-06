@@ -22,9 +22,9 @@ abstract class IntervalTree[K: Ordering, +V](val interval: InLowExUp[K], val v: 
 
   def contains(x: K) = interval.contains(x)
 
-  def lowerThan(x: K): Boolean = !interval.lower.contains(x)
+  def upperThan(x: K): Boolean = !interval.lower.contains(x)
 
-  def upperThan(x: K): Boolean = !interval.upper.contains(x)
+  def lowerThan(x: K): Boolean = !interval.upper.contains(x)
 
   def sliceUpper(x: K): IntervalTree[K, V]
 
@@ -46,10 +46,10 @@ object IntervalTree{
         x match{
           case center if internal.interval.contains(center) => tree
           case left if internal.left.nonEmpty &&
-                       internal.interval.upper.contains(left) =>
+                       internal.upperThan(left) =>
             find(x, internal.left)
           case right if internal.right.nonEmpty &&
-                        internal.interval.lower.contains(right) =>
+                        internal.lowerThan(right) =>
             find(x, internal.right)
           case _  => None
         }

@@ -58,8 +58,8 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 object M1Hermite3 {
 
 
-  def constructSpline(source: (Double, Double, Double, Double, Double, Double)): M1Hermite3 = {
-    val (yLow, yUpp, sdLow, sdUpp, xLow, xUpp) = source
+  def constructSpline(source: Array[Double]): M1Hermite3 = {
+    val Array(yLow, yUpp, sdLow, sdUpp, xLow, xUpp) = source
     val delta = Hermite3.delta(yLow, yUpp, xLow, xUpp)
     val h = Hermite3.h(xLow, xUpp)
     val coefs: Array[Double] = Array(
@@ -70,19 +70,20 @@ object M1Hermite3 {
     M1Hermite3(coefs, xLow)
   }
 
-  def smoothness(prev: (Double, Double, Double, Double, Double, Double),
-                 next: (Double, Double, Double, Double, Double, Double))
-                     : (Double, Double, Double, Double, Double, Double) = {
-    val (_, _, _, dLeft, _, _) = prev
-    val (_, _, dRight, _, _, _) = next
+  def smoothness(prev: Array[Double],
+                 next: Array[Double])
+                     : Array[Double] = {
+    val Array(_, _, _, dLeft, _, _) = prev
+    val Array(_, _, dRight, _, _, _) = next
     val der = signum(dLeft) * min(abs(dRight), abs(dLeft))
-    prev.copy(_4 = der)
+    prev.update(3, der)
+    prev
   }
 
   def apply(values: List[(Double, Double)]): List[M1Hermite3] = {
     import Hermite3._
     val sources = Hermite3.makeSources(values)
-      .map(monothone(_)(Normal)).iterator
+      .map(monothone(_)(Normal))
 
     val buffer = ListBuffer.empty[M1Hermite3]
 
@@ -92,7 +93,10 @@ object M1Hermite3 {
         val next = sources.next()
         val source = smoothness(prevous, next)
         buffer += constructSpline(source)
-        if(sources.isEmpty) buffer += constructSpline(next.copy(_3 = prevous._4))
+        if(sources.isEmpty) {
+          next.update(2, source(3))
+          buffer += constructSpline(next)
+          }
         prevous = next
       }
     }
