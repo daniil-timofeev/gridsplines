@@ -2,15 +2,16 @@ package piecewise.intervaltree
 
 import com.twitter.algebird._
 import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird.Interval.MaybeEmpty.SoEmpty
+import com.twitter.algebird.Interval.MaybeEmpty.{NotSoEmpty, SoEmpty}
 
 import scala.Option
 import com.twitter.algebird.monad._
 import com.twitter.algebird.monad.Trampoline._
-import piecewise.{NoFunction, PieceFunction}
+import piecewise._
 
 import scala.annotation.tailrec
-import scala.collection.{Iterator, mutable}
+import scala.collection.Iterator
+
 
 
 /**
@@ -26,6 +27,8 @@ abstract class IntervalTree[K: Ordering, +V](val interval: InLowExUp[K], val v: 
 
   def lowerThan(x: K): Boolean = !interval.upper.contains(x)
 
+  def tuple: (InLowExUp[K], V) = (interval, v)
+
   def sliceUpper(x: K): IntervalTree[K, V]
 
   def sliceLower(x: K): IntervalTree[K, V]
@@ -34,9 +37,281 @@ abstract class IntervalTree[K: Ordering, +V](val interval: InLowExUp[K], val v: 
   def collect[T](pf: PartialFunction[(InLowExUp[K], V), T])(
     implicit bi: mutable.Builder[T, Iterator[T]]): mutable.Builder[T, Iterator[T]]
 
+  def mapNonDecreasing[U: Ordering](i: K => U): IntervalTree[U, V]
+
+  def size: Int
+
+  def map[V1](v: V => V1): IntervalTree[K, V1]
+
+  def map[U: Ordering, V1](
+    f : (InLowExUp[K], V) => (InLowExUp[U], V1)): IntervalTree[U, V1]
+
+  def map[V1](f: (K, K, V) => V1): IntervalTree[K, V1]
+
+  def splitWhere(f: (K, K, V) => Int)(
+    implicit field: Field[K]): Option[IntervalTree[K, V]] = {
+    import com.twitter.algebird.Operators._
+    val src = iterator.flatMap{tuple =>
+      val (interval, pieceFunc) = tuple
+      val low = interval.lower.lower
+      val upp = interval.upper.upper
+      val parts = f(low, upp, pieceFunc)
+      if(parts > 1) {
+        val length = upp - low
+        val newLength = field.div(length, field.fromInt(parts))
+        Iterator.range(0, parts).map{i =>
+          val newLow = low + newLength * field.fromInt(i)
+          val newUpp = upp + newLength
+          Interval.leftClosedRightOpen(newLow, newUpp) match{
+            case notEmpty: NotSoEmpty[K, InLowExUp] => (notEmpty.get, pieceFunc)
+            case _ : SoEmpty[K, InLowExUp] => ???
+          }
+        }
+      } else Iterator.single((interval, pieceFunc))
+    }.toIterable
+    val size = src.size
+   IntervalTree.buildLeft(src.iterator, size)
+  }
+
+  def mapIterator[U: Ordering, V1](
+    f: (InLowExUp[K], V) => (Iterator[(InLowExUp[U], V1)], Int)
+  ): (Iterator[(InLowExUp[U], V1)], Int)
+
+  def buildIterator[V1 >: V](array: Array[(InLowExUp[K], V1)], start: Int)
+  : Array[(InLowExUp[K], V1)]
+
+  def iterator: Iterator[(InLowExUp[K], V)]
+
+}
+
+final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[K],
+                                               override val v: V,
+                                               left: Option[IntervalTree[K, V]],
+                                               right: Option[IntervalTree[K, V]])
+  extends IntervalTree[K, V](interval, v){
+  def this(map: (InLowExUp[K], V),
+           left: Option[IntervalTree[K, V]],
+           right: Option[IntervalTree[K, V]]){
+    this(map._1, map._2, left, right)
+  }
+
+  override lazy val size: Int =
+    1 + left.map(_.size).getOrElse(0) + right.map(_.size).getOrElse(0)
+
+  def sliceUpper(x: K): IntervalTree[K, V] = {
+    x match{
+      case center if interval.contains(x) => {
+        this.copy(interval =
+          Intersection.apply(interval.lower, interval.upper.copy(center)),
+          right = None)
+      }
+      case l if left.nonEmpty && interval.upper.contains(l) => {
+        this.copy(left = left.map(old => old.sliceUpper(l)), right = None)
+      }
+      case r if right.nonEmpty && interval.lower.contains(r) => {
+        this.copy(right = right.map(old => old.sliceUpper(r)))
+      }
+    }
+  }
+
+  def sliceLower(x: K): IntervalTree[K, V] = {
+    x match{
+      case center if interval.contains(x) => {
+        this.copy(interval = Intersection.apply(interval.lower.copy(center),
+          interval.upper), left = None)
+      }
+      case l if left.nonEmpty && interval.upper.contains(l) => {
+        this.copy(left = left.map(old => old.sliceLower(l)))
+      }
+      case r if right.nonEmpty && interval.lower.contains(r) => {
+        this.copy(right = right.map(old => old.sliceLower(r)), left = None)
+      }
+    }
+  }
+
+  import scala.collection._
+  override
+  def collect[T](pf: PartialFunction[(InLowExUp[K], V), T])(
+    implicit bi: mutable.Builder[T, Iterator[T]]): mutable.Builder[T, Iterator[T]] = {
+    left.foreach(_.collect(pf))
+    if(pf.isDefinedAt((interval, v))) bi += pf((interval, v))
+    right.foreach(_.collect(pf))
+    bi
+  }
+
+  override final def mapNonDecreasing[U: Ordering](i: (K) => U): InternalNode[U, V] = {
+      interval.mapNonDecreasing(i) match {
+        case e: Empty[U] => ???
+        case u: Universe[U] => ???
+        case newInterval: InLowExUp[U] => {
+          new InternalNode[U, V](
+            newInterval,
+            v,
+            left.map(iTree => iTree.mapNonDecreasing[U](i)),
+            right.map(iTree => iTree.mapNonDecreasing[U](i))
+          )
+        }
+      }
+  }
+
+  override final def map[V1](f: (V) => V1): InternalNode[K, V1] = {
+    val contains = f(v)
+    new InternalNode[K, V1](
+      interval,
+      contains,
+      left.map(iTree => iTree.map(f)),
+      right.map(iTree => iTree.map(f))
+    )
+  }
+
+  override final def map[U: Ordering, V1](
+                   f: (InLowExUp[K], V) => (InLowExUp[U], V1)): InternalNode[U, V1] = {
+    val tuple = f(interval, v)
+    new InternalNode[U, V1](tuple,
+      left.map(_.map(f)),
+      right.map(_.map(f))
+    )
+  }
+
+  override final def map[V1](f: (K, K, V) => V1): InternalNode[K, V1] = {
+    val low = interval.lower.lower
+    val upp = interval.upper.upper
+    new InternalNode[K, V1](
+      interval,
+      f(low, upp, v),
+      left.map(_.map(f)),
+      right.map(_.map(f))
+    )
+  }
+
+  override
+  def mapIterator[U: Ordering, V1](
+    f: (InLowExUp[K], V) => (Iterator[(InLowExUp[U], V1)], Int)
+    ): (Iterator[(InLowExUp[U], V1)], Int) = {
+    val res = f(interval, v)
+    if (left.isEmpty) {
+      if (right.isEmpty) res
+      else {
+        val (result, s) = res
+        val r = right.get.mapIterator(f)
+        (result ++ r._1, s + r._2)
+      }
+    }
+    else if (right.isEmpty) {
+      val (result, s) = res
+      val l = left.get.mapIterator(f)
+      (l._1 ++ result, s + l._2)
+    }
+    else {
+      val (result, s) = res
+      val l = left.get.mapIterator(f)
+      val r = right.get.mapIterator(f)
+      (l._1 ++ result ++ r._1, l._2 + s + r._2)
+    }
+  }
+
+  def buildIterator[V1 >: V](array: Array[(InLowExUp[K], V1)], start: Int)
+  : Array[(InLowExUp[K], V1)] = {
+    var idx = start
+    if (left.nonEmpty) {
+      left.get.buildIterator(array, start)
+      idx += left.get.size
+    }
+    array.update(idx, tuple)
+    idx += 1
+    if (right.nonEmpty) {
+      right.get.buildIterator(array, idx)
+    }
+    array
+  }
+
+  def iterator: Iterator[(InLowExUp[K], V)] = {
+    val array = new Array[(InLowExUp[K], V)](size)
+    buildIterator(array, 0).iterator
+  }
+
+}
+
+final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
+                                      override val v: V)
+  extends IntervalTree[K, V](interval, v){
+
+  def this(map: (InLowExUp[K], V)){
+    this(map._1, map._2)
+  }
+
+  def sliceUpper(x: K): IntervalTree[K, V] = {
+    if(interval.contains(x)) this.copy(interval =
+      Intersection.apply(interval.lower, interval.upper.copy(x)))
+    else this //assumed what intervals  at tree are continuous
+  }
+
+  def sliceLower(x: K): IntervalTree[K, V] = {
+    if(interval.contains(x)) this.copy(interval =
+      Intersection.apply(interval.lower.copy(x), interval.upper))
+    else this //assumed what intervals at tree are continuous
+  }
+
+  override lazy val size: Int = 1
+
+  import scala.collection._
+  def collect[T](pf: PartialFunction[(InLowExUp[K], V), T])(
+    implicit bi: mutable.Builder[T, Iterator[T]]): mutable.Builder[T, Iterator[T]] = {
+    if(pf.isDefinedAt((interval, v))) bi += pf((interval, v))
+    bi
+  }
+
+  override def mapNonDecreasing[U: Ordering](i: (K) => U): Leaf[U, V] = {
+    interval.mapNonDecreasing(i) match {
+      case u: Universe[U] => ???
+      case empty: Empty[U] => ???
+      case i: InLowExUp[U] => {
+        new Leaf[U, V](i, v)
+      }
+    }
+  }
+
+  override def map[V1](f: (V) => V1): Leaf[K, V1] = {
+    this.copy(v = f(v))
+  }
+
+  override def map[U: Ordering, V1](f: (InLowExUp[K], V) =>
+    (InLowExUp[U], V1)): Leaf[U, V1] = {
+    new Leaf[U, V1](f(interval, v))
+  }
+
+  override def map[V1](f: (K, K, V) => V1): Leaf[K, V1] = {
+    val low = interval.lower.lower
+    val upp = interval.upper.upper
+    new Leaf[K, V1](interval, f(low, upp, v))
+  }
+
+  override
+  def mapIterator[U: Ordering, V1](
+              f: (InLowExUp[K], V) => (Iterator[(InLowExUp[U], V1)], Int)
+              ): (Iterator[(InLowExUp[U], V1)], Int) = {
+    f(interval, v)
+  }
+
+
+  def buildIterator[V1 >: V](array: Array[(InLowExUp[K], V1)], start: Int)
+  : Array[(InLowExUp[K], V1)] = {
+    array.update(start, tuple)
+    array
+  }
+
+  def iterator: Iterator[(InLowExUp[K], V)] = Iterator.single(tuple)
+
 }
 
 object IntervalTree{
+
+  def buildOne[V](xLow: Double, xUpp: Double, f: V): Option[Leaf[Double, V]] = {
+      Interval.leftClosedRightOpen(xLow, xUpp) match {
+        case notEmpty: NotSoEmpty[Double, InLowExUp] => Some(new Leaf(notEmpty.get, f))
+        case _ => None
+      }
+  }
 
   @tailrec
   def find[K: Ordering, V](x: K, tree: Option[IntervalTree[K, V]])
@@ -96,10 +371,10 @@ object IntervalTree{
       case _ => Done(Nil)
     }
   }
-  import scala.collection.mutable._
+
   def toList[K: Ordering, V](tree: Option[IntervalTree[K, V]],
-                             buffer: ListBuffer[(InLowExUp[K], V)])
-  : Trampoline[ListBuffer[(InLowExUp[K], V)]] = {
+                             buffer: collection.mutable.ListBuffer[(InLowExUp[K], V)])
+  : Trampoline[collection.mutable.ListBuffer[(InLowExUp[K], V)]] = {
     tree match{
       case None => Done(buffer)
       case Some(InternalNode(interval, v, left, right)) => {
@@ -112,92 +387,6 @@ object IntervalTree{
       case Some(Leaf(interval, v)) => Done(buffer.+=((interval, v)))
     }
 }
-
-  case class InternalNode[K: Ordering, V](
-  override val interval: InLowExUp[K],
-  override val v: V,
-  left: Option[IntervalTree[K, V]],
-  right: Option[IntervalTree[K, V]])
-    extends IntervalTree[K, V](interval, v){
-    def this(map: (InLowExUp[K], V),
-             left: Option[IntervalTree[K, V]],
-             right: Option[IntervalTree[K, V]]){
-      this(map._1, map._2, left, right)
-    }
-
-
-    def sliceUpper(x: K): IntervalTree[K, V] = {
-      x match{
-        case center if interval.contains(x) => {
-          this.copy(interval =
-            Intersection.apply(interval.lower, interval.upper.copy(center)),
-            right = None)
-        }
-        case l if left.nonEmpty && interval.upper.contains(l) => {
-          this.copy(left = left.map(old => old.sliceUpper(l)), right = None)
-        }
-        case r if right.nonEmpty && interval.lower.contains(r) => {
-          this.copy(right = right.map(old => old.sliceUpper(r)))
-        }
-      }
-    }
-
-    def sliceLower(x: K): IntervalTree[K, V] = {
-      x match{
-        case center if interval.contains(x) => {
-          this.copy(interval = Intersection.apply(interval.lower.copy(center),
-            interval.upper), left = None)
-        }
-        case l if left.nonEmpty && interval.upper.contains(l) => {
-          this.copy(left = left.map(old => old.sliceLower(l)))
-        }
-        case r if right.nonEmpty && interval.lower.contains(r) => {
-          this.copy(right = right.map(old => old.sliceLower(r)), left = None)
-        }
-      }
-    }
-
-
-    import scala.collection._
-    override
-    def collect[T](pf: PartialFunction[(InLowExUp[K], V), T])(
-      implicit bi: mutable.Builder[T, Iterator[T]]): mutable.Builder[T, Iterator[T]] = {
-      left.foreach(_.collect(pf))
-      if(pf.isDefinedAt((interval, v))) bi += pf((interval, v))
-      right.foreach(_.collect(pf))
-      bi
-    }
-  }
-
-  case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
-                                  override val v: V)
-    extends IntervalTree[K, V](interval, v){
-
-    def this(map: (InLowExUp[K], V)){
-      this(map._1, map._2)
-    }
-
-    def sliceUpper(x: K): IntervalTree[K, V] = {
-      if(interval.contains(x)) this.copy(interval =
-        Intersection.apply(interval.lower, interval.upper.copy(x)))
-      else this //assumed what intervals  at tree are continuous
-    }
-
-    def sliceLower(x: K): IntervalTree[K, V] = {
-      if(interval.contains(x)) this.copy(interval =
-        Intersection.apply(interval.lower.copy(x), interval.upper))
-      else this //assumed what intervals at tree are continuous
-    }
-
-
-    import scala.collection._
-    def collect[T](pf: PartialFunction[(InLowExUp[K], V), T])(
-      implicit bi: mutable.Builder[T, Iterator[T]]): mutable.Builder[T, Iterator[T]] = {
-      if(pf.isDefinedAt((interval, v))) bi += pf((interval, v))
-      bi
-    }
-
-  }
 
   final def buildLeft[K: Ordering, V](vals: List[(InLowExUp[K], V)])
   : Trampoline[Option[IntervalTree[K, V]]] = {
@@ -223,7 +412,40 @@ object IntervalTree{
           rightNode <- call(buildRight(default.takeRight(rightSize)))
         } yield Some(new InternalNode[K, V](default(leftIndex), leftNode, rightNode))
       }
-    }}
+    }
+  }
+
+  final def buildLeft[K: Ordering, V](vals: Iterator[(InLowExUp[K], V)],
+                                      size: Int): Option[IntervalTree[K, V]] = {
+    if(vals.isEmpty){
+      None
+    } else{
+      size match {
+        case 1 => Some(new Leaf(vals.next()))
+        case 2 => {
+          val left = vals.next()
+          val mid = vals.next()
+          Some(new InternalNode(mid, Some(new Leaf(left)), None))
+        }
+        case 3 => {
+          val left = vals.next()
+          val mid = vals.next()
+          val right = vals.next()
+          Some(new InternalNode(mid, Some(new Leaf(left)), Some(new Leaf(right))))
+        }
+        case s => {
+          val leftIndex =
+            if(s % 2 == 0) (size + 1) / 2
+            else s / 2
+          val rightSize = size - leftIndex - 1
+          val left = buildLeft(vals, leftIndex)
+          val mid = vals.next()
+          val right = buildRight(vals, rightSize)
+          Some(new InternalNode[K, V](mid, left, right))
+        }
+      }
+  }
+  }
 
   final def buildRight[K: Ordering, V](vals: List[(InLowExUp[K], V)])
   : Trampoline[Option[IntervalTree[K, V]]] = {
@@ -248,6 +470,38 @@ object IntervalTree{
           leftNode <- call(buildLeft(default.take(leftIndex)))
           rightNode <- call(buildRight(default.takeRight(rightSize)))
         } yield Some(new InternalNode[K, V](default(leftIndex), leftNode, rightNode))
+      }
+    }
+  }
+
+  final def buildRight[K: Ordering, V](vals: Iterator[(InLowExUp[K], V)],
+                                       size: Int): Option[IntervalTree[K, V]] = {
+    if(vals.isEmpty){
+      None
+    } else{
+      size match {
+        case 1 => Some(new Leaf(vals.next()))
+        case 2 => {
+          val mid = vals.next()
+          val right = vals.next()
+          Some(new InternalNode(mid, None, Some(new Leaf(right))))
+        }
+        case 3 => {
+          val left = vals.next()
+          val mid = vals.next()
+          val right = vals.next()
+          Some(new InternalNode(mid, Some(new Leaf(left)), Some(new Leaf(right))))
+        }
+        case s => {
+          val leftIndex =
+            if(size % 2 == 0) (size - 1) / 2
+            else size / 2
+          val rightSize = size - leftIndex - 1
+          val left = buildLeft(vals, leftIndex)
+          val mid = vals.next()
+          val right = buildLeft(vals, rightSize)
+          Some(new InternalNode[K, V](mid, left, right))
+        }
       }
     }
   }

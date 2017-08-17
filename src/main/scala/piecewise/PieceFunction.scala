@@ -6,8 +6,12 @@ import com.twitter.algebird._
 
 import scala.annotation.{switch, tailrec}
 import scala.math.{abs, signum}
-
 import com.twitter.algebird.Interval._
+import piecewise.Hermite3.{array, deriv, exception}
+
+import scala.collection
+import scala.collection.TraversableOnce
+import scala.collection.mutable.ArrayBuffer
 
 /** Общий трейт для кусочных функций
   * trait for piecewise functions
@@ -282,6 +286,52 @@ object PieceFunction{
   def interpolate(x1: Double, x2 : Double, y1 : Double, y2 : Double, x : Double) = {
     if(Objects.equals(x2-x1, 0.0)) y1
     else y1 + (y2 - y1) / (x2 - x1) * (x - x1)
+  }
+
+  def iteratePoints[R](values: Iterator[(Double, Double)],
+                       whenEmpty: => Iterator[R],
+                       whenOne: (Double, Double) => R,
+                       whenTwo: ((Double, Double), (Double, Double)) => R,
+                       whenThree: ((Double, Double),
+                                   (Double, Double),
+                                   (Double, Double)) => R,
+                       whenMore: (((Double, Double),
+                                   (Double, Double),
+                                   (Double, Double)) => R)): Iterator[R] = {
+
+    val builder = collection.mutable.Buffer.apply[R]()
+    if (values.hasNext){
+      var v1 = values.next()
+      if (values.isEmpty) {
+        builder += whenOne(v1._1, v1._2)
+        builder.iterator
+      }
+      else {
+        var v2 = values.next()
+        if (values.isEmpty) {
+          builder += whenTwo(v1, v2)
+          builder.iterator
+        }
+        else {
+          var v3 = values.next()
+          if (values.isEmpty){
+            builder += whenThree(v1, v2, v3)
+            builder.iterator
+          }
+          else {
+            builder +=  whenMore(v1, v2, v3)
+            while (values.hasNext){
+              v3 = v2
+              v2 = v1
+              v1 = values.next()
+              builder += whenMore(v1, v2, v3)
+            }
+            builder.iterator
+          }
+        }
+      }
+    }
+    else whenEmpty
   }
 
   /** Интерполирует значение между двумя ближайшими точками к значению в коллекции

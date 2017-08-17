@@ -16,7 +16,19 @@ import scala.math._
   */
 case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 
-  type SliceType = M1Hermite3
+
+  override def apply(x: Double): Double = PieceFunction.cubicRuleOfHorner(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+
+  override def derivative(x: Double): Double = PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+
+  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+
+  private lazy val body = f"*(x${-x0}%+.7f)"
+
+  override lazy val toString = {
+    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  ${coefs(1)}%+1.4f" +
+      body + f" ${coefs(0)}%+1.4f"
+  }
 
   //TODO get desired spline smoothness
   //private[this] lazy val fi4 = if(2 * alpha + beta < 3.0 || alpha + 2 * beta < 3.0) true else false
@@ -43,10 +55,6 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
  //   }
  // }
 
-  def sliceUpper(upper: Double): SliceType = this
-
-  def sliceLower(lower: Double): SliceType = this
-
   /** Экстремум функции `x`
     * Extremum of function `x`
     *
@@ -56,7 +64,6 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 
 }
 object M1Hermite3 {
-
 
   def constructSpline(source: Array[Double]): M1Hermite3 = {
     val Array(yLow, yUpp, sdLow, sdUpp, xLow, xUpp) = source
@@ -106,6 +113,14 @@ object M1Hermite3 {
 
   def apply(x: List[Double], y: List[Double]): List[M1Hermite3] = {
       ???
+  }
+
+  implicit def convert[S <: PieceFunction](low: Double,
+                                           upp: Double, fn: S): M1Hermite3 = {
+    fn match {
+      case line: Line => new M1Hermite3(Array(line.intercept, line.slope, 0.0, 0.0), 0.0)
+      case nonMonothone: Hermite3 => ???
+    }
   }
 
 }

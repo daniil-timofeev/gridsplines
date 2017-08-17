@@ -5,28 +5,20 @@ import minimization.GoldenSlice
 /** Just line at interval
   *
   */
-case class Line(d: Double, free: Double) extends Lagrange with Slicer{
-
-    type SliceType = Line
-
-
-  def sliceUpper(upper: Double): SliceType = this
-
-  def sliceLower(lower: Double): SliceType = this
+case class Line(slope: Double, intercept: Double) extends Lagrange{
 
   override protected val coefs: Array[Double] = Array(
-    free,
-    d
+    intercept,
+    slope
   )
 
-
-  override def derivative(x: Double): Double = d
+  override def derivative(x: Double): Double = slope
   /** Swap x and y places
     *
     * @return x = f(y) spline
     */
   def swap: Line = {
-    new Line(1.0 / d, - free * d) // TODO test me
+    new Line(1.0 / slope, - intercept * slope) // TODO test me
   }
 
   override protected def extremum: List[Double] = ???
@@ -55,9 +47,11 @@ case class Line(d: Double, free: Double) extends Lagrange with Slicer{
   //  this.copy(f = f + func(from), f1 = f1 + func(to))
 
 
-  override def apply(x: Double): Double = d * x + free
+  override def apply(x: Double): Double = slope * x + intercept
 
-  override def integral(x: Double): Double = d / 2.0 * x + free * x
+  override def integral(x: Double): Double = slope / 2.0 * x + intercept * x
+
+  override def toString: String = f"${slope}%.15f*x + ${intercept}%.15f"
 
 }
 object Line{
@@ -76,16 +70,32 @@ object Line{
     }} toList
   }
 
-  def apply(points: List[(Double, Double)]): List[Line] = {
-    val viewPoints = points.view
-    (viewPoints zip (viewPoints drop 1)) map{p => {
-      val ((xLow, yLow),(xUp, yUp)) = p
-      val der = derivative(yUp, yLow, xUp, xLow)
-      val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
-      new Line(der, free)
-    }} toList
+  def apply(points: List[(Double, Double)]): Iterator[Line] = {
+    points.sliding(2).map{pSeq =>
+      val Seq((xLow, yLow),(xUp, yUp)) = pSeq
+      apply(xLow, xUp, yLow, yUp)
+    }
+  }
+  import com.twitter.algebird.AffineFunction
+  def apply(xLow: Double, xUp: Double, yLow: Double, yUp: Double): Line = {
+    val der = derivative(yUp, yLow, xUp, xLow)
+    val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
+    new Line(der, free)
   }
 
+ class LineConverter[S <: PieceFunction] extends SplineConvert[S, Line]{
+
+   override def apply(low: Double, upp: Double, fn: S): Line = {
+     fn match {
+       case line: Line => line
+       case noLine => Line(low, upp, noLine(low), noLine(upp))
+     }
+   }
+ }
+
+  implicit def line[S <: PieceFunction]: LineConverter[S] = {
+    new LineConverter[S]
+  }
 
 
 }

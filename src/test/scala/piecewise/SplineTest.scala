@@ -20,13 +20,25 @@ object SplineTest extends Properties("Сплайн / Spline"){
     g <- nonEmptyListOf[(Double, Double)](pointGen)
   } yield g
 
+
+  property(" correct slicing * 2") =
+    forAll(listGen){(vals: List[(Double, Double)]) =>
+      val spline = Spline.lines(vals)
+      val src1 = spline.sources
+      val splitted = spline.splitWhere((_, _, _) => true, 2)
+      val src2 = splitted.sources
+      src2.size ?= src1.size * 2
+    }
+
   property(" get building points") =
-    forAll(listGen){(vals: List[(Double, Double)]) => {
-    import piecewise._
-    val spline = Spline[Line](vals)
-    val points = spline.points
-    vals == points
-  }}
+  forAll(listGen){(vals: List[(Double, Double)]) => {
+      import piecewise._
+      val spline = Spline[Line](vals)
+      val points = spline.points
+      vals == points
+    }}
+
+
 
   //property(" Cовпадение в точках при целых числах / coincidence in points with int numbers") = {
   //  forAll(intPointListGen ){points : List[(Int, Int)] => {

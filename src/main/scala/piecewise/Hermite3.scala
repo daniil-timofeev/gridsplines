@@ -28,11 +28,24 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
    ), low)
   }
 
-  type SliceType = Hermite3
+  override def apply(x: Double): Double = PieceFunction.cubicRuleOfHorner(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  def sliceUpper(upper: Double): SliceType = this
+  override def derivative(x: Double): Double = PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  def sliceLower(lower: Double): SliceType = this
+  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+
+  private lazy val body = f"*(x${-x0}%+.7f)"
+
+  override lazy val toString = {
+    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  ${coefs(1)}%+1.4f" +
+      body + f" ${coefs(0)}%+1.4f"
+  }
+
+  def swap(low: Double, upp: Double): Hermite3 = {
+    val dLow = coefs(1)
+    val dUpp = der(upp)
+    ???
+  }
 
   def extremum: List[Double] = ???
 }
@@ -179,6 +192,8 @@ object Hermite3 {
       new Hermite3(src(0), src(1), src(2), src(3), src(4), src(5), h0, d_a)
     }.toList
   }
+
+
 
   def apply(x: List[Double], y: List[Double]): List[Hermite3] = {
     if (x.length != y.length) throw new IllegalArgumentException("x array length must be same as y array length")

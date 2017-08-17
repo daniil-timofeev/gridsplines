@@ -18,16 +18,16 @@ import scala.collection.mutable
 /**
   *
   */
- class TwoDGrid[XType <: TypeDir, YType <: TypeDir](leftX: Array[Double],
-                                                  rangeX: Array[Double],
-                                                  rightX: Array[Double],
-                                                  xBeginAt: Array[Int],
-                                                  xEndAt: Array[Int],
-                                                  leftY: Array[Double],
-                                                  rangeY: Array[Double],
-                                                  rightY: Array[Double],
-                                                  conductivities: Array[Array[Spline[PieceFunction]]],
-                                                  weight: Double
+ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](lowerX: Array[Double],
+                                                    rangeX: Array[Double],
+                                                    upperX: Array[Double],
+                                                    xBeginAt: Array[Int],
+                                                    xEndAt: Array[Int],
+                                                    lowerY: Array[Double],
+                                                    rangeY: Array[Double],
+                                                    upperY: Array[Double],
+                                                    conductivities: Array[Array[Spline[PieceFunction]]],
+                                                    weight: Double
                                                  )(implicit val xDir: XType, implicit val yDir: YType) {
 
   assert(rangeX.length == rangeY.length)
@@ -100,7 +100,7 @@ import scala.collection.mutable
     val ranges: Array[Array[Double]] = (xBeginAt, xEndAt).zipped.map((x0, xn) => TwoDGrid.sliceX(x0, rangeX, xn))
 
 
-    (leftX, ranges, rightX).zipped
+    (lowerX, ranges, upperX).zipped
       .map((lX: Double, ranX: Array[Double], rX: Double) => xDir.preDef(lX, ranX, rX, weight)).reduce(_ ++ _)
   }
 
@@ -112,7 +112,7 @@ import scala.collection.mutable
     }
 
   private val yPreDef: Array[Array[Double]] =
-    (leftY, whereYHas, rightY).zipped
+    (lowerY, whereYHas, upperY).zipped
       .map {(lY: Double, midY: Array[Double], rY: Double) =>
         yDir.preDef(lY, midY, rY, weight)
       }
