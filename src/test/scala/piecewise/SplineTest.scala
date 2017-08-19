@@ -25,7 +25,7 @@ object SplineTest extends Properties("Сплайн / Spline"){
     forAll(listGen){(vals: List[(Double, Double)]) =>
       val spline = Spline.lines(vals)
       val src1 = spline.sources
-      val splitted = spline.splitWhere((_, _, _) => true, 2)
+      val splitted = spline.splitWhere((_, _, _) => 2)
       val src2 = splitted.sources
       src2.size ?= src1.size * 2
     }

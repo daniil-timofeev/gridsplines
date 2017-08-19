@@ -1,339 +1,464 @@
 package approximation
 
-import java.text.NumberFormat
-import java.util.Locale
-
-import approximation.TwoDGrid.{Dir, Side, XDir, YDir}
-import approximation.passion.iteration
-
-import scala.math._
+import approximation.TwoDGrid.{BaseBound, BoundSide, Bounds, Left, Lower, OneElementBound, Right, Upper}
+import approximation.XDim.RowIterator
+import approximation.YDim.ColumnIterator
 import piecewise.{PieceFunction, Spline}
 
-import scala.annotation.tailrec
-import org.slf4j._
+import scala.math.abs
 
-import scala.collection.mutable
+class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
+        private val x: XDim[XType], private val y: YDim[YType],
+        val bounds: Bounds,
+        val coefsX: (Double, Double) => Spline[PieceFunction],
+        val coefsY: (Double, Double) => Spline[PieceFunction]
+){
 
-//TODO make all arrays immutable (scala 2.13)
-/**
-  *
-  */
- class TwoDGrid[XType <: TypeDir, YType <: TypeDir](lowerX: Array[Double],
-                                                    rangeX: Array[Double],
-                                                    upperX: Array[Double],
-                                                    xBeginAt: Array[Int],
-                                                    xEndAt: Array[Int],
-                                                    lowerY: Array[Double],
-                                                    rangeY: Array[Double],
-                                                    upperY: Array[Double],
-                                                    conductivities: Array[Array[Spline[PieceFunction]]],
-                                                    weight: Double
-                                                 )(implicit val xDir: XType, implicit val yDir: YType) {
+  val grid = TwoDGrid.makeArray(x, y)
 
-  assert(rangeX.length == rangeY.length)
-  assert(xBeginAt.length == rangeX.length)
-
-  private def tallestXRange = (xBeginAt, xEndAt).zipped.map((x0, xn) => x0 to xn by 1).maxBy(_.length)
-
-  private def tallestXLength = tallestXRange.length
-
-  private def isDeterminedAt(colI: Int, rowI: Int): Boolean = xBeginAt(colI) < rowI && rowI < xEndAt(colI)
-
-  private val logger = LoggerFactory.getLogger(getClass)
-  logger.info("Creating two dimensional grid...")
-  protected val grid = Array.fill(rangeY.length * tallestXLength)(4.0)
-  logger.info(s"Innitial grid size ${rangeY.length * tallestXLength}")
-  protected val afterFirstIteration = grid.clone()
-  protected val predicted = grid.clone()
-  protected val result = grid.clone()
-  logger.trace("Copies of the grid was successfuly created")
-  assert(grid.length == conductivities.length)
-
-  protected def index(row: Int, col: Int): Int = {
-    row * col + col
-  }
-
-  logger.info("Acessing for each Y (row)...")
-  logger.info("indexes:")
-
-  private val xLoop: Array[Int] = {
-    (xBeginAt zip xEndAt).zipWithIndex flatMap {(zipped: ((Int, Int), Int)) =>
-      val ((x0: Int, xn: Int), y: Int) = zipped //for each y
-      x0.to(xn, 1).map{(xI: Int) =>
-        val ind = index(y, xI + x0)
-        logger.info(s"((y:${y}, x:${xI + x0}) -> ${ind});")
-        ind
-      } // calculate index with the same y and existing x
-    }
-  }.toArray
-
-  private val yLoop: Array[Int] = {
-    tallestXRange.indices flatMap { x =>
-      //for each x
-      rangeY.indices.view collect {
-        {
-          // for each y find where x exist
-          case y if (xBeginAt(y) to xEndAt(y) by 1).indices.contains(x - xBeginAt(y)) => {
-            val ind = index(y, x)
-            logger.info(s"((y:${y}, x:${x}) -> ${ind});")
-            ind
-          }
-        }
+  def updateX(f: Double => Double) = {
+    val iter = new ColumnIterator(x, y)
+    while (iter.hasNextCol) {
+      val fI = iter.nextCol
+      val value = f(iter.colCoord)
+      grid *= (fI, value)
+      while (iter.hasNext){
+        val i = iter.next
+        grid *= (i, value)
       }
     }
-  }.toArray
-  logger.info("---")
+  }
 
+  def updateY(f: Double => Double) = {
+    val iter = new RowIterator(x, y)
+    while(iter.hasNextRow){
+      val fI = iter.nextRow
+      val value = f(iter.rowCoord)
+      grid *= (fI, value)
+      while (iter.hasNext){
+        val i = iter.next
+        grid *= (i, value)
+      }
+    }
+  }
 
-  private val xLengths = (xBeginAt, xEndAt).zipped.map((x0, xn) => (x0 to xn by 1).length)
-  //remake
-  private val yLengths: Array[Int] = {
-    rangeX.indices.map { (x: Int) =>
-      //for each x
-      rangeY.indices.count (y => isDeterminedAt(y, x)
+  def avValue: Double = grid.avValue
+
+  def *=(v: Double) = grid *= v
+
+  override def toString: String = {
+    val buffer = new StringBuffer()
+
+    val xCoords = x.toString
+
+    buffer.append(xCoords)
+
+    val lowBound =
+      x.range.indices.map{i => f"${bounds.low.get(i)}%.3f"}
+        .mkString(
+          f"${y.low}%.3f\t|\t...\t\t|\t",
+          "\t",
+          f"\t|\t...\t\t|\t${y.upp}%.3f" + System.lineSeparator()
+        )
+
+    val uppBound =
+      x.range.indices.map{i => f"${bounds.upp.get(i)}%.3f"}
+      .mkString(
+    f"${y.upp}%.3f\t|\t...\t\t|\t",
+    "\t",
+    f"\t|\t...\t\t|\t${y.upp}%.3f" + System.lineSeparator()
+    )
+
+    buffer.append(lowBound)
+    val iter = new RowIterator(x, y)
+    val g = grid.grid
+    val rowArray = new Array[Double](x.rowSize(0))
+    while (iter.hasNextRow){
+      val fI = iter.nextRow
+      rowArray.update(0, g(fI))
+      while (iter.hasNext) {
+        val i = iter.next
+        rowArray.update(iter.posAtRow, g(i))
+      }
+      buffer.append(
+        rowArray.map(d => f"${d}%.3f").mkString(
+          f"${iter.rowCoord}%.3f\t|\t${bounds.left.get(iter.rowIdx)}%.3f\t|\t",
+          "\t",
+          f"\t|\t${bounds.right.get(iter.rowIdx)}%.4f\t|\t${iter.rowCoord}%.3f" +
+            System.lineSeparator()
+        )
       )
     }
-  }.toArray
 
-  private val xPreDef: Array[Array[Double]] = {
-
-    val ranges: Array[Array[Double]] = (xBeginAt, xEndAt).zipped.map((x0, xn) => TwoDGrid.sliceX(x0, rangeX, xn))
-
-
-    (lowerX, ranges, upperX).zipped
-      .map((lX: Double, ranX: Array[Double], rX: Double) => xDir.preDef(lX, ranX, rX, weight)).reduce(_ ++ _)
+    buffer.append(uppBound)
+    buffer.append(xCoords)
+    buffer.toString
   }
 
-  private def whereYHas = rangeX.indices
-    .map { x: Int =>
-       rangeY.zipWithIndex collect {
-         case (yL, yI) if isDeterminedAt(yI, x) => yL
-       }
+  def xIter(time: Double) = {
+    val iter = new XDim.RowIterator(x, y)
+    while (iter.hasNextRow) {
+      val fI = iter.nextRow
+      val t1 = bounds.left.get(iter.rowIdx)
+      var t2 = grid(fI)
+      var t3 = grid(fI + 1)
+      var t = grid.get(fI)
+      var c0 = x.first(time, t1, t2, t3, t, coefsX)
+
+      while (iter.hasTwoNext) {
+        val i = iter.next
+        t2 = grid(i)
+        t3 = grid(i + 1)
+        t = grid.get(i)
+        c0 = x.general(iter, time, t2, t3, t, c0, coefsX)
     }
+      val i = iter.next
+      t2 = grid(i)
+      t3 = bounds.right.get(iter.rowIdx)
+      t = grid.get(i)
+      x.last(iter, time, t2, t3, t, c0, coefsX)
+      x.update(grid, iter)
+  }
+  }
 
-  private val yPreDef: Array[Array[Double]] =
-    (lowerY, whereYHas, upperY).zipped
-      .map {(lY: Double, midY: Array[Double], rY: Double) =>
-        yDir.preDef(lY, midY, rY, weight)
+  def yIter(time: Double): Unit = {
+    val iter = new YDim.ColumnIterator(x, y)
+    while (iter.hasNextCol) {
+      val fI = iter.nextCol
+      val t1 = bounds.upp.get(iter.colIdx)
+      var t2 = grid(fI)
+      var t3 = grid(fI + x.colsNum)
+      var t = grid.res(fI)
+      var c0 = y.first(time, t1, t2, t3, t, coefsY)
+
+      while (iter.hasTwoNext) {
+        val i = iter.next
+        t2 = grid(i)
+        t3 = grid(i + x.colsNum)
+        t = grid.res(i)
+        c0 = y.general(iter, time, t2, t3, t, c0, coefsY)
       }
-      .reduce(_ ++ _)
 
-  private val toPassion = Array.fill(max(rangeX.length, whereYHas.map(_.length).max))(new Array[Double](2))
-  private val localResult = toPassion.map(_(0))
-
-  def stepLeftXBound(time: Double, leftTX: Array[Double]): Unit = {
-    step(time, leftTX, overlaps(1), overlaps(2), overlaps(3))
-  }
-  def stepRightXBound(time: Double, rightTX: Array[Double]): Unit = {
-    step(time, overlaps(0), rightTX: Array[Double], overlaps(2), overlaps(3))
-  }
-  def stepLeftRightXBound(time: Double, leftTX: Array[Double], rightTX: Array[Double]) = {
-    step(time, leftTX, rightTX, overlaps(2), overlaps(3))
-  }
-  def stepLeftYBound(time: Double, leftTY: Array[Double]): Unit = {
-    step(time, overlaps(0), overlaps(1), leftTY, overlaps(3))
+      val i = iter.next
+      t2 = grid(i)
+      t3 = bounds.low.get(iter.colIdx)
+      t = grid.res(i)
+      y.last(iter, time, t2, t3, t, c0, coefsY)
+      y.update(grid, iter)
+    }
   }
 
-  def stepRightYBound(time: Double, rightTY: Array[Double]): Unit = {
-    step(time, overlaps(0), overlaps(1), overlaps(2), rightTY)
+  def iteration(time: Double) = {
+    xIter(time)
+    yIter(time)
+    grid.update()
   }
 
-  def stepLeftRightYBound(time: Double, leftTY: Array[Double], rightTY: Array[Double]): Unit = {
-    step(time, overlaps(0), overlaps(1), leftTY, rightTY)
-  }
-
-
-  def step(time: Double,
-           leftTX: Array[Double], rightTX: Array[Double],
-           leftTY: Array[Double], rightTY: Array[Double]): Unit = {
-
-    iteration(time, xLoop, xLengths,
-      leftTX, grid, predicted, localResult, afterFirstIteration, rightTX,
-      xPreDef, conductivities, toPassion)
-    iteration(time, yLoop, yLengths,
-      leftTY, afterFirstIteration, predicted, localResult, result, rightTY,
-      yPreDef, conductivities, toPassion)
-
+  def left(copyTo: Array[Double]): Unit = {
+    val g = grid.grid
     var i = 0
-    while (i != grid.length) {
-      result.update(i, arraygrid.aVal(grid(i), result(i)))
-      i += 1
+    var j = 0
+    while (i < x.colsNum * y.rowsNum) {
+      copyTo.update(j, g(i))
+      i += x.colsNum
+      j += 1
     }
-
-    System.arraycopy(result, 0, grid, 0, grid.length)
-    updateOverlaps()
   }
 
-  import java.nio.file._
-  def write(columnSeparator: String, dir: Path,
-            fileName: String, fileExtension: String,
-            commentSign: String, comments: List[String]) = {
-    import java.nio.file.Files
-    val form = NumberFormat.getNumberInstance(Locale.ROOT)
-    form.setMaximumFractionDigits(3)
-
-    val file = dir.resolve(fileName + fileExtension)
-
-    import scala.concurrent.Future
-    import scala.concurrent.ExecutionContext.Implicits._
-    Future {
-      val writer = Files.newBufferedWriter(file, StandardOpenOption.TRUNCATE_EXISTING)
-      try {
-        if (comments.nonEmpty) {
-          comments.foreach(comment => {
-            writer.write(commentSign + comment)
-            writer.newLine()
-          })
-        }
-        @tailrec def writeRows(lengths: List[Int], indent: List[Int], grid: List[Double]): Unit = {
-          if (lengths.nonEmpty) {
-            val result: String = {
-              List.fill(indent.head)(Double.NaN) ++
-                grid.take(lengths.head + indent.head) ++
-                List.fill(tallestXLength - lengths.head - indent.head)(Double.NaN)
-            }.map(form.format)
-             .reduce(_ + columnSeparator + _)
-            writer.write(result)
-            writer.newLine()
-            writeRows(lengths.tail, indent.tail, grid.drop(tallestXLength))
-          }
-        }
-      }
-      finally writer.close()
-    }
-
-  }
-
-  private def rowLength(rowPos: Int): Int = {
-    {xBeginAt(rowPos) to xEndAt(rowPos) by 1}.length
-  }
-
-  private def rowInds(rowPos: Int): Array[Int] = {
-    {xBeginAt(rowPos) to xEndAt(rowPos) by 1}.map(colPos => index(rowPos, colPos)).toArray
-  }
-
-  def row(rowPos: Int): Array[Double] = {
-    val res: Array[Double] = new Array(rowLength(rowPos))
-    val indexes = rowInds(rowPos).iterator
-    while(indexes.hasNext){
-      val next = indexes.next()
-      res.update(next, grid.apply(next))
-    }
-    res
-  }
-
-  private def columnLength(colPos: Int): Int = {
-      xBeginAt.collect{
-        case fCol if colPos >= fCol => fCol
-      }.length
-  }
-
-  private def colInds(colPos: Int): Array[Int] = {
-      xBeginAt.zipWithIndex.collect{
-        case (fCol, rowPos)if colPos >= fCol => {
-            index(rowPos, colPos)
-        }
-      }
-  }
-
-  def col(colPos: Int): Array[Double] = {
-    val res: Array[Double] = new Array(columnLength(colPos))
-    val indexes = colInds(colPos).iterator
-    while(indexes.hasNext){
-      val next = indexes.next()
-      res.update(next, grid.apply(next))
-    }
-    res
-  }
-
-  private val overlaps = new Array[Array[Double]](4)
-  private val overlapIndexes = new Array[Array[Int]](4)
-
-  overlaps(0) = Array.fill(columnLength(0))(4.0)
-
-  overlapIndexes(0) = colInds(0)
-
-  overlaps(1) = {
-    val lastIndex = xEndAt.max
-    Array.fill(columnLength(lastIndex))(4.0)
-  }
-
-  overlapIndexes(1) = {
-    val lastIndex = xEndAt.max
-    colInds(lastIndex)
-  }
-
-  overlaps(2) = Array.fill(rowLength(0))(4.0)
-
-  overlapIndexes(2) = rowInds(0)
-
-  overlaps(3) = Array.fill(rowLength(rangeY.length - 1))(4.0)
-
-  overlapIndexes(3) = rowInds(rangeY.length - 1)
-
-
-  private def updateOverlaps(): Unit = {
+  def leftAverage: Double = {
+    val g = grid.grid
+    val size = y.rowsNum
     var i = 0
-    while(i != 4){
-      var o = 0
-      while(o != overlapIndexes(i).length){
-        val k = overlapIndexes(i)(o)
-        overlaps(i).update(o, grid(k))
-        o += 1
-      }
+    var sum = 0.0
+    while (i < x.colsNum * y.rowsNum) {
+      sum += g(i)
+      i += x.colsNum
+    }
+    sum / size
+  }
+
+  def right(copyTo: Array[Double]): Unit = {
+    val g = grid.grid
+    var i = x.colsNum - 1
+    var j = 0
+    while (i < x.colsNum * y.rowsNum) {
+      copyTo.update(j, g(i))
+      i += x.colsNum
+      j += 1
+    }
+  }
+
+  def rightAverage: Double = {
+    val g = grid.grid
+    val size = y.rowsNum
+    var i = x.colsNum - 1
+    var sum = 0.0
+    while (i < x.colsNum * y.rowsNum){
+      sum += g(i)
+      i += x.colsNum
+    }
+    sum / size
+  }
+
+  def upper(copyTo: Array[Double]): Unit = {
+    val g = grid.grid
+    var i = 0
+    while (i != x.colsNum) {
+      copyTo.update(i, g(i))
       i += 1
     }
   }
 
-  private[approximation] def overlapBound[D <: Dir, S <: Side](implicit dir: D, side: S): Array[Double] = {
-    import TwoDGrid._
-    dir match{
-      case x: XDir => {
-        side match {
-          case left: Left => overlaps(0)
-          case right: Right => overlaps(1)
+  def upperAverage: Double = {
+    val g = grid.grid
+    val size = x.colsNum
+    var i = 0
+    var sum = 0.0
+    while (i != x.colsNum) {
+      sum += g(i)
+      i += 1
+    }
+    sum / size
+  }
+
+  def lower(copyTo: Array[Double]): Unit = {
+    val g = grid.grid
+    var i = x.colsNum * (y.rowsNum - 1)
+    var j = 0
+    while (i != x.colsNum * y.rowsNum) {
+      copyTo.update(j, g(i))
+      i += 1
+      j += 1
+    }
+  }
+
+  def lowerAverage: Double = {
+    val g = grid.grid
+    var i = x.colsNum * (y.rowsNum - 1)
+    val size = x.colsNum
+    var sum = 0.0
+    while (i != x.colsNum * y.rowsNum) {
+      sum += g(i)
+      i += 1
+    }
+    sum / size
+  }
+
+  def noHeatFlow(side: BoundSide): Unit = {
+    side match {
+      case Upper => {
+        bounds.upp match {
+          case base: BaseBound => upper(base.array)
+          case one: OneElementBound => one.update(upperAverage)
         }
       }
-      case y: YDir => {
-        side match{
-          case left: Left => overlaps(2)
-          case right: Right =>  overlaps(3)
+      case Lower => {
+        bounds.low match {
+          case base: BaseBound => lower(base.array)
+          case one: OneElementBound => one.update(lowerAverage)
+        }
+      }
+      case Right => {
+        bounds.right match {
+          case base: BaseBound => right(base.array)
+          case one: OneElementBound => one.update(rightAverage)
+        }
+      }
+      case Left => {
+        bounds.left match {
+          case base: BaseBound => left(base.array)
+          case one: OneElementBound => one.update(leftAverage)
         }
       }
     }
   }
 
+  noHeatFlow(Upper)
+  noHeatFlow(Lower)
+  noHeatFlow(Right)
+  noHeatFlow(Left)
 }
 object TwoDGrid{
 
-  def apply[XType <: TypeDir, YType  <: TypeDir](leftX: Array[Double], coordX: Array[Double], rightX: Array[Double],
-                                              leftY: Array[Double], coordY: Array[Double], rightY: Array[Double],
-                                              conductivities: Array[Array[Spline[PieceFunction]]], weight: Double)
-                                             (implicit dir1: XType, dir2: YType): TwoDGrid[XType, YType] = {
-
-    def xStartAt = leftX.map{x =>
-     coordX.indexWhere(coord => coord > x)
-    }
-
-    def xEndsAt = rightX.map{x =>
-      coordX.indexWhere(coord => x >= coord) - 1
-    }
-
-    new TwoDGrid[XType, YType](leftX, coordX, rightX, xStartAt, xEndsAt, leftY, coordY, rightY, conductivities, weight)
-    }
-
-  def sliceX(beginAt: Int, coordX: Array[Double], endAt: Int): Array[Double] = {
-    coordX.slice(beginAt, endAt + 1)
+  def makeArray[XType <: TypeDir,
+                YType <: TypeDir](
+        xDim: XDim[XType],
+        yDim: YDim[YType]): Grid = {
+    val grid, predict, result = new Array[Double](xDim.colsNum * yDim.rowsNum)
+    new Grid(grid, predict, result)
   }
 
-  abstract class Dir
-  class XDir extends Dir
-  class YDir extends Dir
+  class Grid private[TwoDGrid] (val grid: Array[Double],
+                                val predict: Array[Double],
+                                result: Array[Double]){
+    def get(i: Int): Double = grid(i)
+    def res(i: Int): Double = result(i)
+    def put(i: Int, value: Double): Unit = result.update(i, value)
+    def getP(i: Int): Double = predict(i)
+    def apply(i: Int): Double = predict(i)
 
-  abstract class Side
-  class Left extends Side
-  class Right extends Side
+    def update(): Unit = {
+      var i = 0
+      while (i < grid.length){
+        predict.update(i, aVal(grid(i), result(i)))
+        i += 1
+      }
+      System.arraycopy(result, 0, grid, 0, grid.length)
+    }
+
+    def avValue = {
+      val size = grid.size
+      grid.sum / size
+    }
+
+    def *=(v: Double): Unit = {
+      var i = 0
+      while (i < grid.length){
+        grid.update(i, v)
+        predict.update(i, v)
+        i += 1
+      }
+    }
+
+    def *=(i: Int, value: Double): Unit = {
+      grid.update(i, value)
+    }
+
+    /** Переопределяет предположение о темепературе на следующем шаге
+      * @param oldVal температуры до итерирования
+      * @param newVal температуры после итерирования
+      * @return предполагаемая температура на следующем шаге
+      */
+    @inline
+    final def aVal(oldVal: Double, newVal: Double): Double = {
+      val delta = newVal - oldVal
+      if (abs(delta) > 1.5) newVal
+      else newVal + delta / 2.0
+    }
+
+    @inline
+    final def midVal(oldVal: Double, newVal: Double): Double = {
+      (oldVal + newVal) / 2.0
+    }
+
+  }
+
+  abstract class Bound{
+    def get(i: Int): Double
+    def update(values: Array[Double]): Unit
+    def update(value: Double): Unit
+    def *=(values: Array[Double]): Unit = update(values)
+    def *=(value: Double): Unit = update(value)
+  }
+
+  class OneElementBound extends Bound{
+    private var value = 0.0
+    override def get(i: Int): Double = value
+    override def update(values: Array[Double]): Unit = {
+      val size = values.size
+      var sum = 0.0
+      var i = 0
+      while(i != size){
+        sum += values(i)
+        i += 1
+      }
+      value = sum / size
+    }
+
+    override def update(el: Double): Unit = {
+      value = el
+    }
+  }
+
+  case class BaseBound(range: Array[Double])
+    extends Bound{
+    def this(size: Int){
+      this(new Array[Double](size))
+    }
+    def this(side: BoundSide, xDim: XDim[_], yDim: YDim[_]){
+      this(side.size(xDim, yDim))
+    }
+    private val size = range.length
+    private val values = range.clone()
+    override def get(i: Int): Double = values(i)
+    override def update(vals: Array[Double]): Unit = {
+      System.arraycopy(vals, 0, values, 0, size)
+    }
+
+    override def update(value: Double): Unit = {
+      var i = 0
+      while (i != values.length){
+        values.update(i, value)
+        i += 1
+      }
+    }
+
+    def array: Array[Double] = values
+  }
+
+  case class Bounds(upp: Bound, low: Bound, right: Bound, left: Bound){
+    def *= (value: Double) = {
+      upp.update(value)
+      low.update(value)
+      right.update(value)
+      left.update(value)
+    }
+  }
+  object Bounds{
+    def withOneElement: Bounds = {
+      val upp, low, right, left = new OneElementBound
+      new Bounds(upp, low, right, left)
+    }
+    def withArrays(x: XDim[_], y: YDim[_]): Bounds = {
+      val upp = new BaseBound(Upper, x, y)
+      val low = new BaseBound(Lower, x, y)
+      val right = new BaseBound(Right, x, y)
+      val left = new BaseBound(Left, x, y)
+      new Bounds(upp, low, right, left)
+    }
+
+    def horArraysVertOneElement(x: XDim[_], y: YDim[_]): Bounds = {
+      val upp, low = new OneElementBound
+      val right = new BaseBound(Right, x, y)
+      val left = new BaseBound(Left, x, y)
+      new Bounds(upp, low, right, left)
+    }
+
+    def horOneElementVertArrays(x: XDim[_], y: YDim[_]): Bounds = {
+      val right, left = new OneElementBound
+      val upp = new BaseBound(Upper, x, y)
+      val low = new BaseBound(Lower, x, y)
+      new Bounds(upp, low, right, left)
+    }
+  }
+
+    abstract class BoundSide{
+      def size(x: XDim[_], y: YDim[_]): Int
+    }
+    case object Upper extends BoundSide{
+      def size(x: XDim[_], y: YDim[_]): Int = {
+        x.colsNum
+      }
+    }
+    case object Lower extends BoundSide{
+      def size(x: XDim[_], y: YDim[_]): Int = {
+        x.colsNum
+      }
+    }
+    case object Right extends BoundSide{
+      def size(x: XDim[_], y: YDim[_]): Int = {
+        y.rowsNum
+      }
+    }
+    case object Left extends BoundSide{
+      override def size(x: XDim[_], y: YDim[_]): Int = {
+        y.rowsNum
+      }
+    }
+
+
+
+  case class Shape(rows: Int, cols: Int)
 
 
 }
-

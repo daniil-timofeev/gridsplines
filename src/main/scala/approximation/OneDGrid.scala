@@ -14,7 +14,8 @@ import OneDGrid._
 case class OneDGrid[Dir <: TypeDir](leftX: Double,
                                     rangeX: Array[Double],
                                     rightX: Double,
-                                    conductivities: Array[Array[Spline[PieceFunction]]], sigma: Double)(implicit dir: Dir){
+                                    conductivities: Array[Array[Spline[PieceFunction]]],
+                                    sigma: Double)(implicit dir: Dir){
 
   val grid = Array.fill(rangeX.length)(4.0)
   private val predict = Array.fill(rangeX.length)(4.0)

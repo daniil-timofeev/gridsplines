@@ -18,9 +18,34 @@ package object passion{
     *         <code>val w = -(a+w)- 1.0/tau)</code>, где tau - время шага, сек.
     */
   @inline
-  protected final def cons(t1 : Double, t2 : Double, c : Double, z: Spline[PieceFunction]): Double = {
+   final def cons(t1: Double, t2: Double, c: Double, z: Spline[PieceFunction]): Double = {
     val cond = z((t1 + t2) / 2.0)
     cond * c
+  }
+
+  @inline
+  final def cons(c: Double, z: Double): Double = {
+    c * z
+  }
+
+  @inline
+  final def conducitity(t1: Double, t2: Double, z: Spline[PieceFunction]): Double = {
+    val dT = math.abs(t2 - t1)
+    val c1 = z(t1)
+    val c2 = z(t2)
+    if (c1 == c2) c1
+    else {
+      val min = math.min(t1, t2)
+      var sum = c1 + c2
+      var step = 1.0
+      while (dT > step){
+        sum += z(min + step)
+        step += 1.0
+      }
+      sum / (step + 1.0)
+    }
+
+    z((t1 + t2) / 2.0)
   }
 
   @inline
@@ -61,7 +86,7 @@ package object passion{
       vect = - t(z) / time
 
       forwardUnit(a, - (a + c) - 1.0 / time, c,  vect,
-      toPassion(z - 1)(0), toPassion(z -1)(1), toPassion(z))
+      toPassion(z - 1)(0), toPassion(z - 1)(1), toPassion(z))
       z += 1
     }
 
@@ -79,7 +104,6 @@ package object passion{
     backwardPassion(toPassion, result)
   }
 
-  @inline
   final def iteration(time: Double, firstT: Double, t: Array[Double], lastT: Double,
   predict: Array[Double], preDef: Array[Array[Double]], z: Spline[PieceFunction],
   toPassion: Array[Array[Double]], result: Array[Double]): Unit = {
@@ -262,6 +286,25 @@ package object passion{
   final def assertion(b : Double, c : Double, d : Double, vect : Double) : Unit ={
     assert(abs(c) >= abs(d) + abs(b), "Прогонка некорректна и/или неустойчива." +
       f" w: $b%2.7f, c: $c%2.7f, d: $d%2.7f. Вектор: $vect%2.7f.")
+  }
+
+  def backwardPassion(coeffficients: Array[Array[Double]],
+                      grid: TwoDGrid.Grid,
+                      iter: IterOps
+                     ): Unit = {
+
+    /** Расчёт результата */
+    @inline def point(vals: Array[Double], prev: Double): Double = {
+      val delta = vals(0); val lambda = vals(1)
+      delta * prev + lambda
+    }
+    iter.next
+    var inter = 0.0
+    while (iter.hasPrev) {
+      val i = iter.prev
+      inter = point(coeffficients(iter.posAtLayer), inter)
+      grid.put(i, inter)
+    }
   }
 
   /** Обратную прогонку, для нахождения решений уравнения

@@ -1,4 +1,4 @@
-import approximation.TwoDGrid._
+import approximation.TwoDCompGrid._
 
 /**
   * Created by Даниил on 13.03.2017.

@@ -1,56 +1,98 @@
 package approximation
 
+import approximation.TwoDGrid.Grid
+import approximation.XDim.RowIterator
 import piecewise.{PieceFunction, Spline}
 
-class XDim(shape: Spline[PieceFunction], yDistr: Array[Double]) {
+case class XDim[T <: TypeDir] private(
+                                  low: Double,
+                                  range: Array[Double],
+                                  upp: Double)(implicit val t: T)
+extends Dim[T]{
 
-val rangeX: Array[Double] = ???
-val lowerBoundX: Array[Double] = ???
-val upperBoundX: Array[Double] = ???
-
-val xBeginAt: Array[Int] = lowerBoundX.map{bound =>
-  rangeX.indexWhere(x => bound < x)
-}
-
-val xEndAt: Array[Int] = upperBoundX.map{bound =>
-  val positiveIdx = rangeX.indexWhere(x => bound < x)
-  if (positiveIdx == -1) rangeX.size - 1
-  else positiveIdx - 1
-}
-
-  def rowSize(idx: Int): Int = {
-    xEndAt(idx) - xBeginAt(idx) + 1
+  def this(lowX: Double, increment: (Double) => Double, uppX: Double)(
+    implicit t: T){
+    this(lowX,
+        Iterator.iterate(increment(lowX))(increment).takeWhile(_ < uppX).toArray,
+        uppX)
   }
 
-  class RowIterator{
-    private val lastRow = lowerBoundX.size - 1
-    private var gone = 0
-    private var curIdx = xBeginAt(0)
-    private var curRow = 0
-    private var lastRowIdx = xEndAt(0)
-    def reset: Unit = {
-      curIdx = xBeginAt(0)
-      curRow = 0
-      gone = 0
-    }
-    def hasNext: Boolean = curIdx < lastRowIdx
+  override def toString: String = {
+    range.map{x => f"${x}%.3f"}.mkString(
+        f"X/Y\t\t|\t${low}%.3f\t|\t",
+        "\t",
+        f"\t|\t${upp}%.3f\t|\t..." + System.lineSeparator()
+      )
+  }
 
-    def posAtRow: Int = curIdx
-    def rowIdx = curRow
-    def next: Int = {
-      curIdx += 1
-      gone += 1
-      gone
+  private val rSize = range.length
+  def rowSize(idx: Int): Int = {
+    rSize
+  }
+
+  def idx(r: Int, c: Int): Int = {
+    rSize * r + c
+  }
+
+  val colsNum = range.length
+
+}
+object XDim{
+
+  class RowIterator(x: XDim[_], y: YDim[_]) extends IterOps{
+
+    private val lastRow = y.rowsNum - 1
+    private var arrayIdx = -1
+    private var atRowIdx = 0
+    private var curRow = -1
+    private val lastColIdx = x.colsNum - 1
+
+    override final def reset: Unit = {
+      curRow = -1
+      arrayIdx = -1
     }
+
+    override final def hasNext: Boolean = atRowIdx < lastColIdx
+    override final def hasTwoNext: Boolean = atRowIdx < lastColIdx - 1
+
+    override final def hasPrev: Boolean = atRowIdx != 0
+
+    override def prev: Int = {
+      arrayIdx -= 1
+      atRowIdx -= 1
+      arrayIdx
+    }
+
+    final def posAtRow: Int = atRowIdx
+    final def rowIdx = curRow
+    final def rowCoord = y.coord(curRow)
+
+    override final def next: Int = {
+      arrayIdx += 1
+      atRowIdx += 1
+      arrayIdx
+    }
+
 
     def hasNextRow: Boolean = curRow < lastRow
     def nextRow: Int = {
       curRow += 1
-      curIdx = xBeginAt(curRow)
-      gone += 1
-      gone
+      atRowIdx = 0
+      arrayIdx = curRow * y.rowsNum
+      arrayIdx
     }
+
+    def toRowBeginning(): Unit = {
+      arrayIdx -= atRowIdx - 1
+      atRowIdx = 0
+    }
+
+    override final def hasNextLayer: Boolean = hasNextRow
+
+    override final def nextLayer: Int = nextRow
+
+    override final def layer: Int = rowIdx
+
+    override def posAtLayer: Int = atRowIdx
   }
-
-
 }
