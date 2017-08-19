@@ -267,6 +267,13 @@ object Spline{
     new Spline(IntervalTree.buildOne(xLow, xUpp, new Const(y)))
   }
 
+  def const(value: Double): Spline[Const] = {
+    new Spline(IntervalTree.buildOne(
+      Double.MinValue,
+      Double.MaxValue,
+      new Const(value)))
+  }
+
   def line(low: (Double, Double), upp: (Double, Double)): Spline[Line] = {
     line(low._1, low._2, upp._1, upp._2)
   }
