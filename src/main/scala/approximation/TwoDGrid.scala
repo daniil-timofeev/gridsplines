@@ -103,7 +103,9 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t3 = grid(fI + 1)
       var t = grid.get(fI)
       var c0 = x.first(time, t1, t2, t3, t,
-        coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)))
+        coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)),
+        coefs(x.coord(iter.posAtRow + 1), y.coord(iter.rowIdx))
+      )
 
       while (iter.hasTwoNext) {
         val i = iter.next
@@ -111,14 +113,14 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
         t3 = grid(i + 1)
         t = grid.get(i)
         c0 = x.general(iter, time, t2, t3, t, c0,
-          coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)))
+          coefs(x.coord(iter.posAtRow + 1), y.coord(iter.rowIdx)))
     }
       val i = iter.next
       t2 = grid(i)
       t3 = bounds.right.get(iter.rowIdx)
       t = grid.get(i)
       x.last(iter, time, t2, t3, t, c0,
-        coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)))
+        coefs(x.upp, y.coord(iter.rowIdx)))
       x.update(grid, iter)
   }
   }
@@ -132,7 +134,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t3 = grid(fI + x.colsNum)
       var t = grid.res(fI)
       var c0 = y.first(time, t1, t2, t3, t,
-        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
+        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)),
+        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol + 1)))
 
       while (iter.hasTwoNext) {
         val i = iter.next
@@ -140,7 +143,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
         t3 = grid(i + x.colsNum)
         t = grid.res(i)
         c0 = y.general(iter, time, t2, t3, t, c0,
-          coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
+          coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol + 1)))
       }
 
       val i = iter.next
@@ -148,7 +151,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       t3 = bounds.low.get(iter.colIdx)
       t = grid.res(i)
       y.last(iter, time, t2, t3, t, c0,
-        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
+        coefs(x.coord(iter.colIdx), y.upp))
       y.update(grid, iter)
     }
   }

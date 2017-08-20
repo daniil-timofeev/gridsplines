@@ -26,8 +26,9 @@ abstract class Dim[T <: TypeDir] {
             t2: Double,
             t3: Double,
             t: Double,
+            z0: Spline[PieceFunction],
             z: Spline[PieceFunction]): Double = {
-    val co0 = passion.conducitity(t1, t2, z)
+    val co0 = passion.conducitity(t1, t2, z0)
     val co = passion.conducitity(t2, t3, z)
     val a = coefs(0)(0) * co0
     val c = coefs(0)(1) * co
