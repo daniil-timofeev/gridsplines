@@ -20,6 +20,7 @@ abstract class Dim[T <: TypeDir] {
 
   }
 
+  final
   def first(time: Double,
             t1: Double,
             t2: Double,
@@ -36,6 +37,7 @@ abstract class Dim[T <: TypeDir] {
     co
   }
 
+  final
   def general(iter: IterOps,
               time: Double,
               t2: Double,
@@ -53,6 +55,7 @@ abstract class Dim[T <: TypeDir] {
     co
   }
 
+  final
   def last(iter: IterOps,
            time: Double,
            t2: Double,
@@ -69,7 +72,7 @@ abstract class Dim[T <: TypeDir] {
     forwardLast(a, - (a + c) - 1.0 / time, c, vect,
       toPassion(idx - 1)(0), toPassion(idx - 1)(1), toPassion(idx))
   }
-
+  final
   def update(grid: TwoDGrid.Grid, iter: IterOps): Unit = {
     passion.backwardPassion(toPassion, grid, iter)
   }

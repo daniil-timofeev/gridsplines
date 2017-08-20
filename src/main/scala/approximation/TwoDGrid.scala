@@ -131,21 +131,24 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t2 = grid(fI)
       var t3 = grid(fI + x.colsNum)
       var t = grid.res(fI)
-      var c0 = y.first(time, t1, t2, t3, t, coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
+      var c0 = y.first(time, t1, t2, t3, t,
+        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
 
       while (iter.hasTwoNext) {
         val i = iter.next
         t2 = grid(i)
         t3 = grid(i + x.colsNum)
         t = grid.res(i)
-        c0 = y.general(iter, time, t2, t3, t, c0, coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
+        c0 = y.general(iter, time, t2, t3, t, c0,
+          coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
       }
 
       val i = iter.next
       t2 = grid(i)
       t3 = bounds.low.get(iter.colIdx)
       t = grid.res(i)
-      y.last(iter, time, t2, t3, t, c0, coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
+      y.last(iter, time, t2, t3, t, c0,
+        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
       y.update(grid, iter)
     }
   }
