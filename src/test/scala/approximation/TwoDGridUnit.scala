@@ -1,4 +1,6 @@
 package approximation
+import java.io.BufferedWriter
+
 import org.specs2._
 import org.specs2.mutable.Specification
 import org.specs2.mutable._
@@ -19,6 +21,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       no heat flow bound update at lower side ${noHeatFlowLow}
       no heat flow bound update at right side ${noHeatFlowRight}
       no heat flow bound update at left  side ${noHeatFlowLeft}
+      "write grid ${writeGridTest}
   """
 
   def updateX = {
@@ -152,6 +155,33 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     import TwoDGrid._
     grid.noHeatFlow(Lower)
     grid.bounds.low.get(0) must_== 1
+  }
+
+  def writeGridTest = {
+    import java.nio.file._
+
+    val dest = Files.createTempFile(Paths.get("."), "WriteGrid", "temp")
+    val grid = makeGrid()
+
+    val writer = Files.newBufferedWriter(dest)
+    try{
+      grid.write(writer)
+    } finally writer.close()
+
+
+    val colsNum = grid.x.colsNum
+
+    val read = Files.newBufferedReader(dest)
+    val line =
+    try {
+      read.readLine()
+    }
+    finally {
+      read.close()
+      Files.deleteIfExists(dest)
+    }
+    line.split(" ").size must_== colsNum
+
   }
 
 }

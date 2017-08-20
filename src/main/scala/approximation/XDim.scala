@@ -25,16 +25,15 @@ extends Dim[T]{
       )
   }
 
-  private val rSize = range.length
+  val colsNum = range.length
   def rowSize(idx: Int): Int = {
-    rSize
+    colsNum
   }
 
   def idx(r: Int, c: Int): Int = {
-    rSize * r + c
+    colsNum * r + c
   }
 
-  val colsNum = range.length
 
 }
 object XDim{

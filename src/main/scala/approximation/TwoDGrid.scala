@@ -1,5 +1,7 @@
 package approximation
 
+import java.io.{BufferedWriter, IOException}
+
 import approximation.TwoDGrid.{BaseBound, BoundSide, Bounds, Left, Lower, OneElementBound, Right, Upper}
 import approximation.XDim.RowIterator
 import approximation.YDim.ColumnIterator
@@ -8,7 +10,7 @@ import piecewise.{PieceFunction, Spline}
 import scala.math.abs
 
 class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
-        private val x: XDim[XType], private val y: YDim[YType],
+        val x: XDim[XType], val y: YDim[YType],
         val bounds: Bounds,
         val coefs: (Double, Double) => Spline[PieceFunction]
 ){
@@ -42,6 +44,27 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
   }
 
   def avValue: Double = grid.avValue
+  import java.nio.file._
+
+  @throws(classOf[IOException])
+  def write(writer: BufferedWriter): Unit = {
+    import java.text._
+    import java.util.Locale
+    val g = grid.grid
+    val form = NumberFormat.getInstance(Locale.ROOT)
+    form.setMaximumFractionDigits(3)
+    val iter = new RowIterator(x, y)
+    while (iter.hasNextRow){
+      val fI = iter.nextRow
+      writer.write(form.format(g(fI)))
+      while (iter.hasNext) {
+        val i = iter.next
+        writer.write(" ")
+        writer.write(form.format(g(i)))
+      }
+      writer.newLine()
+    }
+  }
 
   def *=(v: Double) = grid *= v
 

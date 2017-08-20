@@ -12,11 +12,12 @@ case class YDim[T <: TypeDir](low: Double, range: Array[Double], upp: Double)(
       uppY)
   }
 
-  def colSize(idx: Int): Int = {
-    range.length
-  }
 
   val rowsNum = range.length
+  def colSize(idx: Int): Int = {
+    rowsNum
+  }
+
 
 
 }
