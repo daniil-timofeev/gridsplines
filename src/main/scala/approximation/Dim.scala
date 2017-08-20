@@ -25,9 +25,9 @@ abstract class Dim[T <: TypeDir] {
             t2: Double,
             t3: Double,
             t: Double,
-            z: (Double, Double) => Spline[PieceFunction]): Double = {
-    val co0 = passion.conducitity(t1, t2, z(low, coord(1)))
-    val co = passion.conducitity(t2, t3, z(coord(0), coord(1)))
+            z: Spline[PieceFunction]): Double = {
+    val co0 = passion.conducitity(t1, t2, z)
+    val co = passion.conducitity(t2, t3, z)
     val a = coefs(0)(0) * co0
     val c = coefs(0)(1) * co
 
@@ -42,9 +42,9 @@ abstract class Dim[T <: TypeDir] {
               t3: Double,
               t: Double,
               co0: Double,
-              z: (Double, Double) => Spline[PieceFunction]): Double = {
+              z: Spline[PieceFunction]): Double = {
     val idx = iter.posAtLayer
-    val co = passion.conducitity(t2, t3, z(coord(idx), coord(idx + 1)))
+    val co = passion.conducitity(t2, t3, z)
     val a = coefs(idx)(0) * co0
     val c = coefs(idx)(1) * co
     val vect = - t / time
@@ -59,9 +59,9 @@ abstract class Dim[T <: TypeDir] {
            t3: Double,
            t: Double,
            co0: Double,
-           z: (Double, Double) => Spline[PieceFunction]): Unit = {
+           z: Spline[PieceFunction]): Unit = {
     val idx = iter.posAtLayer
-    val co = passion.conducitity(t2, t3, z(coord(idx), upp))
+    val co = passion.conducitity(t2, t3, z)
     val a = coefs(idx)(0) * co0
     val c = coefs(idx)(1) * co
     val vect = - t / time - c * t3

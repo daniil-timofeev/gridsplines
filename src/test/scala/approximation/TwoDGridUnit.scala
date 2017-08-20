@@ -34,7 +34,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
 
     val coef = (x: Double, y: Double) => Spline.const(-10.0, 10.0, 1.0)
 
-    val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef, coef)
+    val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
 
     grid.updateX(x => 1.0)
 
@@ -54,7 +54,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
 
     val coef = (x: Double, y: Double) => Spline.const(-10.0, 10.0, 1.0)
 
-    val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef, coef)
+    val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
 
     grid.updateY(y => 1.0)
 
@@ -72,7 +72,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     )
 
     val coef = (x0: Double, x1: Double) => Spline.const(-10.0, 10.0, 1.0)
-    new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef, coef)
+    new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
   }
 
   def horIter = {
@@ -119,7 +119,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     )
 
     val coef = (x0: Double, x1: Double) => Spline.const(-10.0, 10.0, 1.0)
-    new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef, coef)
+    new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
   }
 
   def noHeatFlowLeft = {

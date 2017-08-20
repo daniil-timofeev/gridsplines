@@ -10,8 +10,7 @@ import scala.math.abs
 class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
         private val x: XDim[XType], private val y: YDim[YType],
         val bounds: Bounds,
-        val coefsX: (Double, Double) => Spline[PieceFunction],
-        val coefsY: (Double, Double) => Spline[PieceFunction]
+        val coefs: (Double, Double) => Spline[PieceFunction]
 ){
 
   val grid = TwoDGrid.makeArray(x, y)
@@ -103,20 +102,23 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t2 = grid(fI)
       var t3 = grid(fI + 1)
       var t = grid.get(fI)
-      var c0 = x.first(time, t1, t2, t3, t, coefsX)
+      var c0 = x.first(time, t1, t2, t3, t,
+        coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)))
 
       while (iter.hasTwoNext) {
         val i = iter.next
         t2 = grid(i)
         t3 = grid(i + 1)
         t = grid.get(i)
-        c0 = x.general(iter, time, t2, t3, t, c0, coefsX)
+        c0 = x.general(iter, time, t2, t3, t, c0,
+          coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)))
     }
       val i = iter.next
       t2 = grid(i)
       t3 = bounds.right.get(iter.rowIdx)
       t = grid.get(i)
-      x.last(iter, time, t2, t3, t, c0, coefsX)
+      x.last(iter, time, t2, t3, t, c0,
+        coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)))
       x.update(grid, iter)
   }
   }
@@ -129,21 +131,21 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t2 = grid(fI)
       var t3 = grid(fI + x.colsNum)
       var t = grid.res(fI)
-      var c0 = y.first(time, t1, t2, t3, t, coefsY)
+      var c0 = y.first(time, t1, t2, t3, t, coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
 
       while (iter.hasTwoNext) {
         val i = iter.next
         t2 = grid(i)
         t3 = grid(i + x.colsNum)
         t = grid.res(i)
-        c0 = y.general(iter, time, t2, t3, t, c0, coefsY)
+        c0 = y.general(iter, time, t2, t3, t, c0, coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
       }
 
       val i = iter.next
       t2 = grid(i)
       t3 = bounds.low.get(iter.colIdx)
       t = grid.res(i)
-      y.last(iter, time, t2, t3, t, c0, coefsY)
+      y.last(iter, time, t2, t3, t, c0, coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)))
       y.update(grid, iter)
     }
   }
