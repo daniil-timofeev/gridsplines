@@ -77,7 +77,7 @@ object XDim{
     def nextRow: Int = {
       curRow += 1
       atRowIdx = 0
-      arrayIdx = curRow * y.rowsNum
+      arrayIdx = curRow * x.colsNum
       arrayIdx
     }
 

@@ -66,7 +66,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
 
   def makeGrid4Iter(): TwoDGrid[Radial, Ortho] = {
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
-    val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
+    val yD = new YDim[Ortho](1.0, y => y + 1.0, 12.0)
     val bounds = Bounds(
       upp = new OneElementBound,
       low = new OneElementBound,
@@ -113,7 +113,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
 
   def makeGrid(): TwoDGrid[Radial, Ortho] = {
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
-    val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
+    val yD = new YDim[Ortho](1.0, y => y + 1.0, 12.0)
     val bounds = Bounds(
       upp = new OneElementBound,
       low = new OneElementBound,
