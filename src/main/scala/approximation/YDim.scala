@@ -1,6 +1,6 @@
 package approximation
 
-case class YDim[T <: TypeDir](low: Double, range: Array[Double], upp: Double)(
+case class YDim[+T <: TypeDir](low: Double, range: Array[Double], upp: Double)(
   implicit val t: T)
   extends Dim[T]{
 

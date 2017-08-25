@@ -2,7 +2,7 @@ package approximation
 
 import java.io.{BufferedWriter, IOException}
 
-import approximation.TwoDGrid.{BaseBound, BoundSide, Bounds, Left, Lower, OneElementBound, Right, Upper}
+import approximation.TwoDGrid.{BaseBound, BoundSide, Bounds, Coefficients, Left, Lower, OneElementBound, Right, Upper}
 import approximation.XDim.RowIterator
 import approximation.YDim.ColumnIterator
 import piecewise.{PieceFunction, Spline}
@@ -12,7 +12,7 @@ import scala.math.abs
 class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
         val x: XDim[XType], val y: YDim[YType],
         val bounds: Bounds,
-        val coefs: (Double, Double) => Spline[PieceFunction]
+        val coefs: Coefficients
 ){
 
   val grid = TwoDGrid.makeArray(x, y)
@@ -56,6 +56,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     val iter = new RowIterator(x, y)
     while (iter.hasNextRow){
       val fI = iter.nextRow
+      writer.write(form.format(iter.rowCoord))
+      writer.write(" ")
       writer.write(form.format(g(fI)))
       while (iter.hasNext) {
         val i = iter.next
@@ -126,8 +128,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t3 = grid(fI + 1)
       var t = grid.get(fI)
       var c0 = x.first(time, t1, t2, t3, t,
-        coefs(x.coord(iter.posAtRow), y.coord(iter.rowIdx)),
-        coefs(x.coord(iter.posAtRow + 1), y.coord(iter.rowIdx))
+        coefs(- 1, iter.rowIdx),
+        coefs(iter.posAtRow, iter.rowIdx)
       )
 
       while (iter.hasTwoNext) {
@@ -136,14 +138,14 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
         t3 = grid(i + 1)
         t = grid.get(i)
         c0 = x.general(iter, time, t2, t3, t, c0,
-          coefs(x.coord(iter.posAtRow + 1), y.coord(iter.rowIdx)))
+          coefs(iter.posAtRow, iter.rowIdx))
     }
       val i = iter.next
       t2 = grid(i)
       t3 = bounds.right.get(iter.rowIdx)
       t = grid.get(i)
       x.last(iter, time, t2, t3, t, c0,
-        coefs(x.upp, y.coord(iter.rowIdx)))
+        coefs(iter.posAtRow, iter.rowIdx))
       x.update(grid, iter)
   }
   }
@@ -157,8 +159,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t3 = grid(fI + x.colsNum)
       var t = grid.res(fI)
       var c0 = y.first(time, t1, t2, t3, t,
-        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol)),
-        coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol + 1)))
+        coefs(iter.colIdx, - 1),
+        coefs(iter.colIdx, iter.posAtCol))
 
       while (iter.hasTwoNext) {
         val i = iter.next
@@ -166,7 +168,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
         t3 = grid(i + x.colsNum)
         t = grid.res(i)
         c0 = y.general(iter, time, t2, t3, t, c0,
-          coefs(x.coord(iter.colIdx), y.coord(iter.posAtCol + 1)))
+          coefs(iter.colIdx, iter.posAtCol))
       }
 
       val i = iter.next
@@ -174,7 +176,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       t3 = bounds.low.get(iter.colIdx)
       t = grid.res(i)
       y.last(iter, time, t2, t3, t, c0,
-        coefs(x.coord(iter.colIdx), y.upp))
+        coefs(iter.colIdx, iter.posAtCol))
       y.update(grid, iter)
     }
   }
@@ -196,6 +198,53 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     }
   }
 
+  def col(colNum: Int, copyTo: Array[Double]): Unit = {
+    val g = grid.grid
+    var i = colNum
+    var j = 0
+    while (i < x.colsNum * y.rowsNum) {
+      copyTo.update(j, g(i))
+      i += x.colsNum
+      j += 1
+    }
+  }
+
+  def row(rowNum: Int, copyTo: Array[Double]): Unit = {
+    val g = grid.grid
+    var i = rowNum * x.colsNum
+    var j = 0
+    val end = i + x.colsNum
+    while (i != end) {
+      copyTo.update(j, g(i))
+      i += 1
+      j += 1
+    }
+  }
+
+  def rowCoefs(rowNum: Int): Array[Spline[PieceFunction]] = {
+    val result = new Array[Spline[PieceFunction]](x.colsNum)
+    var xInd = 0
+    while (xInd != x.colsNum) {
+      result.update(xInd, coefs(xInd, rowNum))
+      xInd += 1
+    }
+    result
+  }
+
+  def colCoefs(colNum: Int): Array[Spline[PieceFunction]] = {
+    val result = new Array[Spline[PieceFunction]](y.rowsNum)
+    var yInd = 0
+    while (yInd != y.rowsNum) {
+      result.update(yInd, coefs(colNum, yInd))
+      yInd += 1
+    }
+    result
+  }
+
+  def left(colNum: Int, copyTo: Array[Double]): Unit = {
+    col(colNum, copyTo)
+  }
+
   def leftAverage: Double = {
     val g = grid.grid
     val size = y.rowsNum
@@ -208,15 +257,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     sum / size
   }
 
-  def right(copyTo: Array[Double]): Unit = {
-    val g = grid.grid
-    var i = x.colsNum - 1
-    var j = 0
-    while (i < x.colsNum * y.rowsNum) {
-      copyTo.update(j, g(i))
-      i += x.colsNum
-      j += 1
-    }
+  def right(colNumFromRigth: Int, copyTo: Array[Double]): Unit = {
+    col(x.colsNum - 1 - colNumFromRigth, copyTo)
   }
 
   def rightAverage: Double = {
@@ -231,13 +273,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     sum / size
   }
 
-  def upper(copyTo: Array[Double]): Unit = {
-    val g = grid.grid
-    var i = 0
-    while (i != x.colsNum) {
-      copyTo.update(i, g(i))
-      i += 1
-    }
+  def upper(rowNum: Int, copyTo: Array[Double]): Unit = {
+    row(rowNum, copyTo)
   }
 
   def upperAverage: Double = {
@@ -252,15 +289,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     sum / size
   }
 
-  def lower(copyTo: Array[Double]): Unit = {
-    val g = grid.grid
-    var i = x.colsNum * (y.rowsNum - 1)
-    var j = 0
-    while (i != x.colsNum * y.rowsNum) {
-      copyTo.update(j, g(i))
-      i += 1
-      j += 1
-    }
+  def lower(rowFromLast: Int, copyTo: Array[Double]): Unit = {
+    row(y.rowsNum - 1 - rowFromLast, copyTo)
   }
 
   def lowerAverage: Double = {
@@ -279,25 +309,25 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     side match {
       case Upper => {
         bounds.upp match {
-          case base: BaseBound => upper(base.array)
+          case base: BaseBound => upper(0, base.array)
           case one: OneElementBound => one.update(upperAverage)
         }
       }
       case Lower => {
         bounds.low match {
-          case base: BaseBound => lower(base.array)
+          case base: BaseBound => lower(0, base.array)
           case one: OneElementBound => one.update(lowerAverage)
         }
       }
       case Right => {
         bounds.right match {
-          case base: BaseBound => right(base.array)
+          case base: BaseBound => right(0, base.array)
           case one: OneElementBound => one.update(rightAverage)
         }
       }
       case Left => {
         bounds.left match {
-          case base: BaseBound => left(base.array)
+          case base: BaseBound => left(0, base.array)
           case one: OneElementBound => one.update(leftAverage)
         }
       }
@@ -487,6 +517,120 @@ object TwoDGrid{
       }
     }
 
+  abstract class Coefficients {
+    def apply(x: Int, y: Int): Spline[PieceFunction]
+    def contains(x: Int, y: Int): Boolean = true
+  }
+
+  class ConstantCoef(private val get: Spline[PieceFunction]) extends Coefficients{
+    def apply(x: Int, y: Int) = get
+    val contains = true
+  }
+
+  class VarYCoef(private val get: Array[Spline[PieceFunction]]){
+    def apply(x: Int, y: Int) = get(y + 1)
+  }
+  object VarYCoef{
+    def apply(yDim: YDim[TypeDir],
+              change: (Double, Double) => Spline[PieceFunction]): VarYCoef = {
+      new VarYCoef(yDim.values.sliding(2).collect{
+          case Array(y0, y1) => change(y0, y1)
+        }.toArray
+      )
+    }
+  }
+
+  class VarXCoef(private val get: Array[Spline[PieceFunction]]){
+    def apply(x: Int, y: Int) = get(x + 1)
+  }
+  object VarXCoef{
+    def apply(xDim: XDim[TypeDir],
+              change: (Double, Double) => Spline[PieceFunction]): VarXCoef = {
+      val array = xDim.values.sliding(2).collect{
+        case Array(x0, x1) => change(x0, x1)
+      }.toArray
+      new VarXCoef(array)
+    }
+  }
+
+  import com.twitter.algebird._
+  class PatchXCoef(private val get: Array[Spline[PieceFunction]],
+                        rangeX: Interval[Int],
+                        rangeY: Interval[Int]) extends Coefficients{
+
+    override def contains(x: Int, y: Int): Boolean = {
+      rangeX.contains(x) && rangeY.contains(y)
+    }
+
+    def apply(x: Int, y: Int) = get(y + 1)
+  }
+  object PatchXCoef{
+
+    def apply(yDim: YDim[TypeDir],
+             change: (Double, Double) => Spline[PieceFunction],
+             lX: Int, uX: Int, lY: Int, uY: Int): PatchXCoef ={
+
+    val array = yDim.values.sliding(2).collect{
+      case Array(y0, y1) => change(y0, y1)
+    }.toArray
+     new PatchXCoef(array,
+        Intersection(InclusiveLower(lX + 1), InclusiveUpper(uX + 1)),
+        Intersection(InclusiveLower(lY + 1), InclusiveUpper(uY + 1))
+     )
+    }
+
+    def apply(xDim: XDim[TypeDir], yDim: YDim[TypeDir],
+              change: (Double, Double) => Spline[PieceFunction],
+              lowY: Int, uppY: Int): PatchXCoef = {
+      val lowX = -1
+      val uppX = xDim.colsNum
+      apply(yDim, change, lowX, uppX, lowY, uppY)
+    }
+  }
+
+  class PatchYCoef(private val get: Array[Spline[PieceFunction]],
+                  rangeX: Interval[Int],
+                  rangeY: Interval[Int]) extends Coefficients{
+
+    override def contains(x: Int, y: Int): Boolean = {
+      rangeX.contains(x) && rangeY.contains(y)
+    }
+    def apply(x: Int, y: Int): Spline[PieceFunction] = get(x + 1)
+  }
+  object PatchYCoef {
+    def apply(xDim: XDim[TypeDir],
+              change: (Double, Double) => Spline[PieceFunction],
+              lX: Int, uX: Int, lY: Int, uY: Int): PatchYCoef = {
+      val array = xDim.values.sliding(2).collect {
+        case Array(x0, x1) => change(x0, x1)
+      }.toArray
+      new PatchYCoef(
+        array,
+        Intersection(InclusiveLower(lX + 1), InclusiveUpper(uX + 1)),
+        Intersection(InclusiveLower(lY + 1), InclusiveUpper(uY + 1))
+      )
+    }
+
+    def apply(xDim: XDim[TypeDir], yDim: YDim[TypeDir],
+              change: (Double, Double) => Spline[PieceFunction],
+              lowX: Int, uppX: Int
+             ): PatchYCoef = {
+      val yLow = -1
+      val yUpp = yDim.rowsNum - 1
+      apply(xDim, change, lowX, uppX, yLow, yUpp)
+    }
+  }
+  case class PatchedXCoef(xCoefs: VarXCoef, path: PatchXCoef) extends Coefficients{
+    override def apply(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path(x, y) else xCoefs(x, y)
+    }
+  }
+
+  case class PatchedYCoef(yCoefs: VarYCoef, path: PatchYCoef) extends Coefficients{
+    override def apply(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path(x, y) else yCoefs(x, y)
+    }
+  }
 
 
   case class Shape(rows: Int, cols: Int)

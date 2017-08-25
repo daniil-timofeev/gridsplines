@@ -230,7 +230,7 @@ import scala.collection.mutable
 
   private def colInds(colPos: Int): Array[Int] = {
       xBeginAt.zipWithIndex.collect{
-        case (fCol, rowPos)if colPos >= fCol => {
+        case (fCol, rowPos) if colPos >= fCol => {
             index(rowPos, colPos)
         }
       }

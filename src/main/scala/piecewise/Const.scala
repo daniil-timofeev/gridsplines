@@ -19,4 +19,11 @@ case class Const(value: Double) extends PieceFunction{
     *
     * @return экстремумы функции / extremums of function */
   override protected def extremum: List[Double] = value :: Nil
+
+  override def equals(obj: scala.Any): Boolean = {
+    obj match{
+      case const: Const => value.equals(const.value)
+      case _ => false
+    }
+  }
 }

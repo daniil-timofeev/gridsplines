@@ -4,7 +4,7 @@ import approximation.TwoDGrid.Grid
 import approximation.XDim.RowIterator
 import piecewise.{PieceFunction, Spline}
 
-case class XDim[T <: TypeDir] private(
+case class XDim[+T <: TypeDir] private(
                                   low: Double,
                                   range: Array[Double],
                                   upp: Double)(implicit val t: T)

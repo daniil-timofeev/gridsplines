@@ -53,6 +53,14 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
 
   override def toString: String = f"${slope}%.15f*x + ${intercept}%.15f"
 
+  override def equals(obj: scala.Any): Boolean = {
+    obj match {
+      case line: Line => this.slope.equals(line.slope) &&
+        this.intercept.equals(line.intercept)
+      case _ => false
+    }
+  }
+
 }
 object Line{
 

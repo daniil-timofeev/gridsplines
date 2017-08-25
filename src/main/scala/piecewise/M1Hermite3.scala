@@ -62,6 +62,16 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 
   override protected def extremum: List[Double] = ???
 
+  override def equals(obj: scala.Any): Boolean = {
+    obj match {
+      case sameType: Hermite3 => {
+        coefs.zip(sameType.coefs).forall(t => t._1.equals(t._2)) &&
+          x0.equals(sameType.x0)
+      }
+      case _ => false
+    }
+  }
+
 }
 object M1Hermite3 {
 

@@ -230,6 +230,44 @@ final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[
     buildIterator(array, 0).iterator
   }
 
+  override lazy val toString: String = {
+    val l = left.map(_.toString).getOrElse(" ")
+    val r = right.map(_.toString).getOrElse(" ")
+    l +
+    "[" +
+    interval.lower.lower.toString +
+    interval.upper.upper.toString +
+    ") :" + v.toString + System.lineSeparator() +
+    r
+  }
+
+  override def equals(obj: scala.Any): Boolean = {
+    obj match {
+      case tree: InternalNode[Any, Any] => {
+        val l =
+          if (this.left.isEmpty && tree.left.nonEmpty ||
+            this.left.nonEmpty && tree.left.isEmpty) false
+          else {
+            if (this.left.isEmpty && tree.left.isEmpty) true
+            else this.left.get.equals(tree.left.get)
+          }
+
+        val r =
+          if (this.right.isEmpty && tree.right.nonEmpty ||
+            this.right.nonEmpty && tree.right.isEmpty) false
+          else {
+            if (this.right.isEmpty && tree.right.isEmpty) true
+            else this.right.get.equals(tree.left.get)
+          }
+
+        l &&
+        this.interval.equals(tree.interval) && this.v.equals(tree.v) &&
+        r
+      }
+      case _ => false
+    }
+  }
+
 }
 
 final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
@@ -302,6 +340,17 @@ final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
 
   def iterator: Iterator[(InLowExUp[K], V)] = Iterator.single(tuple)
 
+  override lazy val toString: String = {
+    interval.toString + ": " + v.toString + System.lineSeparator()
+  }
+
+  override def equals(obj: scala.Any): Boolean = {
+    obj match{
+    case leaf: Leaf[Any, Any] => {
+      this.interval.equals(leaf.interval) && this.v.equals(leaf.v)
+    }
+    case _ => false
+  }}
 }
 
 object IntervalTree{

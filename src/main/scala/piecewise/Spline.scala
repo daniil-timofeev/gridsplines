@@ -151,6 +151,17 @@ import scala.collection.{GenTraversable, mutable}
   def toUniSpline: UniSpline[S] = new UniSpline[S](content)
 
   def asUniSpline: Spline[PieceFunction] = Spline.makeUniSpline(this)
+
+  override lazy val toString: String = {
+    s"Spline(${content.map(_.toString).getOrElse(" ")})"
+  }
+
+  override def equals(obj: scala.Any): Boolean = {
+    obj match {
+      case spl: Spline[PieceFunction] => content.equals(spl.content)
+      case _ => false
+    }
+  }
 }
 object Spline{
 

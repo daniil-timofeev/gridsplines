@@ -22,6 +22,8 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       no heat flow bound update at right side ${noHeatFlowRight}
       no heat flow bound update at left  side ${noHeatFlowLeft}
       "write grid ${writeGridTest}
+      "x coefficient array size ${getXCoefs}"
+      "y coefficient array size ${getYCoefs}"
   """
 
   def updateX = {
@@ -35,8 +37,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       right = new OneElementBound
     )
 
-    val coef = (x: Double, y: Double) => Spline.const(-10.0, 10.0, 1.0)
-
+    val coef = new ConstantCoef(Spline.const(1.0))
     val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
 
     grid.updateX(x => 1.0)
@@ -55,8 +56,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       right = new OneElementBound
     )
 
-    val coef = (x: Double, y: Double) => Spline.const(-10.0, 10.0, 1.0)
-
+    val coef = new ConstantCoef(Spline.const(1.0))
     val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
 
     grid.updateY(y => 1.0)
@@ -74,7 +74,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       right = new OneElementBound
     )
 
-    val coef = (x0: Double, x1: Double) => Spline.const(-10.0, 10.0, 1.0)
+    val coef = new ConstantCoef(Spline.const(1.0))
     new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
   }
 
@@ -121,7 +121,7 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       right = new OneElementBound
     )
 
-    val coef = (x0: Double, x1: Double) => Spline.const(-10.0, 10.0, 1.0)
+    val coef = new ConstantCoef(Spline.const(1.0))
     new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
   }
 
@@ -180,8 +180,22 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       read.close()
       Files.deleteIfExists(dest)
     }
-    line.split(" ").size must_== colsNum
+    line.split(" ").size must_== {colsNum + 1}
 
   }
+
+  def getXCoefs = {
+    val grid = makeGrid()
+
+    val xCoefs = grid.colCoefs(5)
+    xCoefs.size must_== grid.y.rowsNum
+  }
+
+  def getYCoefs = {
+    val grid = makeGrid()
+    val yCoefs = grid.rowCoefs(5)
+    yCoefs.size must_== grid.x.colsNum
+  }
+
 
 }
