@@ -138,6 +138,38 @@ import scala.collection.{GenTraversable, mutable}
       }})
     }
 
+  def map[B <: PieceFunction](
+        xy: (Double, Double) => Double)(
+    implicit builder: MakePieceFunctions[B]): Spline[B] = {
+    Spline[B](
+    points.map{t =>
+      val (x, y) = t
+      val newY = xy(x, y)
+      (x, newY)
+    }.toList)
+  }
+
+  def /[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]): Spline[B] = {
+    map[B]((x: Double, y: Double) => y / spl(x))
+  }
+
+  def +[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]
+  ): Spline[B] = {
+    map[B]((x: Double, y: Double) => y + spl(x))
+  }
+
+  def -[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]): Spline[B] = {
+    map[B]((x: Double, y: Double) => y - spl(x))
+  }
+
+  def *[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]): Spline[B] = {
+    map[B]((x: Double, y: Double) => y * spl(x))
+  }
+
   def convert[R <: PieceFunction](f: SplineConvert[S, R]): Spline[R] = {
     new Spline[R](content.map(_.map(f)))
   }

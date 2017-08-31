@@ -59,6 +59,42 @@ class UniSpline[+S <: PieceFunction](content: Option[IntervalTree[Double, S]]) e
     super.++(spl).toUniSpline
   }
 
+  override
+  def map[B <: PieceFunction](xy: (Double, Double) => Double)(
+                              implicit builder: MakePieceFunctions[B]): UniSpline[B] = {
+    UniSpline[B](
+      points.map{t =>
+        val (x, y) = t
+        val newY = xy(x, y)
+        (x, newY)
+      }.toList)
+  }
+
+  override
+  def /[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]): UniSpline[B] = {
+    map[B]((x: Double, y: Double) => y / spl(x))
+  }
+
+  override
+  def +[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]
+  ): UniSpline[B] = {
+    map[B]((x: Double, y: Double) => y + spl(x))
+  }
+
+  override
+  def -[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]): UniSpline[B] = {
+    map[B]((x: Double, y: Double) => y - spl(x))
+  }
+
+  override
+  def *[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
+    implicit builder: MakePieceFunctions[B]): UniSpline[B] = {
+    map[B]((x: Double, y: Double) => y * spl(x))
+  }
+
   override def convert[R <: PieceFunction](f: SplineConvert[S, R]): UniSpline[R] = {
     new UniSpline[R](content.map(_.map(f)))
   }
