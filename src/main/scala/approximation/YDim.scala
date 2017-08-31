@@ -18,8 +18,10 @@ case class YDim[+T <: TypeDir](low: Double, range: Array[Double], upp: Double)(
     rowsNum
   }
 
-
-
+  override
+  def update(grid: TwoDGrid.Grid, col: Int, colsNum: Int): Unit = {
+    passion.backwardColumn(toPassion, grid.result, col, colsNum)
+  }
 }
 object YDim{
 

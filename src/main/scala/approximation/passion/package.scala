@@ -1,5 +1,7 @@
 package approximation
 
+import approximation.TwoDGrid.Coefficients
+
 import scala.math.abs
 import piecewise._
 /**
@@ -304,6 +306,47 @@ package object passion{
       val i = iter.prev
       inter = point(coeffficients(iter.posAtLayer), inter)
       grid.put(i, inter)
+    }
+  }
+
+  def backwardRow(coefficients: Array[Array[Double]],
+                  grid: Array[Double], row: Int): Unit = {
+    val colsNum = coefficients.length
+    var col = colsNum - 1
+    var g = row * colsNum  + col
+
+    /** Расчёт результата */
+    @inline def point(vals: Array[Double], prev: Double): Double = {
+      val delta = vals(0); val lambda = vals(1)
+      delta * prev + lambda
+    }
+    var inter = 0.0
+    while (col != -1){
+      // Расчёт текущего значения (записывается для использования на следующем шаге)
+      inter = point(coefficients(col), inter)
+      grid.update(g, inter)
+      g -= 1
+      col -= 1
+    }
+  }
+
+  def backwardColumn(coefficients: Array[Array[Double]],
+                     grid: Array[Double], column: Int, colsNum: Int) = {
+    val rowsNum = coefficients.length
+    var row = rowsNum - 1
+    var g = row * colsNum + column
+    /** Расчёт результата */
+    @inline def point(vals: Array[Double], prev: Double): Double = {
+      val delta = vals(0); val lambda = vals(1)
+      delta * prev + lambda
+    }
+    var inter = 0.0
+    while (row != -1){
+      // Расчёт текущего значения (записывается для использования на следующем шаге)
+      inter = point(coefficients(row), inter)
+      grid.update(g, inter)
+      g -= colsNum
+      row -= 1
     }
   }
 

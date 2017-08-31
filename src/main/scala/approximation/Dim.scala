@@ -11,7 +11,7 @@ abstract class Dim[+T <: TypeDir] {
   val upp: Double
   def values: Array[Double] = Array(low) ++ range ++ Array(upp)
   private val coefs: Array[Array[Double]] = t.preDef(low, range, upp, 1.0)
-  private val toPassion: Array[Array[Double]] =
+  protected val toPassion: Array[Array[Double]] =
     Array.fill(coefs.length)(new Array[Double](2))
 
   final def coord(i: Int): Double = range(i)
@@ -39,43 +39,39 @@ abstract class Dim[+T <: TypeDir] {
   }
 
   final
-  def general(iter: IterOps,
+  def general(posAtLayer: Int,
               time: Double,
               t2: Double,
               t3: Double,
               t: Double,
               co0: Double,
               z: Spline[PieceFunction]): Double = {
-    val idx = iter.posAtLayer
     val co = passion.conducitity(t2, t3, z)
-    val a = coefs(idx)(0) * co0
-    val c = coefs(idx)(1) * co
+    val a = coefs(posAtLayer)(0) * co0
+    val c = coefs(posAtLayer)(1) * co
     val vect = - t / time
     forwardUnit(a, - (a + c) - 1.0 / time, c, vect,
-      toPassion(idx - 1)(0), toPassion(idx - 1)(1), toPassion(idx))
+      toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
     co
   }
 
   final
-  def last(iter: IterOps,
+  def last(posAtLayer: Int,
            time: Double,
            t2: Double,
            t3: Double,
            t: Double,
            co0: Double,
            z: Spline[PieceFunction]): Unit = {
-    val idx = iter.posAtLayer
     val co = passion.conducitity(t2, t3, z)
-    val a = coefs(idx)(0) * co0
-    val c = coefs(idx)(1) * co
+    val a = coefs(posAtLayer)(0) * co0
+    val c = coefs(posAtLayer)(1) * co
     val vect = - t / time - c * t3
 
     forwardLast(a, - (a + c) - 1.0 / time, c, vect,
-      toPassion(idx - 1)(0), toPassion(idx - 1)(1), toPassion(idx))
+      toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
   }
-  final
-  def update(grid: TwoDGrid.Grid, iter: IterOps): Unit = {
-    passion.backwardPassion(toPassion, grid, iter)
-  }
+
+  def update(grid: TwoDGrid.Grid, pos: Int, colsNum: Int): Unit
 
 }

@@ -34,6 +34,9 @@ extends Dim[T]{
     colsNum * r + c
   }
 
+  def update(grid: TwoDGrid.Grid, rowNum: Int, colsNum: Int): Unit = {
+    passion.backwardRow(toPassion, grid.result, rowNum)
+  }
 
 }
 object XDim{

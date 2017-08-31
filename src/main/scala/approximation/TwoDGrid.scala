@@ -120,64 +120,72 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
   }
 
   def xIter(time: Double) = {
-    val iter = new XDim.RowIterator(x, y)
-    while (iter.hasNextRow) {
-      val fI = iter.nextRow
-      val t1 = bounds.left.get(iter.rowIdx)
-      var t2 = grid(fI)
-      var t3 = grid(fI + 1)
-      var t = grid.get(fI)
+    var row = 0
+    while (row != y.rowsNum) {
+      var column = 0
+      var i = row * x.colsNum
+      val t1 = bounds.left.get(row)
+      var t2 = grid(i)
+      var t3 = grid(i + 1)
+      var t = grid.get(i)
       var c0 = x.first(time, t1, t2, t3, t,
-        coefs(- 1, iter.rowIdx),
-        coefs(iter.posAtRow, iter.rowIdx)
+        coefs(-1, row),
+        coefs(column, row)
       )
-
-      while (iter.hasTwoNext) {
-        val i = iter.next
+      column += 1
+      i += 1
+      while (column != x.colsNum - 1) {
         t2 = grid(i)
         t3 = grid(i + 1)
         t = grid.get(i)
-        c0 = x.general(iter, time, t2, t3, t, c0,
-          coefs(iter.posAtRow, iter.rowIdx))
+        c0 = x.general(column, time, t2, t3, t, c0,
+          coefs(column, row))
+        column += 1
+        i += 1
     }
-      val i = iter.next
       t2 = grid(i)
-      t3 = bounds.right.get(iter.rowIdx)
+      t3 = bounds.right.get(row)
       t = grid.get(i)
-      x.last(iter, time, t2, t3, t, c0,
-        coefs(iter.posAtRow, iter.rowIdx))
-      x.update(grid, iter)
+      x.last(column, time, t2, t3, t, c0,
+        coefs(column, row))
+      x.update(grid, row, x.colsNum)
+      row += 1
   }
   }
 
   def yIter(time: Double): Unit = {
-    val iter = new YDim.ColumnIterator(x, y)
-    while (iter.hasNextCol) {
-      val fI = iter.nextCol
-      val t1 = bounds.upp.get(iter.colIdx)
-      var t2 = grid(fI)
-      var t3 = grid(fI + x.colsNum)
-      var t = grid.res(fI)
+    var col = 0
+    val colsNum = x.colsNum
+    while (col != colsNum) {
+      var i = col
+      var row = 0
+      val t1 = bounds.upp.get(col)
+      var t2 = grid(i)
+      var t3 = grid(i + colsNum)
+      var t = grid.res(i)
       var c0 = y.first(time, t1, t2, t3, t,
-        coefs(iter.colIdx, - 1),
-        coefs(iter.colIdx, iter.posAtCol))
+        coefs(col, -1),
+        coefs(col, row))
 
-      while (iter.hasTwoNext) {
-        val i = iter.next
+      i += colsNum
+      row += 1
+      while (row != y.rowsNum - 1) {
         t2 = grid(i)
-        t3 = grid(i + x.colsNum)
+        t3 = grid(i + colsNum)
         t = grid.res(i)
-        c0 = y.general(iter, time, t2, t3, t, c0,
-          coefs(iter.colIdx, iter.posAtCol))
+        c0 = y.general(row, time, t2, t3, t, c0,
+          coefs(col, row))
+        i += colsNum
+        row += 1
       }
 
-      val i = iter.next
       t2 = grid(i)
-      t3 = bounds.low.get(iter.colIdx)
+      t3 = bounds.low.get(col)
       t = grid.res(i)
-      y.last(iter, time, t2, t3, t, c0,
-        coefs(iter.colIdx, iter.posAtCol))
-      y.update(grid, iter)
+      y.last(row, time, t2, t3, t, c0,
+        coefs(col, row))
+      y.update(grid, col, colsNum)
+      col += 1
     }
   }
 
@@ -209,6 +217,17 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     }
   }
 
+  def updateColumn(colNum: Int, copyFrom: Array[Double]): Unit = {
+    val g = grid.grid
+    var i = colNum
+    var j = 0
+    while (i < x.colsNum * y.rowsNum) {
+      g.update(i, copyFrom(j))
+      i += x.colsNum
+      j += 1
+    }
+  }
+
   def row(rowNum: Int, copyTo: Array[Double]): Unit = {
     val g = grid.grid
     var i = rowNum * x.colsNum
@@ -216,6 +235,18 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     val end = i + x.colsNum
     while (i != end) {
       copyTo.update(j, g(i))
+      i += 1
+      j += 1
+    }
+  }
+
+  def updateRow(rowNum: Int, copyFrom: Array[Double]): Unit = {
+    var g = grid.grid
+    var i = rowNum * x.colsNum
+    var j = 0
+    var end = i + x.colsNum
+    while (i != end) {
+      g.update(i, copyFrom(j))
       i += 1
       j += 1
     }
@@ -351,7 +382,7 @@ object TwoDGrid{
 
   class Grid private[TwoDGrid] (val grid: Array[Double],
                                 val predict: Array[Double],
-                                result: Array[Double]){
+                                val result: Array[Double]){
     def get(i: Int): Double = grid(i)
     def res(i: Int): Double = result(i)
     def put(i: Int, value: Double): Unit = result.update(i, value)
@@ -527,7 +558,7 @@ object TwoDGrid{
     val contains = true
   }
 
-  class VarYCoef(private val get: Array[Spline[PieceFunction]]){
+  class VarYCoef(private val get: Array[Spline[PieceFunction]]) extends Coefficients{
     def apply(x: Int, y: Int) = get(y + 1)
   }
   object VarYCoef{
@@ -540,7 +571,7 @@ object TwoDGrid{
     }
   }
 
-  class VarXCoef(private val get: Array[Spline[PieceFunction]]){
+  class VarXCoef(private val get: Array[Spline[PieceFunction]]) extends Coefficients{
     def apply(x: Int, y: Int) = get(x + 1)
   }
   object VarXCoef{
@@ -574,8 +605,8 @@ object TwoDGrid{
       case Array(y0, y1) => change(y0, y1)
     }.toArray
      new PatchXCoef(array,
-        Intersection(InclusiveLower(lX + 1), InclusiveUpper(uX + 1)),
-        Intersection(InclusiveLower(lY + 1), InclusiveUpper(uY + 1))
+        Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
+        Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
      )
     }
 
@@ -583,7 +614,7 @@ object TwoDGrid{
               change: (Double, Double) => Spline[PieceFunction],
               lowY: Int, uppY: Int): PatchXCoef = {
       val lowX = -1
-      val uppX = xDim.colsNum
+      val uppX = xDim.colsNum + 1
       apply(yDim, change, lowX, uppX, lowY, uppY)
     }
   }
@@ -606,8 +637,8 @@ object TwoDGrid{
       }.toArray
       new PatchYCoef(
         array,
-        Intersection(InclusiveLower(lX + 1), InclusiveUpper(uX + 1)),
-        Intersection(InclusiveLower(lY + 1), InclusiveUpper(uY + 1))
+        Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
+        Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
       )
     }
 
@@ -616,7 +647,7 @@ object TwoDGrid{
               lowX: Int, uppX: Int
              ): PatchYCoef = {
       val yLow = -1
-      val yUpp = yDim.rowsNum - 1
+      val yUpp = yDim.rowsNum + 1
       apply(xDim, change, lowX, uppX, yLow, yUpp)
     }
   }
@@ -632,6 +663,40 @@ object TwoDGrid{
     }
   }
 
+  def getRadialMidPoint(r0: Double, r1: Double, r2: Double,
+                        t0: Double, t1: Double): Double = {
+    assert(r2 - r1 == r1 - r0)
+    val rAtHalf0 = (r0 + r1) / 2.0
+    val rAtHalf1 = (r1 + r2) / 2.0
+    (t0 * rAtHalf0 + t1 * rAtHalf1) / (rAtHalf0 + rAtHalf1)
+  }
+
+  def getRadialMidPoint(r0: Double, r1: Double, r2: Double,
+                        k0: Double, k1: Double,
+                        t0: Double, t1: Double): Double = {
+    val rAtHalf0 = (r0 + r1) / 2.0
+    val rAtHalf1 = (r1 + r2) / 2.0
+    val a = rAtHalf0 * k0 * (r1 - r0)
+    val b = rAtHalf1 * k1 * (r2 - r1)
+    (a * t0 + b * t1) / (a + b)
+  }
+
+  def discHeatFlow(t0: Double, t1: Double,
+                   r0: Double, r1: Double,
+                   k: Double): Double = {
+    val rAtHalf = (r0 + r1) / 2.0
+    k * rAtHalf * (t0 - t1) / (r1 - r0) * math.Pi * 2.0
+  }
+
+  def discTWithFlow(heatFlow: Double,
+                    t0: Double,
+                    r0: Double,
+                    r1: Double,
+                    k: Double): Double = {
+    val rAtHalf = (r0 + r1) / 2.0
+    val coef = k * rAtHalf / (r1 - r0) * math.Pi * 2.0
+    t0 - heatFlow / coef
+  }
 
   case class Shape(rows: Int, cols: Int)
 
