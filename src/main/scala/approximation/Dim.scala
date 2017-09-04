@@ -15,6 +15,7 @@ abstract class Dim[+T <: TypeDir] {
   private val lastHeatFlowCoefs: Array[Double] =
     t.generalCoefs(range(range.length - 2), range(range.length - 1), upp)
   private val firstHeatFlowC: Double = t.heatFlowCoefs(range(0), range(1))
+  private val lowerAnalyticalCoefs: Double = t.analyticalCoefs(range(0), range(1))
   private val lastHeatFlowC: Double = t.heatFlowCoefs(range(range.length - 1), upp)
   protected val toPassion: Array[Array[Double]] =
     Array.fill(coefs.length)(new Array[Double](2))

@@ -12,6 +12,8 @@ sealed trait TypeDir{
 
   def heatFlowCoefs(lowX: Double, uppX: Double): Double
 
+  def analyticalCoefs(lowX: Double, uppX: Double): Double
+
 }
 
 class Ortho extends TypeDir{
@@ -29,6 +31,7 @@ class Ortho extends TypeDir{
     1.0 / (uppX - lowX)
   }
 
+  override def analyticalCoefs(lowX: Double, uppX: Double): Double = Double.NaN
 }
 
 
@@ -50,6 +53,10 @@ class Radial extends TypeDir{
     val rAtHalf = (lowX + uppX) / 2.0
      rAtHalf  / (uppX - lowX) * math.Pi * 2.0
   }
+
+  override def analyticalCoefs(lowX: Double, uppX: Double): Double = {
+    math.log(uppX / lowX) / (math.Pi * 2)
+  }
 }
 
 class Angular extends TypeDir{
@@ -67,5 +74,7 @@ class Angular extends TypeDir{
   override def heatFlowCoefs(lowX: Double, uppX: Double): Double = {
     ???
   }
+
+  override def analyticalCoefs(lowX: Double, uppX: Double) = ???
 }
 
