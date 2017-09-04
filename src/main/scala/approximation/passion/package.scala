@@ -31,7 +31,7 @@ package object passion{
   }
 
   @inline
-  final def conducitity(t1: Double, t2: Double, z: Spline[PieceFunction]): Double = {
+  final def takeAverage(t1: Double, t2: Double, z: Spline[PieceFunction]): Double = {
     val dT = math.abs(t2 - t1)
     val c1 = z(t1)
     val c2 = z(t2)

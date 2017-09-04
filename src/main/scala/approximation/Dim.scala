@@ -11,6 +11,11 @@ abstract class Dim[+T <: TypeDir] {
   val upp: Double
   def values: Array[Double] = Array(low) ++ range ++ Array(upp)
   private val coefs: Array[Array[Double]] = t.preDef(low, range, upp, 1.0)
+  private val firstHeatFlowCoefs: Array[Double] = t.generalCoefs(low, range(0), range(1))
+  private val lastHeatFlowCoefs: Array[Double] =
+    t.generalCoefs(range(range.length - 2), range(range.length - 1), upp)
+  private val firstHeatFlowC: Double = t.heatFlowCoefs(range(0), range(1))
+  private val lastHeatFlowC: Double = t.heatFlowCoefs(range(range.length - 1), upp)
   protected val toPassion: Array[Array[Double]] =
     Array.fill(coefs.length)(new Array[Double](2))
 
@@ -28,14 +33,35 @@ abstract class Dim[+T <: TypeDir] {
             t: Double,
             z0: Spline[PieceFunction],
             z: Spline[PieceFunction]): Double = {
-    val co0 = passion.conducitity(t1, t2, z0)
-    val co = passion.conducitity(t2, t3, z)
+    val co0 = passion.takeAverage(t1, t2, z0)
+    val co = passion.takeAverage(t2, t3, z)
     val a = coefs(0)(0) * co0
     val c = coefs(0)(1) * co
 
     val vect: Double = - t / time - a * t1
     forwardFirst(- (a + c) - 1.0 / time, c, vect, toPassion(0))
     co
+  }
+
+  final
+  def firstHeatFlow(time: Double,
+                    heatFlow: Double,
+                    t2: Double,
+                    t3: Double,
+                    t: Double,
+                    conductivity: Spline[PieceFunction],
+                    capacity: Spline[PieceFunction]): Double = {
+
+    val cap = passion.takeAverage(t2, t3, capacity)
+    val cond = passion.takeAverage(t2, t3, conductivity)
+    val tCond = cond / cap
+    val hFlow = heatFlow / (math.Pi * 2.0)
+    val vectCoef = cap * firstHeatFlowCoefs(0) / time
+    val vect = - vectCoef * t - hFlow
+    val c = firstHeatFlowCoefs(2) * cond
+
+    forwardFirst( - c - vectCoef, c , vect, toPassion(0))
+    tCond
   }
 
   final
@@ -46,7 +72,7 @@ abstract class Dim[+T <: TypeDir] {
               t: Double,
               co0: Double,
               z: Spline[PieceFunction]): Double = {
-    val co = passion.conducitity(t2, t3, z)
+    val co = passion.takeAverage(t2, t3, z)
     val a = coefs(posAtLayer)(0) * co0
     val c = coefs(posAtLayer)(1) * co
     val vect = - t / time
@@ -63,7 +89,7 @@ abstract class Dim[+T <: TypeDir] {
            t: Double,
            co0: Double,
            z: Spline[PieceFunction]): Unit = {
-    val co = passion.conducitity(t2, t3, z)
+    val co = passion.takeAverage(t2, t3, z)
     val a = coefs(posAtLayer)(0) * co0
     val c = coefs(posAtLayer)(1) * co
     val vect = - t / time - c * t3

@@ -7,6 +7,17 @@ import scala.math.pow
   */
 package object arraygrid {
 
+  /** Ширина объёма, который представляет узел
+    *
+    * @param lOne   координата первого узла
+    * @param lTwo   координата среднего узла
+    * @param lThree координата третьего узла
+    * @return Ширина объёма, который представляет узел, м
+    */
+  @inline def ah(lOne: Double, lTwo: Double, lThree: Double) = {
+    (lThree + lTwo) / 2.0 - (lOne + lTwo) / 2.0
+  }
+
   def makeOrthogonalMatrix(upperBoundCoord: Double,
                            orthogonalCoords: Array[Double],
                            lowerBoundCoord: Double,
@@ -39,16 +50,6 @@ package object arraygrid {
       sigma / h / dh(lOne, lTwo)
     }
 
-    /** Ширина объёма, который представляет узел
-      *
-      * @param lOne   координата первого узла
-      * @param lTwo   координата среднего узла
-      * @param lThree координата третьего узла
-      * @return Ширина объёма, который представляет узел, м
-      */
-    @inline def ah(lOne: Double, lTwo: Double, lThree: Double) = {
-      (lThree + lTwo) / 2.0 - (lOne + lTwo) / 2.0
-    }
     val LAST = orthogonalCoords.length - 1
     val result =
       for (i <- orthogonalCoords.indices) yield {
@@ -100,9 +101,48 @@ package object arraygrid {
     l2 - l1
   }
 
+  def generalOrthoCoefs(lowX: Double,
+                        midX: Double,
+                        maxX: Double,
+                        sigma: Double = 1.0): Array[Double] = {
+
+    /** Генерирует значение коэффициентa трёхдиагональной матрицы на шаблоне
+      *
+      * @param lOne координата одного узла на шаблоне
+      * @param lTwo координата следующего узла на шаблоне
+      * @return коэффициет a или с, без учёта коэффициента температуропроводности
+      */
+    @inline def coef(lOne: Double, lTwo: Double): Double = {
+      1.0 / dh(lOne, lTwo)
+    }
+    val height = ah(lowX, midX, maxX)
+    val a = coef(lowX, midX)
+    val c = coef(midX, maxX)
+
+    Array(height / sigma, a, c)
+  }
+
+  def generalRadialCoefs(lowR: Double,
+                         midR: Double,
+                         maxR: Double,
+                         sigma: Double = 1.0): Array[Double] = {
+
+    @inline
+    def coef(rOne: Double, rTwo: Double): Double= {
+      rAtHalf(rOne, rTwo) / dh(rOne, rTwo)
+    }
+
+    val volume = vol(lowR, midR, maxR)
+    val a = coef(lowR, midR)
+    val b = coef(midR, maxR)
+
+    Array(volume / sigma, a, b)
+  }
+
   def makeRadialMatrix(leftBoundCoord: Double,
                        radialCoords: Array[Double],
-                       rightBoundCoord: Double, sigma: Double = 1.0): Array[Array[Double]] = {
+                       rightBoundCoord: Double, sigma: Double = 1.0)
+  : Array[Array[Double]] = {
 
     /**
       * Генерирует лист коэффициентов а и с (без учёта температуропроводности)
@@ -114,30 +154,9 @@ package object arraygrid {
       * @return List(a, c)
       */
     @inline def listOfCoef(r1 : Double, r2 : Double, r3 : Double) = {
-      val volume = v(r1, r2, r3)
+      val volume = vol(r1, r2, r3)
       val a = coef(r1, r2, volume); val c = coef(r2, r3, volume)
       Array(a, c)
-    }
-
-    /** Значение кооординаты между двумя узлами
-      *
-      * @param rOne координата первого узла, м
-      * @param rTwo координата второго узал, м
-      * @return середина, м
-      */
-    @inline def rAtHalf(rOne : Double, rTwo : Double) = {
-      (rOne + rTwo) / 2.0
-    }
-
-    /** Объём ячейки шаблона высотой один метр, которую пердставляет средний узел
-      *
-      * @param rOne координата первого узла
-      * @param rTwo координата среднего узла
-      * @param rThree координата третьего узла
-      * @return объём ячейки, м3/м
-      */
-    @inline def v(rOne : Double, rTwo : Double, rThree : Double) = {
-      (pow(rAtHalf(rTwo, rThree), 2.0) - pow(rAtHalf(rOne, rTwo), 2.0)) / 2.0
     }
 
     /** Генерирует значение коэффициент трёхдиагональной матрицы на шаблоне
@@ -178,6 +197,27 @@ package object arraygrid {
     result.toArray
   }
 
+
+  /** Значение кооординаты между двумя узлами
+    *
+    * @param rOne координата первого узла, м
+    * @param rTwo координата второго узал, м
+    * @return середина, м
+    */
+  @inline def rAtHalf(rOne : Double, rTwo : Double) = {
+    (rOne + rTwo) / 2.0
+  }
+
+  /** Объём ячейки шаблона высотой один метр, которую пердставляет средний узел
+    *
+    * @param rOne координата первого узла
+    * @param rTwo координата среднего узла
+    * @param rThree координата третьего узла
+    * @return объём ячейки, м3/м
+    */
+  @inline def vol(rOne : Double, rTwo : Double, rThree : Double) = {
+    (pow(rAtHalf(rTwo, rThree), 2.0) - pow(rAtHalf(rOne, rTwo), 2.0)) / 2.0
+  }
 
 
 

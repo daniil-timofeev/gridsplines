@@ -31,13 +31,13 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
     val bounds = Bounds(
-      upp = new OneElementBound,
-      low = new OneElementBound,
-      left = new OneElementBound,
-      right = new OneElementBound
+      upp = new OneElementTemperature,
+      low = new OneElementTemperature,
+      left = new OneElementTemperature,
+      right = new OneElementTemperature
     )
 
-    val coef = new ConstantCoef(Spline.const(1.0))
+    val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
     val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
 
     grid.updateX(x => 1.0)
@@ -50,13 +50,13 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
     val bounds = Bounds(
-      upp = new OneElementBound,
-      low = new OneElementBound,
-      left = new OneElementBound,
-      right = new OneElementBound
+      upp = new OneElementTemperature,
+      low = new OneElementTemperature,
+      left = new OneElementTemperature,
+      right = new OneElementTemperature
     )
 
-    val coef = new ConstantCoef(Spline.const(1.0))
+    val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
     val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
 
     grid.updateY(y => 1.0)
@@ -68,13 +68,13 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 12.0)
     val bounds = Bounds(
-      upp = new OneElementBound,
-      low = new OneElementBound,
-      left = new OneElementBound,
-      right = new OneElementBound
+      upp = new OneElementTemperature,
+      low = new OneElementTemperature,
+      left = new OneElementTemperature,
+      right = new OneElementTemperature
     )
 
-    val coef = new ConstantCoef(Spline.const(1.0))
+    val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
     new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
   }
 
@@ -115,13 +115,13 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 12.0)
     val bounds = Bounds(
-      upp = new OneElementBound,
-      low = new OneElementBound,
-      left = new OneElementBound,
-      right = new OneElementBound
+      upp = new OneElementTemperature,
+      low = new OneElementTemperature,
+      left = new OneElementTemperature,
+      right = new OneElementTemperature
     )
 
-    val coef = new ConstantCoef(Spline.const(1.0))
+    val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
     new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
   }
 

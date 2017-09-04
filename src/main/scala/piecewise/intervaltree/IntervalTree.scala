@@ -340,10 +340,6 @@ final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
 
   def iterator: Iterator[(InLowExUp[K], V)] = Iterator.single(tuple)
 
-  override lazy val toString: String = {
-    interval.toString + ": " + v.toString + System.lineSeparator()
-  }
-
   override def equals(obj: scala.Any): Boolean = {
     obj match{
     case leaf: Leaf[Any, Any] => {
@@ -351,6 +347,10 @@ final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
     }
     case _ => false
   }}
+
+  override def toString =
+    s"[${interval.lower.lower}, ${interval.upper.upper}):" +
+      s" ${v.toString}" + System.lineSeparator()
 }
 
 object IntervalTree{

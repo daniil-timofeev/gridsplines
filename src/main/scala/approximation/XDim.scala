@@ -34,6 +34,14 @@ extends Dim[T]{
     colsNum * r + c
   }
 
+  def toastLowerHeatFlow(heatFlow: Double): Double = {
+    t.toastHeatFlow(heatFlow, low, range(0), range(1))
+  }
+
+  def toastUpperHeatFlow(heatFlow: Double): Double = {
+    t.toastHeatFlow(heatFlow, range(colsNum - 2), range(colsNum - 1), upp)
+  }
+
   def update(grid: TwoDGrid.Grid, rowNum: Int, colsNum: Int): Unit = {
     passion.backwardRow(toPassion, grid.result, rowNum)
   }

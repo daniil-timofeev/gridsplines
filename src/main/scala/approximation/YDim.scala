@@ -22,6 +22,14 @@ case class YDim[+T <: TypeDir](low: Double, range: Array[Double], upp: Double)(
   def update(grid: TwoDGrid.Grid, col: Int, colsNum: Int): Unit = {
     passion.backwardColumn(toPassion, grid.result, col, colsNum)
   }
+
+  def toastLowerHeatFlow(heatFlow: Double): Double = {
+    t.toastHeatFlow(heatFlow, low, range(0), range(1))
+  }
+
+  def toastUpperHeatFlow(heatFlow: Double): Double = {
+    t.toastHeatFlow(heatFlow, range(rowsNum - 2), range(rowsNum - 1), upp)
+  }
 }
 object YDim{
 

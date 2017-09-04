@@ -8,7 +8,7 @@ class GridTest extends Specification{def is = s2"""
      ${test}
   """
 
-    val power = 3200
+    val power = 4500
 
     val cond = 1.5
     val heatCap = 2.2E6 //J/(m3 K)
@@ -16,27 +16,36 @@ class GridTest extends Specification{def is = s2"""
 
     def test  = {
 
-      val left = 0.0
+      val left = 0.0 / 2.0
       val mid = 0.09 / 2.0
-      val last = 0.18 / 2.0
+      val last = 0.010 / 2.0
 
       val xDim = new XDim[Radial](left,
           (x: Double) => {
-            if (x == left) mid
-            if (x == mid) last
-            else x + 0.05
+            //if (x == left) last
+            if (x == left) last
+            else x * 1.1
           },
           25.0
         )
 
-      val yDim = new YDim[Ortho](0, (y: Double) => y + 1.0, 30.0)
+      val yDim = new YDim[Ortho](0, (y: Double) => y + 2.0, 92.0)
 
-      val conduct = TwoDGrid.VarXCoef(xDim, (x0, x1) => {
-        if(x0 > left) Spline.const(cond / heatCap)
-        else Spline.const(cond / heatCap)
-      })
+      val conduct = TwoDGrid.VarXCoef(xDim,
+        (x0, x1) =>  Spline.const(cond),
+        (x0, x1) => Spline.const(heatCap),
+        (x0, x1) => Spline.const(cond / heatCap)
+      )
 
-      val bounds = TwoDGrid.Bounds.horArraysVertOneElement(xDim, yDim)
+
+      val bounds =
+      Bounds(
+        upp = new Temperature(Upper, xDim, yDim),
+        low = new Temperature(Lower, xDim, yDim),
+        right = new Temperature(Right, xDim, yDim),
+        left = new HeatFlow(Left, xDim, yDim)
+      )
+
       val grid = new TwoDGrid(xDim, yDim, bounds, conduct)
       val endTime = 175000
       import scala.collection._
@@ -44,31 +53,17 @@ class GridTest extends Specification{def is = s2"""
 
       grid *= 7.0
 
-      val leftArray, leftArray0 = new Array[Double](grid.x.range.length)
+      val leftArray, leftArray0 = new Array[Double](grid.y.range.length)
       var current = 0
       while (current <= endTime) {
-        grid.left(1, leftArray)
-        grid.left(0, leftArray0)
-        val heat = power / 29.0
+        val heat = power / 92.0
         var i = 0
         while (i != leftArray.length) {
-
-          val t = TwoDGrid.discTWithFlow(
-              heat, leftArray(i), last, left, cond
-            )
-
-          val t0 = TwoDGrid.getRadialMidPoint(
-              left, mid, last, cond, cond,  t, leftArray(i)
-            )
-
-          leftArray0.update(i, t0)
-          leftArray.update(i, t)
+          grid.bounds.left.update(heat)
           i += 1
         }
-
-        grid.bounds.left *= leftArray
-        grid.updateColumn(0, leftArray0)
-        points += Array(current, grid.bounds.left.get(15))
+        grid.left(leftArray)
+        points += Array(math.log(current), leftArray(0))
         grid.noHeatFlow(Right)
         grid.noHeatFlow(Upper)
         grid.noHeatFlow(Lower)
@@ -100,7 +95,14 @@ class GridTest extends Specification{def is = s2"""
         }
       } finally writer.close()
 
+      import org.apache.commons.math3.stat.regression._
 
-     ok
+      val reg = new SimpleRegression()
+
+      reg.addData(points.drop(1).toArray)
+
+      val slope = reg.getSlope
+
+      power / (4.0 * math.Pi * 92 * slope) must beCloseTo(cond, 0.1)
     }
 }

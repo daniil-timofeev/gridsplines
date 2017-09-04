@@ -2,7 +2,10 @@ package approximation
 
 import java.io.{BufferedWriter, IOException}
 
-import approximation.TwoDGrid.{BaseBound, BoundSide, Bounds, Coefficients, Left, Lower, OneElementBound, Right, Upper}
+import approximation.TwoDGrid.{
+BaseBound, BoundSide, Bounds, Coefficients, HeatFlowBound,
+Left, Lower, OneElementBound, Right, TemperatureBound, Upper
+}
 import approximation.XDim.RowIterator
 import approximation.YDim.ColumnIterator
 import piecewise.{PieceFunction, Spline}
@@ -124,14 +127,27 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     while (row != y.rowsNum) {
       var column = 0
       var i = row * x.colsNum
-      val t1 = bounds.left.get(row)
       var t2 = grid(i)
       var t3 = grid(i + 1)
       var t = grid.get(i)
-      var c0 = x.first(time, t1, t2, t3, t,
-        coefs(-1, row),
-        coefs(column, row)
-      )
+      var c0 =
+      bounds.left match {
+        case temp: TemperatureBound => {
+          val t1 = temp.get(row)
+          x.first(time, t1, t2, t3, t,
+            coefs(-1, row),
+            coefs(column, row)
+          )
+        }
+        case heatFlow: HeatFlowBound => {
+          val heat = heatFlow.get(row)
+          x.firstHeatFlow(time, heat, t2, t3, t,
+            coefs.thermConductivity(column, row),
+            coefs.capacity(column, row)
+          )
+        }
+      }
+
       column += 1
       i += 1
       while (column != x.colsNum - 1) {
@@ -365,6 +381,10 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     }
   }
 
+  def updatePredicted(): Unit = {
+    System.arraycopy(grid.grid, 0, grid.predict, 0, grid.grid.length)
+  }
+
   noHeatFlow(Upper)
   noHeatFlow(Lower)
   noHeatFlow(Right)
@@ -443,7 +463,10 @@ object TwoDGrid{
     def *=(value: Double): Unit = update(value)
   }
 
-  class OneElementBound extends Bound{
+  trait HeatFlowBound extends Bound
+  trait TemperatureBound extends Bound
+
+  abstract class OneElementBound extends Bound{
     private var value = 0.0
     override def get(i: Int): Double = value
     override def update(values: Array[Double]): Unit = {
@@ -462,7 +485,11 @@ object TwoDGrid{
     }
   }
 
-  case class BaseBound(range: Array[Double])
+  class OneElementTemperature extends OneElementBound with TemperatureBound
+  class OneElementHeatFlow extends OneElementBound with HeatFlowBound
+
+
+  class BaseBound(range: Array[Double])
     extends Bound{
     def this(size: Int){
       this(new Array[Double](size))
@@ -488,6 +515,26 @@ object TwoDGrid{
     def array: Array[Double] = values
   }
 
+  case class HeatFlow(range: Array[Double]) extends BaseBound(range) with HeatFlowBound {
+
+    def this(size: Int){
+      this(new Array[Double](size))
+    }
+    def this(side: BoundSide, xDim: XDim[_], yDim: YDim[_]){
+      this(side.size(xDim, yDim))
+    }
+  }
+
+  case class Temperature(range: Array[Double]) extends BaseBound(range) with TemperatureBound{
+
+    def this(size: Int){
+      this(new Array[Double](size))
+    }
+    def this(side: BoundSide, xDim: XDim[_], yDim: YDim[_]){
+      this(side.size(xDim, yDim))
+    }
+  }
+
   case class Bounds(upp: Bound, low: Bound, right: Bound, left: Bound){
     def *= (value: Double) = {
       upp.update(value)
@@ -498,7 +545,7 @@ object TwoDGrid{
   }
   object Bounds{
     def withOneElement: Bounds = {
-      val upp, low, right, left = new OneElementBound
+      val upp, low, right, left = new OneElementTemperature
       new Bounds(upp, low, right, left)
     }
     def withArrays(x: XDim[_], y: YDim[_]): Bounds = {
@@ -510,19 +557,20 @@ object TwoDGrid{
     }
 
     def horArraysVertOneElement(x: XDim[_], y: YDim[_]): Bounds = {
-      val upp, low = new OneElementBound
+      val upp, low = new OneElementTemperature
       val right = new BaseBound(Right, x, y)
       val left = new BaseBound(Left, x, y)
       new Bounds(upp, low, right, left)
     }
 
     def horOneElementVertArrays(x: XDim[_], y: YDim[_]): Bounds = {
-      val right, left = new OneElementBound
+      val right, left = new OneElementTemperature
       val upp = new BaseBound(Upper, x, y)
       val low = new BaseBound(Lower, x, y)
       new Bounds(upp, low, right, left)
     }
   }
+
 
     abstract class BoundSide{
       def size(x: XDim[_], y: YDim[_]): Int
@@ -549,43 +597,108 @@ object TwoDGrid{
     }
 
   abstract class Coefficients {
+    def thermConductivity(x: Int, y: Int): Spline[PieceFunction]
+    def capacity(x: Int, y: Int): Spline[PieceFunction]
+    def tempConductivity(x: Int, y: Int): Spline[PieceFunction]
     def apply(x: Int, y: Int): Spline[PieceFunction]
     def contains(x: Int, y: Int): Boolean = true
   }
 
-  class ConstantCoef(private val get: Spline[PieceFunction]) extends Coefficients{
-    def apply(x: Int, y: Int) = get
+  class ConstantCoef(
+    private val thermCond: Spline[PieceFunction],
+    private val cap: Spline[PieceFunction],
+    private val tempCond: Spline[PieceFunction]) extends Coefficients{
+    def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = thermCond
+    def capacity(x: Int, y: Int): Spline[PieceFunction] = cap
+    def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = tempCond
+    def apply(x: Int, y: Int): Spline[PieceFunction] = tempCond
     val contains = true
   }
 
-  class VarYCoef(private val get: Array[Spline[PieceFunction]]) extends Coefficients{
-    def apply(x: Int, y: Int) = get(y + 1)
+  class VarYCoef(private val thermCond: Array[Spline[PieceFunction]],
+                 private val cap: Array[Spline[PieceFunction]],
+                 private val tempCond: Array[Spline[PieceFunction]]
+                ) extends Coefficients{
+
+    override def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      thermCond(y + 1)
+    }
+
+    override def capacity(x: Int, y: Int): Spline[PieceFunction] = {
+      cap(y + 1)
+    }
+
+    override def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      tempCond(y + 1)
+    }
+
+    def apply(x: Int, y: Int): Spline[PieceFunction] = tempCond(y + 1)
   }
+
   object VarYCoef{
     def apply(yDim: YDim[TypeDir],
-              change: (Double, Double) => Spline[PieceFunction]): VarYCoef = {
-      new VarYCoef(yDim.values.sliding(2).collect{
-          case Array(y0, y1) => change(y0, y1)
+              buildThermCond: (Double, Double) => Spline[PieceFunction],
+              buildCapCond: (Double, Double) => Spline[PieceFunction],
+              buildTempCond: (Double, Double) => Spline[PieceFunction]
+             ): VarYCoef = {
+      new VarYCoef(
+        yDim.values.sliding(2).collect{
+          case Array(y0, y1) => buildThermCond(y0, y1)
+        }.toArray,
+        yDim.values.sliding(2).collect{
+          case Array(y0, y1) => buildCapCond(y0, y1)
+        }.toArray,
+        yDim.values.sliding(2).collect{
+          case Array(y0, y1) => buildTempCond(y0, y1)
         }.toArray
       )
     }
   }
 
-  class VarXCoef(private val get: Array[Spline[PieceFunction]]) extends Coefficients{
-    def apply(x: Int, y: Int) = get(x + 1)
+  class VarXCoef(private val thermCond: Array[Spline[PieceFunction]],
+                 private val cap: Array[Spline[PieceFunction]],
+                 private val tempCond: Array[Spline[PieceFunction]]
+                ) extends Coefficients{
+
+
+    override def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      thermCond(y + 1)
+    }
+
+    override def capacity(x: Int, y: Int): Spline[PieceFunction] = {
+      cap(y + 1)
+    }
+
+    override def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      tempCond(y + 1)
+    }
+
+    def apply(x: Int, y: Int): Spline[PieceFunction] = tempCond(y + 1)
+
   }
   object VarXCoef{
     def apply(xDim: XDim[TypeDir],
-              change: (Double, Double) => Spline[PieceFunction]): VarXCoef = {
-      val array = xDim.values.sliding(2).collect{
-        case Array(x0, x1) => change(x0, x1)
-      }.toArray
-      new VarXCoef(array)
+              buildThermCond: (Double, Double) => Spline[PieceFunction],
+              buildCapCond: (Double, Double) => Spline[PieceFunction],
+              buildTempCond: (Double, Double) => Spline[PieceFunction]): VarXCoef = {
+      new VarXCoef(
+        xDim.values.sliding(2).collect{
+        case Array(x0, x1) => buildThermCond(x0, x1)
+        }.toArray,
+        xDim.values.sliding(2).collect{
+          case Array(x0, x1) => buildCapCond(x0, x1)
+        }.toArray,
+        xDim.values.sliding(2).collect{
+          case Array(x0, x1) => buildTempCond(x0, x1)
+        }.toArray
+      )
     }
   }
 
   import com.twitter.algebird._
-  class PatchXCoef(private val get: Array[Spline[PieceFunction]],
+  class PatchXCoef(private val thermCond: Array[Spline[PieceFunction]],
+                   private val cap: Array[Spline[PieceFunction]],
+                   private val tempCond: Array[Spline[PieceFunction]],
                         rangeX: Interval[Int],
                         rangeY: Interval[Int]) extends Coefficients{
 
@@ -593,71 +706,150 @@ object TwoDGrid{
       rangeX.contains(x) && rangeY.contains(y)
     }
 
-    def apply(x: Int, y: Int) = get(y + 1)
+    override def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      thermCond(y + 1)
+    }
+
+    override def capacity(x: Int, y: Int): Spline[PieceFunction] = {
+      cap(y + 1)
+    }
+
+    override def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      tempCond(y + 1)
+    }
+
+    def apply(x: Int, y: Int) = tempCond(y + 1)
+
   }
   object PatchXCoef{
 
     def apply(yDim: YDim[TypeDir],
-             change: (Double, Double) => Spline[PieceFunction],
-             lX: Int, uX: Int, lY: Int, uY: Int): PatchXCoef ={
+              buildThermCond: (Double, Double) => Spline[PieceFunction],
+              buildCapCond: (Double, Double) => Spline[PieceFunction],
+              buildTempCond: (Double, Double) => Spline[PieceFunction],
+              lX: Int, uX: Int, lY: Int, uY: Int): PatchXCoef ={
 
-    val array = yDim.values.sliding(2).collect{
-      case Array(y0, y1) => change(y0, y1)
-    }.toArray
-     new PatchXCoef(array,
+     new PatchXCoef(
+       yDim.values.sliding(2).collect{
+          case Array(y0, y1) => buildThermCond(y0, y1)
+       }.toArray,
+       yDim.values.sliding(2).collect{
+         case Array(y0, y1) => buildCapCond(y0, y1)
+       }.toArray,
+       yDim.values.sliding(2).collect{
+         case Array(y0, y1) => buildTempCond(y0, y1)
+       }.toArray,
         Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
         Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
      )
     }
 
     def apply(xDim: XDim[TypeDir], yDim: YDim[TypeDir],
-              change: (Double, Double) => Spline[PieceFunction],
+              buildThermCond: (Double, Double) => Spline[PieceFunction],
+              buildCapCond: (Double, Double) => Spline[PieceFunction],
+              buildTempCond: (Double, Double) => Spline[PieceFunction],
               lowY: Int, uppY: Int): PatchXCoef = {
       val lowX = -1
       val uppX = xDim.colsNum + 1
-      apply(yDim, change, lowX, uppX, lowY, uppY)
+      apply(yDim, buildThermCond, buildCapCond, buildTempCond, lowX, uppX, lowY, uppY)
     }
   }
 
-  class PatchYCoef(private val get: Array[Spline[PieceFunction]],
-                  rangeX: Interval[Int],
-                  rangeY: Interval[Int]) extends Coefficients{
+  class PatchYCoef(private val thermCond: Array[Spline[PieceFunction]],
+                   private val cap: Array[Spline[PieceFunction]],
+                   private val tempCond: Array[Spline[PieceFunction]],
+                   rangeX: Interval[Int],
+                   rangeY: Interval[Int]) extends Coefficients{
 
     override def contains(x: Int, y: Int): Boolean = {
       rangeX.contains(x) && rangeY.contains(y)
     }
-    def apply(x: Int, y: Int): Spline[PieceFunction] = get(x + 1)
+
+    override def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      thermCond(y + 1)
+    }
+
+    override def capacity(x: Int, y: Int): Spline[PieceFunction] = {
+      cap(y + 1)
+    }
+
+    override def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      tempCond(y + 1)
+    }
+
+    def apply(x: Int, y: Int): Spline[PieceFunction] = tempCond(x + 1)
   }
   object PatchYCoef {
     def apply(xDim: XDim[TypeDir],
-              change: (Double, Double) => Spline[PieceFunction],
+              buildThermCond: (Double, Double) => Spline[PieceFunction],
+              buildCapCond: (Double, Double) => Spline[PieceFunction],
+              buildTempCond: (Double, Double) => Spline[PieceFunction],
               lX: Int, uX: Int, lY: Int, uY: Int): PatchYCoef = {
-      val array = xDim.values.sliding(2).collect {
-        case Array(x0, x1) => change(x0, x1)
-      }.toArray
       new PatchYCoef(
-        array,
+        xDim.values.sliding(2).collect {
+          case Array(x0, x1) => buildThermCond(x0, x1)
+        }.toArray,
+        xDim.values.sliding(2).collect {
+          case Array(x0, x1) => buildCapCond(x0, x1)
+        }.toArray,
+        xDim.values.sliding(2).collect {
+          case Array(x0, x1) => buildTempCond(x0, x1)
+        }.toArray,
         Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
         Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
       )
     }
 
     def apply(xDim: XDim[TypeDir], yDim: YDim[TypeDir],
-              change: (Double, Double) => Spline[PieceFunction],
+              buildThermCond: (Double, Double) => Spline[PieceFunction],
+              buildCapCond: (Double, Double) => Spline[PieceFunction],
+              buildTempCond: (Double, Double) => Spline[PieceFunction],
               lowX: Int, uppX: Int
              ): PatchYCoef = {
       val yLow = -1
       val yUpp = yDim.rowsNum + 1
-      apply(xDim, change, lowX, uppX, yLow, yUpp)
+      apply(xDim, buildThermCond,  buildCapCond, buildTempCond, lowX, uppX, yLow, yUpp)
     }
   }
   case class PatchedXCoef(xCoefs: VarXCoef, path: PatchXCoef) extends Coefficients{
+
+    override def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path.thermConductivity(x, y)
+      else xCoefs.thermConductivity(x, y)
+    }
+
+    override def capacity(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path.capacity(x, y)
+      else xCoefs.capacity(x, y)
+    }
+
+    override def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path.tempConductivity(x, y)
+      else xCoefs.tempConductivity(x, y)
+    }
+
     override def apply(x: Int, y: Int): Spline[PieceFunction] = {
       if (path.contains(x, y)) path(x, y) else xCoefs(x, y)
     }
   }
 
   case class PatchedYCoef(yCoefs: VarYCoef, path: PatchYCoef) extends Coefficients{
+
+    override def thermConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path.thermConductivity(x, y)
+      else yCoefs.thermConductivity(x, y)
+    }
+
+    override def capacity(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path.capacity(x, y)
+      else yCoefs.capacity(x, y)
+    }
+
+    override def tempConductivity(x: Int, y: Int): Spline[PieceFunction] = {
+      if (path.contains(x, y)) path.tempConductivity(x, y)
+      else yCoefs.tempConductivity(x, y)
+    }
+
     override def apply(x: Int, y: Int): Spline[PieceFunction] = {
       if (path.contains(x, y)) path(x, y) else yCoefs(x, y)
     }
@@ -686,6 +878,15 @@ object TwoDGrid{
                    k: Double): Double = {
     val rAtHalf = (r0 + r1) / 2.0
     k * rAtHalf * (t0 - t1) / (r1 - r0) * math.Pi * 2.0
+  }
+
+
+
+  def radialHeatFlow(t0: Double, t1: Double,
+                     r0: Double, r1: Double,
+                     k: Double): Double = {
+    val resist = math.log(r1 / r0) / (math.Pi * 2.0 * k)
+    (t0 - t1) / resist
   }
 
   def discTWithFlow(heatFlow: Double,
