@@ -16,14 +16,15 @@ class GridTest extends Specification{def is = s2"""
 
     def test  = {
 
-      val left = 0.0 / 2.0
-      val mid = 0.09 / 2.0
-      val last = 0.010 / 2.0
+      val left = 0.0001 / 2.0
+      val mid = 0.0005 / 2.0
+      val last = 0.001 / 2.0
 
       val xDim = new XDim[Radial](left,
           (x: Double) => {
             //if (x == left) last
-            if (x == left) last
+            if (x == left) mid
+            if (x == mid) last
             else x * 1.1
           },
           25.0

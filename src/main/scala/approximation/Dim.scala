@@ -53,15 +53,16 @@ abstract class Dim[+T <: TypeDir] {
                     conductivity: Spline[PieceFunction],
                     capacity: Spline[PieceFunction]): Double = {
 
-    val cap = passion.takeAverage(t2, t3, capacity)
-    val cond = passion.takeAverage(t2, t3, conductivity)
+    val cap = passion.takeAverage(t, t, capacity)
+    val cond = passion.takeAverage(t, t, conductivity)
+    val coef = lowerAnalyticalCoefs / cond
     val tCond = cond / cap
     val hFlow = heatFlow / (math.Pi * 2.0)
     val vectCoef = cap * firstHeatFlowCoefs(0) / time
-    val vect = - vectCoef * t - hFlow
+    val vect = - vectCoef * t - heatFlow * coef * firstHeatFlowCoefs(1)
     val c = firstHeatFlowCoefs(2) * cond
 
-    forwardFirst( - c - vectCoef, c , vect, toPassion(0))
+    forwardFirst(1, -1, heatFlow * coef , toPassion(0))
     tCond
   }
 
