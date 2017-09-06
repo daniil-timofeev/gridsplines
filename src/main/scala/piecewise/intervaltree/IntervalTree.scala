@@ -268,6 +268,32 @@ final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[
     }
   }
 
+  def intervalLength(implicit g: Group[K]): K = {
+    g.remove(upper, lower)
+  }
+
+  def upper: K = {
+    right match {
+      case Some(i @ InternalNode(_, _, _, _)) => {
+        i.upper
+      }
+      case Some(Leaf(Intersection(_, ExclusiveUpper(upp: K)), _)) => {
+        upp
+      }
+    }
+  }
+
+  def lower: K = {
+    left match {
+      case Some(i @ InternalNode(_, _, _, _)) => {
+        i.lower
+      }
+      case Some(Leaf(Intersection(InclusiveLower(low: K), _), _)) => {
+        low
+      }
+    }
+  }
+
 }
 
 final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
@@ -351,6 +377,7 @@ final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
   override def toString =
     s"[${interval.lower.lower}, ${interval.upper.upper}):" +
       s" ${v.toString}" + System.lineSeparator()
+
 }
 
 object IntervalTree{

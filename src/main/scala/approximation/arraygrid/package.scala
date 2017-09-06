@@ -3,7 +3,7 @@ package approximation
 import scala.math.pow
 
 /**
-  * Created by Даниил on 02.03.2017.
+  *
   */
 package object arraygrid {
 
@@ -27,9 +27,9 @@ package object arraygrid {
       * Генерирует лист коэффициентов а и с (без учёта температуропроводности)
       * трёхдиагональной матрицы. Коэффициент w далее находится как -(alpha1 x a + alpha2 x w)
       *
-      * @param l1 координата r1 шаблона
-      * @param l2 координата r2 шаблона
-      * @param l3 координата r3 шаблона
+      * @param l1 координата r1 шаблона, м;
+      * @param l2 координата r2 шаблона, м;
+      * @param l3 координата r3 шаблона, м.
       * @return List(a, c)
       **/
     @inline def listOfCoef(l1: Double, l2: Double, l3: Double) = {
