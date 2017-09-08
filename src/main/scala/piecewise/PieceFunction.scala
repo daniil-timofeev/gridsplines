@@ -43,6 +43,14 @@ abstract class PieceFunction{
     * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
   def integral(x: Double): Double
 
+  /** Приблизительная площадь под функцией интервале ``[x0:x1]``
+    *
+    * @param x0 нижняя граница
+    * @param x1 верхняя граница
+    * @return приблизительная площадь под фукнцией на интервале ``[x0:x1]``
+    */
+  def roughArea(x0: Double, x1: Double): Double
+
   /** Значение интеграла функции в точке {@code x}
     * v of integral of function at {@code x} point
     *

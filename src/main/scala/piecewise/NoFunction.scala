@@ -31,4 +31,12 @@ object NoFunction extends PieceFunction{
     *
     * @return экстремумы функции / extremums of function */
   override protected def extremum: List[Double] = ???
+
+  /** Приблизительное значение площади под функцией на интервале ``[x0:x1]``
+    *
+    * @param x0 нижняя граница
+    * @param x1 верхняя граница
+    * @return площадь функции на интерале ``[x0:x1]``
+    */
+  override def roughArea(x0: Double, x1: Double) = ???
 }

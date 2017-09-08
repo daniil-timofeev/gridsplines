@@ -29,7 +29,7 @@ import scala.math._
   *
   */
 case class Lagrange3(protected val coefs: Array[Double], protected val low: Double, protected val upp: Double)
-  extends PieceFunction with Slicer{
+  extends PieceFunction {
 
   type SliceType = Lagrange3
 
@@ -50,10 +50,8 @@ case class Lagrange3(protected val coefs: Array[Double], protected val low: Doub
 
   override def extremum = ???
 
+  override def roughArea(x0: Double, x1: Double) = ???
 
-  def sliceUpper(upper: Double): SliceType = this
-
-  def sliceLower(lower: Double): SliceType = this
 }
 object Lagrange3{
 

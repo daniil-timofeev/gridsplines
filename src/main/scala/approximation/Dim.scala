@@ -16,6 +16,9 @@ abstract class Dim[+T <: TypeDir] {
     t.generalCoefs(range(range.length - 2), range(range.length - 1), upp)
   private val firstHeatFlowC: Double = t.heatFlowCoefs(range(0), range(1))
   private val lowerAnalyticalCoefs: Double = t.analyticalCoefs(range(0), range(1))
+  private val upperAnalyticalCoefs: Double = t.analyticalCoefs(
+      range(range.length - 2), range(range.length - 1)
+    )
   private val lastHeatFlowC: Double = t.heatFlowCoefs(range(range.length - 1), upp)
   protected val toPassion: Array[Array[Double]] =
     Array.fill(coefs.length)(new Array[Double](2))
@@ -57,10 +60,6 @@ abstract class Dim[+T <: TypeDir] {
     val cond = passion.takeAverage(t, t, conductivity)
     val coef = lowerAnalyticalCoefs / cond
     val tCond = cond / cap
-    val hFlow = heatFlow / (math.Pi * 2.0)
-    val vectCoef = cap * firstHeatFlowCoefs(0) / time
-    val vect = - vectCoef * t - heatFlow * coef * firstHeatFlowCoefs(1)
-    val c = firstHeatFlowCoefs(2) * cond
 
     forwardFirst(1, -1, heatFlow * coef , toPassion(0))
     tCond
@@ -98,6 +97,26 @@ abstract class Dim[+T <: TypeDir] {
 
     forwardLast(a, - (a + c) - 1.0 / time, c, vect,
       toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
+  }
+
+  final
+  def lastHeatFlow( posAtLayer: Int,
+                    time: Double,
+                    heatFlow: Double,
+                    t1: Double,
+                    t2: Double,
+                    t: Double,
+                    conductivity: Spline[PieceFunction],
+                    capacity: Spline[PieceFunction]): Double = {
+
+    val cap = passion.takeAverage(t, t, capacity)
+    val cond = passion.takeAverage(t, t, conductivity)
+    val coef = upperAnalyticalCoefs / cond
+    val tCond = cond / cap
+
+    forwardLast(1, -1, 0, heatFlow * coef,
+      toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
+    tCond
   }
 
   def update(grid: TwoDGrid.Grid, pos: Int, colsNum: Int): Unit

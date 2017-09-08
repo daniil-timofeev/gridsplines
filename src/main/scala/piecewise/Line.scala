@@ -49,7 +49,10 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
 
   override def apply(x: Double): Double = slope * x + intercept
 
-  override def integral(x: Double): Double = slope / 2.0 * x + intercept * x
+  override def integral(x: Double): Double = slope / 2.0 * x * x + intercept * x
+
+  override def roughArea(x0: Double, x1: Double): Double =
+    (apply(x1) + apply(x0)) / 2.0 * (x1 - x0)
 
   override def toString: String = f"${slope}%.15f*x + ${intercept}%.15f"
 

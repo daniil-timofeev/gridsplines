@@ -125,7 +125,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
   def xIter(time: Double) = {
     var row = 0
     while (row != y.rowsNum) {
-      var column = 0
+      var col = 0
       var i = row * x.colsNum
       var t2 = grid(i)
       var t3 = grid(i + 1)
@@ -136,34 +136,48 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
           val t1 = temp.get(row)
           x.first(time, t1, t2, t3, t,
             coefs(-1, row),
-            coefs(column, row)
+            coefs(col, row)
           )
         }
         case heatFlow: HeatFlowBound => {
           val heat = heatFlow.get(row)
           x.firstHeatFlow(time, heat, t2, t3, t,
-            coefs.thermConductivity(column, row),
-            coefs.capacity(column, row)
+            coefs.thermConductivity(col, row),
+            coefs.capacity(col, row)
           )
         }
       }
 
-      column += 1
+      col += 1
       i += 1
-      while (column != x.colsNum - 1) {
+      while (col != x.colsNum - 1) {
         t2 = grid(i)
         t3 = grid(i + 1)
         t = grid.get(i)
-        c0 = x.general(column, time, t2, t3, t, c0,
-          coefs(column, row))
-        column += 1
+        c0 = x.general(col, time, t2, t3, t, c0,
+          coefs(col, row))
+        col += 1
         i += 1
     }
+
       t2 = grid(i)
-      t3 = bounds.right.get(row)
       t = grid.get(i)
-      x.last(column, time, t2, t3, t, c0,
-        coefs(column, row))
+
+      bounds.right match {
+        case temp: TemperatureBound => {
+          t3 = bounds.right.get(row)
+          x.last(col, time, t2, t3, t, c0,
+            coefs(col, row))
+        }
+
+        case heatFlow: HeatFlowBound => {
+          x.lastHeatFlow(col, time, heatFlow.get(row), t2, t3, t,
+            coefs.tempConductivity(col, row),
+            coefs.capacity(col, row)
+          )
+        }
+      }
+
       x.update(grid, row, x.colsNum)
       row += 1
   }
@@ -196,10 +210,22 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       }
 
       t2 = grid(i)
-      t3 = bounds.low.get(col)
       t = grid.res(i)
-      y.last(row, time, t2, t3, t, c0,
-        coefs(col, row))
+
+      bounds.low match {
+        case temp: TemperatureBound => {
+          t3 = bounds.low.get(col)
+          y.last(row, time, t2, t3, t, c0,
+            coefs(col, row))
+        }
+        case heatFlow: HeatFlowBound => {
+          y.lastHeatFlow(row, time, heatFlow.get(col), t1, t3, t,
+            coefs.tempConductivity(col, row),
+            coefs.capacity(col, row)
+          )
+        }
+      }
+
       y.update(grid, col, colsNum)
       col += 1
     }

@@ -46,6 +46,17 @@ import scala.collection.{GenTraversable, mutable}
 
   def swap = ???
 
+  def roughAverage(lower: Double, upper: Double): Double = {
+    import com.twitter.algebird.Monoid._
+    if (content.isEmpty) ???
+    else {
+      val tree = IntervalTree.findNode(content, lower, upper)
+      if (tree.isEmpty) 0.0
+      else tree.get.sumBy(lower, upper, (l, u, func) => func.roughArea(l, u)) /
+        (upper - lower)
+    }
+  }
+
   def area(lower: Double, upper: Double): Double = {
     import scala.collection._
     implicit val iter: mutable.Builder[Double, Iterator[Double]] =
@@ -194,6 +205,15 @@ import scala.collection.{GenTraversable, mutable}
       case _ => false
     }
   }
+
+  def intervalLength: Double = {
+    import com.twitter.algebird.Group._
+    content match {
+      case Some(tree) => tree.intervalLength
+      case None => 0.0
+    }
+  }
+
 
 
 }

@@ -32,22 +32,8 @@ package object passion{
 
   @inline
   final def takeAverage(t1: Double, t2: Double, z: Spline[PieceFunction]): Double = {
-    val dT = math.abs(t2 - t1)
-    val c1 = z(t1)
-    val c2 = z(t2)
-    if (c1 == c2) c1
-    else {
-      val min = math.min(t1, t2)
-      var sum = c1 + c2
-      var step = 1.0
-      while (dT > step){
-        sum += z(min + step)
-        step += 1.0
-      }
-      sum / (step + 1.0)
-    }
-
-    z((t1 + t2) / 2.0)
+    if (t1 == t2) z(t1)
+    else z.roughAverage(math.min(t1, t2), math.max(t1, t2))
   }
 
   @inline

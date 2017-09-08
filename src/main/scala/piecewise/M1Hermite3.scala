@@ -72,6 +72,7 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
     }
   }
 
+  override def roughArea(x0: Double, x1: Double) = ???
 }
 object M1Hermite3 {
 

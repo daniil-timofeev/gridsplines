@@ -29,7 +29,7 @@ case class Lagrange2(override protected val coefs: Array[Double])
 
   override def derivative(x: Double) : Double = coefs(2) * 2.0 * x + coefs(1)
 
-
+  override def roughArea(x0: Double, x1: Double) = ???
   /** Экстремум функции
     * extremum of function
     *

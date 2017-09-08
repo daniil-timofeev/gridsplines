@@ -41,6 +41,9 @@ abstract class IntervalTree[K: Ordering, +V](val interval: InLowExUp[K], val v: 
 
   def size: Int
 
+
+  def sumBy[T: Monoid](low: K, upp: K, f: (K, K, V) => T): T
+
   def map[V1](v: V => V1): IntervalTree[K, V1]
 
   def map[U: Ordering, V1](
@@ -81,6 +84,8 @@ abstract class IntervalTree[K: Ordering, +V](val interval: InLowExUp[K], val v: 
   : Array[(InLowExUp[K], V1)]
 
   def iterator: Iterator[(InLowExUp[K], V)]
+
+  def intervalLength(implicit g: Group[K]): K
 
 }
 
@@ -274,6 +279,9 @@ final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[
 
   def upper: K = {
     right match {
+      case None => {
+        interval.upper.upper
+      }
       case Some(i @ InternalNode(_, _, _, _)) => {
         i.upper
       }
@@ -285,12 +293,41 @@ final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[
 
   def lower: K = {
     left match {
+      case None => {
+        interval.lower.lower
+      }
       case Some(i @ InternalNode(_, _, _, _)) => {
         i.lower
       }
       case Some(Leaf(Intersection(InclusiveLower(low: K), _), _)) => {
         low
       }
+    }
+  }
+
+
+  def sumBy[T: Monoid](low: K, upp: K, f: (K, K, V) => T): T = {
+    val m = implicitly[Monoid[T]]
+    if (interval.contains(low) && interval.contains(upp)) f(low, upp, v)
+    else if (interval.contains(low)) {
+      val thisVal = f(low, interval.upper.upper, v)
+      if (right.nonEmpty) m.plus(thisVal, right.get.sumBy(low, upp, f))
+      else thisVal
+    }
+    else if (interval.contains(upp)) {
+      val thisVal = f(interval.lower.lower, upp, v)
+      if (left.nonEmpty) m.plus(thisVal, left.get.sumBy(low, upp, f))
+      else thisVal
+    }
+    else {
+      val thisVal = f(interval.lower.lower, interval.upper.upper, v)
+      val l =
+        if (left.nonEmpty) left.get.sumBy(low, upp, f)
+        else m.zero
+      val r =
+        if (right.nonEmpty) right.get.sumBy(low, upp, f)
+        else m.zero
+      m.plus(m.plus(l, thisVal), r)
     }
   }
 
@@ -378,6 +415,19 @@ final case class Leaf[K: Ordering, V](override val interval: InLowExUp[K],
     s"[${interval.lower.lower}, ${interval.upper.upper}):" +
       s" ${v.toString}" + System.lineSeparator()
 
+  def intervalLength(implicit g: Group[K]): K = {
+    g.remove(interval.upper.upper, interval.lower.lower)
+  }
+
+  override def sumBy[T: Monoid](low: K, upp: K, f: (K, K, V) => T): T = {
+    if (interval.contains(low) && interval.contains(upp)) f(low, upp, v)
+    else if (interval.contains(low)) f(low, interval.upper.upper, v)
+    else if (interval.contains(upp)) f(interval.lower.lower, upp, v)
+    else if (interval.lower.contains(upp) && interval.upper.contains(low))
+      f(interval.lower.lower, interval.upper.upper, v)
+    else implicitly[Monoid[T]].zero
+  }
+
 }
 
 object IntervalTree{
@@ -428,6 +478,25 @@ object IntervalTree{
     Trampoline.run(buildLeft(sorted))
   }
 
+
+  @tailrec
+  final def findNode[K, V](tree: Option[IntervalTree[K, V]], low: K, upp: K)(
+    implicit ord: Ordering[K]): Option[IntervalTree[K, V]] = {
+    tree match {
+      case Some(InternalNode(
+      Intersection(InclusiveLower(lower), ExclusiveUpper(upper)),
+      _, left, right)) => {
+        if (ord.gt(low, upper)) findNode(right, low, upp)
+        else if(ord.lt(upp, lower)) findNode(left, low, upp)
+        else tree
+      }
+      case Some(Leaf(Intersection(InclusiveLower(lower), ExclusiveUpper(upper)), _)) => {
+        if (ord.lt(low, upper) && ord.gt(upp, lower)) tree
+        else None
+      }
+      case None => None
+    }
+  }
 
   def area[K: Ordering, V](lower: K, upper: K, tree: Option[IntervalTree[K, V]])
   : Trampoline[List[(InLowExUp[K], V)]] = {

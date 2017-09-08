@@ -8,7 +8,7 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import com.twitter.algebird.Interval._
 import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection, Interval}
-import org.scalacheck.Gen
+import org.scalacheck.Gen.infiniteStream
 import piecewise.intervaltree._
 /**
   * Created by Даниил on 21.04.2017.
@@ -18,7 +18,7 @@ object IntervalTreeTest extends Properties("Interval Tree"){
 
   import com.twitter.algebird.Interval.GenIntersection
 
-  val doubleInterSection: Gen[InLowExUp[Double]] = for{
+  val doubleInterSection: org.scalacheck.Gen[InLowExUp[Double]] = for{
            low <- Arbitrary.arbDouble.arbitrary
            upp <- Arbitrary.arbDouble.arbitrary.suchThat(u => u > low)
   } yield{
@@ -27,7 +27,7 @@ object IntervalTreeTest extends Properties("Interval Tree"){
 
 
   val intervals = listOfN(5, doubleInterSection)
-  val values = Gen.infiniteStream[Int](Arbitrary.arbInt.arbitrary)
+  val values = infiniteStream[Int](Arbitrary.arbInt.arbitrary)
   val sources = for{
     intr <- intervals
     vals <- values
