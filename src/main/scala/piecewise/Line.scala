@@ -54,7 +54,7 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
   override def roughArea(x0: Double, x1: Double): Double =
     (apply(x1) + apply(x0)) / 2.0 * (x1 - x0)
 
-  override def toString: String = f"${slope}%.15f*x + ${intercept}%.15f"
+  override def toString: String = f"${slope}%.20f*x + ${intercept}%.20f"
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {

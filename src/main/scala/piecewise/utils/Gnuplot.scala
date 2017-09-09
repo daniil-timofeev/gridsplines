@@ -20,7 +20,7 @@ object Gnuplot {
       (get.sources zip defNote).map{t => {
         val ((Intersection(InclusiveLower(lower), ExclusiveUpper(upper)), func), note) = t
         val definition = s"${note}=${func.toString.replace("^", "**").replace(",", ".")}"
-        val interval = f"[${lower}%.3f:${upper}%.3f]".replace(",", ".")
+        val interval = f"[${lower}%.10f:${upper}%.10f]".replace(",", ".")
         val plot = interval + " " + note + " ls 1"
         (definition, plot)
       }
@@ -106,7 +106,10 @@ object Gnuplot {
       val gp = output.getParent.resolve(gpFileName)
       if(Files.notExists(gp)) Files.createFile(gp)
       import java.nio.charset._
-      val writer = Files.newBufferedWriter(gp, Charset.forName("Windows-1251"), StandardOpenOption.TRUNCATE_EXISTING)
+      val writer = Files.newBufferedWriter(
+        gp, Charset.forName("UTF-8"),
+        StandardOpenOption.TRUNCATE_EXISTING
+      )
 
       try{
         writer.write(plottable.reduce(_ + System.lineSeparator() + _))
@@ -118,13 +121,16 @@ object Gnuplot {
     }
     }
 
-  def apply[T](data: T, path: Path, size: (Double, Double))(implicit f: T => (Option[String], Option[String])): GPBuilder[T] = {
+  def apply[T](data: T, path: Path, size: (Double, Double))(
+    implicit f: T => (Option[String], Option[String])): GPBuilder[T] = {
     new GPBuilder(data, path, size)
   }
 
   object Spline{
     import java.nio.file._
-    def apply(spl: Spline[PieceFunction], xLabel: String, yLabel: String, path: Path, size: (Double, Double)) = {
+    def apply(spl: Spline[PieceFunction],
+              xLabel: String, yLabel: String,
+              path: Path, size: (Double, Double)) = {
 
       val defNote = {
         val alphabet = 'a' to 'z'
@@ -135,7 +141,7 @@ object Gnuplot {
       (spl.sources zip defNote).map{t => {
         val ((Intersection(InclusiveLower(lower), ExclusiveUpper(upper)), func), note) = t
         val definition = s"${note}=${func.toString.replace("^", "**").replace(",", ".")}"
-        val interval = f"[${lower}%.3f:${upper}%.3f]".replace(",", ".")
+        val interval = f"[${lower}%.10f:${upper}%.10f]".replace(",", ".")
         val plot = interval + " " + note + " ls 1"
         (definition, plot)
         }
@@ -181,7 +187,8 @@ object Gnuplot {
       val gp = path.getParent.resolve(gpFileName)
       if(Files.notExists(gp)) Files.createFile(gp)
       import java.nio.charset._
-      val writer = Files.newBufferedWriter(gp, Charset.forName("Windows-1251"), StandardOpenOption.TRUNCATE_EXISTING)
+      val writer = Files.newBufferedWriter(gp, Charset.forName("UTF-8"),
+                                  StandardOpenOption.TRUNCATE_EXISTING)
 
       try{
         writer.write(plottable.reduce(_ + System.lineSeparator() + _))
