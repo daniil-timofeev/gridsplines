@@ -10,7 +10,7 @@ import scala.math._
   * Created by Даниил on 06.02.2016.
   */
 case class Lagrange2(override protected val coefs: Array[Double])
-  extends Lagrange with Slicer{
+  extends Lagrange {
 
   type SliceType = Lagrange2
 
