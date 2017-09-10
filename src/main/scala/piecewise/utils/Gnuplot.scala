@@ -70,7 +70,8 @@ object Gnuplot {
                    val size: (Double, Double),
                    val xLabel: XLabel = XLabel(None, None, None),
                    val yLabel: YLabel = YLabel(None, None, None),
-                   val decSep: Option[Char] = None
+                   val decSep: Option[Char] = None,
+                   val encoding: String = "UTF-8"
                  )(implicit f: T => (Option[String], Option[String])){
     def xlabel(lab: String): GPBuilder[T] = this.copy(xLabel = this.xLabel.copy(label = Some(lab)))
     def ylabel(lab: String): GPBuilder[T] = this.copy(yLabel = this.yLabel.copy(label= Some(lab)))
@@ -124,7 +125,7 @@ object Gnuplot {
 
   def apply[T](data: T, path: Path, size: (Double, Double), encoding: String = "UTF-8")(
     implicit f: T => (Option[String], Option[String])): GPBuilder[T] = {
-    new GPBuilder(data, path, size, encoding)
+    new GPBuilder(data, path, size, encoding = encoding)
   }
 
   object Spline{
