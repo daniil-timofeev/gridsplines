@@ -1,7 +1,5 @@
 package piecewise
-import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird._
-import minimization.GoldenSlice
+
 /** Just line at interval
   *
   */

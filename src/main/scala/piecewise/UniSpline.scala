@@ -1,13 +1,8 @@
 package piecewise
 import intervaltree._
-import com.twitter.algebird
 import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
-import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird.Interval.MaybeEmpty.NotSoEmpty
-import com.twitter.algebird.monad.Trampoline
 import piecewise.Spline.MakePieceFunctions
 
-import scala.collection.mutable.ListBuffer
 /**
   * Created by Даниил on 12.07.2017.
   */

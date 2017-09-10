@@ -1,6 +1,4 @@
 package piecewise
-import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
 
 import scala.collection.mutable.ListBuffer
 import scala.math._

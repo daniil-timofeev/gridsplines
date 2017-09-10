@@ -1,7 +1,5 @@
 package piecewise
 
-import com.twitter.algebird.Interval
-import com.twitter.algebird.Interval.InLowExUp
 
 /**
   * Created by Даниил on 18.03.2017.

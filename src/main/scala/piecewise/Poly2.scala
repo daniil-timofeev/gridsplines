@@ -1,7 +1,5 @@
 package piecewise
 
-import com.twitter.algebird.Interval.InLowExUp
-
 /** Quadratic piecewise polynomial
   *
   */

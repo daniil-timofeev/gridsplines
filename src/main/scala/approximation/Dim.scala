@@ -1,6 +1,6 @@
 package approximation
 
-import approximation.passion.{cons, forwardFirst, forwardLast, forwardUnit}
+import approximation.passion.{forwardFirst, forwardLast, forwardUnit}
 import piecewise.{PieceFunction, Spline}
 
 abstract class Dim[+T <: TypeDir] {

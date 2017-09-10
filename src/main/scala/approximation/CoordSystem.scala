@@ -1,6 +1,6 @@
 package approximation
 import approximation.CoordSystem.{CoordsConvert, Radians}
-import com.twitter.algebird.{Metric, Monoid, VectorSpace}
+import com.twitter.algebird.{Monoid}
 
 import scala.math._
 import CoordSystem._

@@ -1,5 +1,4 @@
 import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird.{InclusiveLower, Intersection, Lower, Upper}
 
 /**
   * Created by Даниил on 18.03.2017.
