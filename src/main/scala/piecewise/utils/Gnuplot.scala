@@ -10,7 +10,8 @@ import java.nio.file._
   */
 object Gnuplot {
 
-  implicit val spline2Gnuplot: Spline[PieceFunction] => (Option[String], Option[String]) = (get: Spline[PieceFunction]) => {
+  implicit val spline2Gnuplot: Spline[PieceFunction] => (Option[String], Option[String]) =
+    (get: Spline[PieceFunction]) => {
     val defNote = {
       val alphabet = 'a' to 'z'
       alphabet.map(ch => ch + "(x)")
@@ -121,16 +122,18 @@ object Gnuplot {
     }
     }
 
-  def apply[T](data: T, path: Path, size: (Double, Double))(
+  def apply[T](data: T, path: Path, size: (Double, Double), encoding: String = "UTF-8")(
     implicit f: T => (Option[String], Option[String])): GPBuilder[T] = {
-    new GPBuilder(data, path, size)
+    new GPBuilder(data, path, size, encoding)
   }
 
   object Spline{
     import java.nio.file._
     def apply(spl: Spline[PieceFunction],
               xLabel: String, yLabel: String,
-              path: Path, size: (Double, Double)) = {
+              path: Path, size: (Double, Double),
+              encoding: String = "UTF-8"
+             ) = {
 
       val defNote = {
         val alphabet = 'a' to 'z'
@@ -187,7 +190,7 @@ object Gnuplot {
       val gp = path.getParent.resolve(gpFileName)
       if(Files.notExists(gp)) Files.createFile(gp)
       import java.nio.charset._
-      val writer = Files.newBufferedWriter(gp, Charset.forName("UTF-8"),
+      val writer = Files.newBufferedWriter(gp, Charset.forName(encoding),
                                   StandardOpenOption.TRUNCATE_EXISTING)
 
       try{
