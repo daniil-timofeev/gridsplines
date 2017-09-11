@@ -41,7 +41,6 @@ abstract class IntervalTree[K: Ordering, +V](val interval: InLowExUp[K], val v: 
 
   def size: Int
 
-
   def sumBy[T: Monoid](low: K, upp: K, f: (K, K, V) => T): T
 
   def map[V1](v: V => V1): IntervalTree[K, V1]
@@ -111,7 +110,7 @@ final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[
           right = None)
       }
       case l if left.nonEmpty && interval.upper.contains(l) => {
-        this.copy(left = left.map(old => old.sliceUpper(l)), right = None)
+        left.get.sliceUpper(l)
       }
       case r if right.nonEmpty && interval.lower.contains(r) => {
         this.copy(right = right.map(old => old.sliceUpper(r)))
@@ -129,7 +128,7 @@ final case class InternalNode[K: Ordering, V]( override val interval: InLowExUp[
         this.copy(left = left.map(old => old.sliceLower(l)))
       }
       case r if right.nonEmpty && interval.lower.contains(r) => {
-        this.copy(right = right.map(old => old.sliceLower(r)), left = None)
+        right.get.sliceLower(r)
       }
     }
   }

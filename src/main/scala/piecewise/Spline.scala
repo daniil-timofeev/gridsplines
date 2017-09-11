@@ -11,6 +11,7 @@ import com.twitter.algebird.monad.Trampoline.call
 import com.twitter.algebird.monad.{Done, Trampoline}
 import piecewise.intervaltree.{InternalNode, IntervalTree, Leaf}
 
+import scala.collection.immutable.SortedSet
 import scala.collection.{GenTraversable, mutable}
 /**
   * Created by Даниил on 24.01.2017.
@@ -87,10 +88,7 @@ import scala.collection.{GenTraversable, mutable}
   }
 
   import com.twitter.algebird.monad._
-  def sources = Trampoline.run(IntervalTree.toList(
-    content,
-    ListBuffer.empty[(InLowExUp[Double], S)]
-  )).result()
+  def sources: List[(InLowExUp[Double], S)] = iterator.toList
 
   def iterator: Iterator[(InLowExUp[Double], S)] = {
     if (content.isEmpty) Iterator.empty
@@ -115,19 +113,22 @@ import scala.collection.{GenTraversable, mutable}
     new Spline[S](content.map(c => c.sliceLower(bound)))
   }
 
-  def ++ [T >: S <: PieceFunction](spl: Spline[T]): Spline[T] = {
-    val mutSources = Trampoline.run(IntervalTree.toList(
-      content,
-      ListBuffer.empty[(InLowExUp[Double], S)]
-    ))
-    val src: List[(InLowExUp[Double], T)] = spl.sources
-    //TODO make checks if intervals adjascents
+  def size: Int = {
+    if (content.isEmpty) 0
+    else content.get.size
+  }
 
-    val resSources: ListBuffer[(InLowExUp[Double], T)] =
-      mutSources.asInstanceOf[ListBuffer[(InLowExUp[Double], T)]].++=(src)
-    new Spline[T](Trampoline.run(
-      IntervalTree.buildLeft(resSources.result())
-    ))
+  def ++[T >: S <: PieceFunction](spl: Spline[T]): Spline[T] = {
+    val thisPieces = iterator
+    val thisSize = size
+    val thatPieces = spl.iterator
+    //TODO make checks if intervals adjascents
+    val thatSize = spl.size
+    val wholePieces: Iterator[(Interval.InLowExUp[Double], T)] =
+      thisPieces ++ thatPieces
+    val wholeSize = thisSize + thatSize
+
+    new Spline(IntervalTree.buildLeft[Double, T](wholePieces, wholeSize))
   }
 
   def map[R <: PieceFunction](f0: (Double) => Double,
@@ -160,25 +161,30 @@ import scala.collection.{GenTraversable, mutable}
     }.toList)
   }
 
+  protected def sumArguments(spl: Spline[PieceFunction]): List[Double] = {
+    val sumArgs = (points.map(_._1) ++ spl.points.map(_._1)).to[SortedSet]
+    sumArgs.toList
+  }
+
   def /[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
     implicit builder: MakePieceFunctions[B]): Spline[B] = {
-    map[B]((x: Double, y: Double) => y / spl(x))
+    Spline(sumArguments(spl).map(x => (x, apply(x) / spl(x))))(builder)
   }
 
   def +[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
     implicit builder: MakePieceFunctions[B]
   ): Spline[B] = {
-    map[B]((x: Double, y: Double) => y + spl(x))
+    Spline(sumArguments(spl).map(x => (x, apply(x) + spl(x))))(builder)
   }
 
   def -[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
     implicit builder: MakePieceFunctions[B]): Spline[B] = {
-    map[B]((x: Double, y: Double) => y - spl(x))
+    Spline(sumArguments(spl).map(x => (x, apply(x) - spl(x))))(builder)
   }
 
   def *[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
     implicit builder: MakePieceFunctions[B]): Spline[B] = {
-    map[B]((x: Double, y: Double) => y * spl(x))
+    Spline(sumArguments(spl).map(x => (x, apply(x) * spl(x))))(builder)
   }
 
   def convert[R <: PieceFunction](f: SplineConvert[S, R]): Spline[R] = {
