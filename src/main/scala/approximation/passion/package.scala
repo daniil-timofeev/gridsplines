@@ -31,7 +31,8 @@ package object passion{
   }
 
   @inline
-  final def takeAverage(t1: Double, t2: Double, z: Spline[PieceFunction]): Double = {
+  final def takeAverage[S <: Spline[PieceFunction]](t1: Double,
+                                                    t2: Double, z: S): Double = {
     if (t1 == t2) z(t1)
     else z.roughAverage(math.min(t1, t2), math.max(t1, t2))
   }

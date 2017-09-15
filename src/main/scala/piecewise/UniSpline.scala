@@ -102,10 +102,15 @@ class UniSpline[+S <: PieceFunction](content: Option[IntervalTree[Double, S]]) e
   }
 
   override def roughAverage(low: Double, upp: Double): Double = {
-    val lowArea = math.max(0.0, lowerX - low) * lower
-    val uppArea = math.max(0.0, upp - upperX) * upper
-
-    super.roughAverage(lower, upper) + (lowArea + uppArea) / (upp - low)
+    import math._
+    if (low > upperX) upper
+    else if (upp < lowerX) lower
+    else {
+      val l = math.max(lowerX, low)
+      val u = math.min(upperX, upp)
+      super.roughAverage(l, u) +
+        (max(0.0, upp - upperX) + max(0.0, lowerX - low)) / (upp - low)
+    }
   }
 
 }
