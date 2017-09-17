@@ -749,21 +749,21 @@ object TwoDGrid{
   }
   object PatchXCoef{
 
-    def apply(yDim: YDim[TypeDir],
+    def apply(xDim: XDim[TypeDir],
               buildThermCond: (Double, Double) => Spline[PieceFunction],
               buildCapCond: (Double, Double) => Spline[PieceFunction],
               buildTempCond: (Double, Double) => Spline[PieceFunction],
               lX: Int, uX: Int, lY: Int, uY: Int): PatchXCoef ={
 
      new PatchXCoef(
-       yDim.values.sliding(2).collect{
-          case Array(y0, y1) => buildThermCond(y0, y1)
+       xDim.values.sliding(2).collect{
+          case Array(x0, x1) => buildThermCond(x0, x1)
        }.toArray,
-       yDim.values.sliding(2).collect{
-         case Array(y0, y1) => buildCapCond(y0, y1)
+       xDim.values.sliding(2).collect{
+         case Array(x0, x1) => buildCapCond(x0, x1)
        }.toArray,
-       yDim.values.sliding(2).collect{
-         case Array(y0, y1) => buildTempCond(y0, y1)
+       xDim.values.sliding(2).collect{
+         case Array(x0, x1) => buildTempCond(x0, x1)
        }.toArray,
         Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
         Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
@@ -777,7 +777,7 @@ object TwoDGrid{
               lowY: Int, uppY: Int): PatchXCoef = {
       val lowX = -1
       val uppX = xDim.colsNum + 1
-      apply(yDim, buildThermCond, buildCapCond, buildTempCond, lowX, uppX, lowY, uppY)
+      apply(xDim, buildThermCond, buildCapCond, buildTempCond, lowX, uppX, lowY, uppY)
     }
   }
 
@@ -806,19 +806,19 @@ object TwoDGrid{
     def apply(x: Int, y: Int): Spline[PieceFunction] = tempCond(x + 1)
   }
   object PatchYCoef {
-    def apply(xDim: XDim[TypeDir],
+    def apply(yDim: YDim[TypeDir],
               buildThermCond: (Double, Double) => Spline[PieceFunction],
               buildCapCond: (Double, Double) => Spline[PieceFunction],
               buildTempCond: (Double, Double) => Spline[PieceFunction],
               lX: Int, uX: Int, lY: Int, uY: Int): PatchYCoef = {
       new PatchYCoef(
-        xDim.values.sliding(2).collect {
+        yDim.values.sliding(2).collect {
           case Array(x0, x1) => buildThermCond(x0, x1)
         }.toArray,
-        xDim.values.sliding(2).collect {
+        yDim.values.sliding(2).collect {
           case Array(x0, x1) => buildCapCond(x0, x1)
         }.toArray,
-        xDim.values.sliding(2).collect {
+        yDim.values.sliding(2).collect {
           case Array(x0, x1) => buildTempCond(x0, x1)
         }.toArray,
         Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
@@ -834,7 +834,7 @@ object TwoDGrid{
              ): PatchYCoef = {
       val yLow = -1
       val yUpp = yDim.rowsNum + 1
-      apply(xDim, buildThermCond,  buildCapCond, buildTempCond, lowX, uppX, yLow, yUpp)
+      apply(yDim, buildThermCond,  buildCapCond, buildTempCond, lowX, uppX, yLow, yUpp)
     }
   }
   case class PatchedXCoef(xCoefs: VarXCoef, path: PatchXCoef) extends Coefficients{
