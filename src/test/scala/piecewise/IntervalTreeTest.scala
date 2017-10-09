@@ -38,7 +38,7 @@ object IntervalTreeTest extends Properties("Interval Tree"){
   property(" Can build") =
     forAll(sources suchThat(list => list.size > 0)){
       (s : List[(Interval.InLowExUp[Double], Int)]) =>
-        val tree = IntervalTree(s)
+        val tree = NonEmptyIntervalTree(s)
         tree.nonEmpty
     }
 }

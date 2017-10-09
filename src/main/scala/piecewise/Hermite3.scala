@@ -173,8 +173,8 @@ object Hermite3 {
 
   def makeSources(values: List[(Double, Double)]): Iterator[Array[Double]] = {
     values match {
-      case Nil => exception()
-      case any :: Nil => exception()
+      case Nil => Iterator.empty
+      case any :: Nil => Iterator.empty
       case v1 :: v2 :: Nil => {
         Iterator(array(v1._2, v2._2, 0.0, 0.0, v1._1, v2._1))
       }

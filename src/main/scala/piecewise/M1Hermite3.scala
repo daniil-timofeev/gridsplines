@@ -100,7 +100,8 @@ object M1Hermite3 {
     import Hermite3._
     val sources = Hermite3.makeSources(values)
       .map(monothone(_)(Normal))
-
+    if (sources.isEmpty) Nil
+    else {
     val buffer = ListBuffer.empty[M1Hermite3]
 
     var prevous = sources.next()
@@ -118,6 +119,7 @@ object M1Hermite3 {
     }
     else buffer += constructSpline(prevous)
     buffer.result()
+    }
   }
 
   def apply(x: List[Double], y: List[Double]): List[M1Hermite3] = {

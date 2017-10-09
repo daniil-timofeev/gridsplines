@@ -9,40 +9,41 @@ import Spline._
 import com.twitter.algebird.Interval.MaybeEmpty.{NotSoEmpty, SoEmpty}
 import com.twitter.algebird.monad.Trampoline.call
 import com.twitter.algebird.monad.{Done, Trampoline}
-import piecewise.intervaltree.{InternalNode, IntervalTree, Leaf}
+import piecewise.intervaltree.NonEmptyIntervalTree.InLowVarUp
+import piecewise.intervaltree.{InternalNode, NonEmptyIntervalTree, Leaf}
 
 import scala.collection.immutable.SortedSet
 import scala.collection.{GenTraversable, mutable}
 /**
   * Created by Даниил on 24.01.2017.
   */
- class Spline[+S <: PieceFunction](protected val content: Option[IntervalTree[Double, S]]){
+ class Spline[+S <: PieceFunction](protected val content: Option[NonEmptyIntervalTree[Double, S]]){
 //TODO add possibility to find interval with some others piece functions types
 
   def apply(x: Double): Double = {
-    IntervalTree.find(x, content).getOrElse(throw new java.util.NoSuchElementException(
+    NonEmptyIntervalTree.find(x, content).getOrElse(throw new java.util.NoSuchElementException(
       f"Spline apply fails on $x input, with funcs: ${sources.toList.toString}"
     )).v.apply(x)
   }
 
   def applyOption(x: Double): Option[Double] = {
-    IntervalTree.find(x, content).map(_.v.apply(x))
+    NonEmptyIntervalTree.find(x, content).map(_.v.apply(x))
   }
 
   def der(x: Double): Double = {
-    IntervalTree.find(x, content).get.v.derivative(x)
+    NonEmptyIntervalTree.find(x, content).get.v.derivative(x)
   }
 
   def derOption(x: Double): Option[Double] = {
-    IntervalTree.find(x, content).map(_.v.der(x))
+    NonEmptyIntervalTree.find(x, content).map(_.v.der(x))
   }
 
   def integral(x: Double): Double = {
-    IntervalTree.find(x, content).get.v.integral(x)
+    NonEmptyIntervalTree.find(x, content).get.v.integral(x)
   }
 
   def integralOption(x: Double): Option[Double] = {
-    IntervalTree.find(x, content).map(_.v.integral(x))
+    NonEmptyIntervalTree.find(x, content).map(_.v.integral(x))
   }
 
   def swap = ???
@@ -51,7 +52,7 @@ import scala.collection.{GenTraversable, mutable}
     import com.twitter.algebird.Monoid._
     if (content.isEmpty) ???
     else {
-      val tree = IntervalTree.findNode(content, lower, upper)
+      val tree = NonEmptyIntervalTree.findNode(content, lower, upper)
       if (tree.isEmpty) 0.0
       else tree.get.sumBy(lower, upper, (l, u, func) => func.roughArea(l, u)) /
         (upper - lower)
@@ -128,7 +129,7 @@ import scala.collection.{GenTraversable, mutable}
       thisPieces ++ thatPieces
     val wholeSize = thisSize + thatSize
 
-    new Spline(IntervalTree.buildLeft[Double, T](wholePieces, wholeSize))
+    new Spline(NonEmptyIntervalTree.buildLeft[Double, T](wholePieces, wholeSize))
   }
 
   def map[R <: PieceFunction](f0: (Double) => Double,
@@ -162,8 +163,19 @@ import scala.collection.{GenTraversable, mutable}
   }
 
   protected def sumArguments(spl: Spline[PieceFunction]): List[Double] = {
-    val sumArgs = (points.map(_._1) ++ spl.points.map(_._1)).to[SortedSet]
-    sumArgs.toList
+    val intersection = for{
+      t <- definedInterval
+      o <- spl.definedInterval
+    } yield t && o
+
+    if (intersection.isEmpty) Nil
+    else {
+      val sumArgs =
+        (points.map(_._1) ++ spl.points.map(_._1))
+        .filter(x => intersection.get.contains(x) ||
+          x == intersection.get.asInstanceOf[InLowExUp[Double]].upper.upper).to[SortedSet]
+      sumArgs.toList
+    }
   }
 
   def /[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
@@ -220,6 +232,9 @@ import scala.collection.{GenTraversable, mutable}
     }
   }
 
+  def definedInterval: Option[InLowExUp[Double]] = {
+    content.map(_.wholeInterval)
+  }
 
 
 }
@@ -242,7 +257,7 @@ object Spline{
     }
 
     val lb: ListBuffer[(InLowExUp[Double], PieceFunction)] =
-      Trampoline.run(IntervalTree.toList(
+      Trampoline.run(NonEmptyIntervalTree.toList(
         spline.content,
         ListBuffer.empty[(InLowExUp[Double], S)]
       )).asInstanceOf[ListBuffer[(InLowExUp[Double], PieceFunction)]]
@@ -250,7 +265,7 @@ object Spline{
     if (lowSource.nonEmpty) lb.prepend(lowSource.get)
     if (uppSource.nonEmpty) lb.append(uppSource.get)
 
-    new Spline[PieceFunction](Trampoline.run(IntervalTree.buildLeft(lb.result())))
+    new Spline[PieceFunction](Trampoline.run(NonEmptyIntervalTree.buildLeft(lb.result())))
   }
 
   /** Bound points of spline
@@ -271,7 +286,7 @@ object Spline{
     (lowX, uppX, lowY, uppY)
   }
 
-  def mutablePoint[V <: PieceFunction](tree: Option[IntervalTree[Double, V]],
+  def mutablePoint[V <: PieceFunction](tree: Option[NonEmptyIntervalTree[Double, V]],
                                        buffer: mutable.Builder[(Double, Double),
                                        Iterator[(Double, Double)]],
                                        size: Int)
@@ -313,7 +328,7 @@ object Spline{
     }
   }
 
-  def points[V <: PieceFunction](tree: Option[IntervalTree[Double, V]])
+  def points[V <: PieceFunction](tree: Option[NonEmptyIntervalTree[Double, V]])
   : Trampoline[List[(Double, Double)]] = {
     tree match{
       case None => Done(List.empty[(Double, Double)])
@@ -335,11 +350,11 @@ object Spline{
   }
 
   def const(xLow: Double, xUpp: Double, y: Double): Spline[Const] = {
-    new Spline(IntervalTree.buildOne(xLow, xUpp, new Const(y)))
+    new Spline(NonEmptyIntervalTree.buildOne(xLow, xUpp, new Const(y)))
   }
 
   def const(value: Double): Spline[Const] = {
-    new Spline(IntervalTree.buildOne(
+    new Spline(NonEmptyIntervalTree.buildOne(
       Double.MinValue,
       Double.MaxValue,
       new Const(value)))
@@ -351,7 +366,7 @@ object Spline{
 
   def line(xLow: Double, yLow: Double, xUpp: Double, yUpp: Double): Spline[Line] = {
     val l = Line(xLow, xUpp, yLow, yUpp)
-    new Spline(IntervalTree.buildOne(xLow, xUpp, Line(xLow, xUpp, yLow, yUpp)))
+    new Spline(NonEmptyIntervalTree.buildOne(xLow, xUpp, Line(xLow, xUpp, yLow, yUpp)))
   }
 
   def lines(points: List[(Double, Double)]): Spline[Line] =
@@ -371,12 +386,22 @@ object Spline{
     val v = vect.sortBy(_._1)
     val maker = implicitly[MakePieceFunctions[S]]
     val pieceFunctions = maker(v)
+    if (pieceFunctions.isEmpty) new Spline(None)
+    else {
+    val LAST = v.last._1
     val initial = v.sliding(2).zip(pieceFunctions)
       .collect{
-        case(List(f, s), pf) if f._1 < s._1 => {
-      (Intersection.apply(InclusiveLower(f._1), ExclusiveUpper(s._1)), pf)
+        case(List((f1, f2), (LAST, s2)), pf) if f1 < LAST => {
+          (Intersection.apply(InclusiveLower(f1), InclusiveUpper(LAST))
+            .asInstanceOf[InLowVarUp[Double]], pf)
+
+        }
+        case(List((f1, f2), (s1, s2)), pf) if f1 < s1 => {
+      (Intersection.apply(InclusiveLower(f1), ExclusiveUpper(s1))
+          .asInstanceOf[InLowVarUp[Double]], pf)
     }}
-    new Spline[S](IntervalTree.apply(initial.toList))
+    new Spline[S](NonEmptyIntervalTree.apply(initial.toList))
+    }
   }
 
   def empty = new Spline[PieceFunction](None)

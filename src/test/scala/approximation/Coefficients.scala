@@ -25,7 +25,8 @@ class Coefficients extends Specification{def is = s2"""
       (x0: Double, x1: Double) => Spline.const(1E6),
       (x0: Double, x1: Double) => Spline.const(1E-6),
     )
-    val coef1 = PatchXCoef(yD,
+
+    val coef1 = PatchXCoef(xD,
       (x0: Double, x1: Double) => Spline.const(1.0),
       (x0: Double, x1: Double) => Spline.const(1E6),
       (x0: Double, x1: Double) => Spline.const(1E-6),

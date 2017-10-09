@@ -6,7 +6,7 @@ import piecewise.Spline.MakePieceFunctions
 /**
   * Created by Даниил on 12.07.2017.
   */
-class UniSpline[+S <: PieceFunction](content: Option[IntervalTree[Double, S]]) extends
+class UniSpline[+S <: PieceFunction](content: Option[NonEmptyIntervalTree[Double, S]]) extends
   Spline[S](content){
 
   private val (lowerX, upperX, lower, upper) = Spline.boundsOf(this)
@@ -130,7 +130,7 @@ object UniSpline{
           case(Seq(f, s), pf) if f._1 < s._1 =>{
             (Intersection.apply(InclusiveLower(f._1), ExclusiveUpper(s._1)), pf)
           }}
-      new UniSpline[S](IntervalTree.apply(initial.toList))
+      new UniSpline[S](NonEmptyIntervalTree.apply(initial.toList))
     }
 
   def asSpline[S <: PieceFunction](spline: Spline[S]): Spline[PieceFunction] = {

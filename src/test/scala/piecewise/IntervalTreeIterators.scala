@@ -5,7 +5,7 @@ import org.scalacheck.Prop._
 import org.scalacheck.Gen._
 import com.twitter.algebird._
 import com.twitter.algebird.Interval._
-import piecewise.intervaltree.IntervalTree
+import piecewise.intervaltree.NonEmptyIntervalTree
 object IntervalTreeIterators extends Properties("Interval Tree Iterators"){
 
   val list = nonEmptyListOf(Arbitrary.arbDouble.arbitrary).suchThat(_.size > 3)
@@ -23,7 +23,7 @@ object IntervalTreeIterators extends Properties("Interval Tree Iterators"){
     val size = list.size
     val values = Iterator.from(1, 1)
     val Some(tree) =
-    IntervalTree.buildLeft(list.iterator.zip(values), size)
+    NonEmptyIntervalTree.buildLeft(list.iterator.zip(values), size)
     tree.mapIterator((i, v) => (Iterator.single((i, v)), 1))._2 ?= tree.size
   }
 
@@ -31,7 +31,7 @@ object IntervalTreeIterators extends Properties("Interval Tree Iterators"){
     val size = list.size
     val values = Iterator.from(1, 1)
     val Some(tree) =
-      IntervalTree.buildLeft(list.iterator.zip(values), size)
+      NonEmptyIntervalTree.buildLeft(list.iterator.zip(values), size)
     tree.iterator.size ?= tree.size
   }
 
