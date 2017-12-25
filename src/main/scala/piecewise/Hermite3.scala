@@ -1,17 +1,14 @@
 package piecewise
 
-import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
-
-import scala.collection.SeqView
-import scala.collection.mutable.ListBuffer
 import scala.math.{abs, pow, signum, sqrt}
 
 /**
- * Монотонная кусочная кубическая кривая для интерполяции / Monotonic piecewise cubic curve for interpolation
- * Кривая, предназначеная для аппроксимации явлений физической реальности, где требуется монотонность
- * / Сurve, that serve for approximation physical reality definitions, where is monotonic property required
+ * Non monotonic cubic Hermite curve
  *
- * @see Fritsch, F. N. Monotone piecewise cubic interpolation / F. N. Fritsch, R. E. Carlson // SIAM J. Numer. Anal. — 1980. — 17. № 2. — pp. 238 — 246.
+ *
+ * @see Fritsch, F. N. Monotone piecewise cubic interpolation
+  *      / F. N. Fritsch, R. E. Carlson
+  *      // SIAM J. Numer. Anal. — 1980. — 17. № 2. — pp. 238 — 246.
  * @version 0.5.0
  * @author Даниил
  */
@@ -28,16 +25,20 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
    ), low)
   }
 
-  override def apply(x: Double): Double = PieceFunction.cubicRuleOfHorner(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def apply(x: Double): Double =
+    PieceFunction.cubicRuleOfHorner(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def derivative(x: Double): Double = PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def derivative(x: Double): Double =
+    PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def integral(x: Double): Double =
+    PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
   private lazy val body = f"*(x${-x0}%+.7f)"
 
   override lazy val toString = {
-    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" + body + f"^2  ${coefs(1)}%+1.4f" +
+    f"${coefs(3)}%1.4f" + body + f"^3 ${coefs(2)}%+1.4f" +
+      body + f"^2  ${coefs(1)}%+1.4f" +
       body + f" ${coefs(0)}%+1.4f"
   }
 
@@ -107,24 +108,33 @@ object Hermite3 {
     }
   }
 
-  def isMonotone(alpha: Double, beta: Double, dLow: Double, dUpp: Double, fi: Double) = {
-    if((signum(dLow) == signum(dUpp) || dLow == 0 || dUpp == 0)){
-      if(2 * alpha + beta - 3 <= 0.0 || alpha + 2 * beta - 3.0 <= 0 || fi >= 0) true else false
-    } else false
+  /** Check if function is monotone
+    *
+    * @param alpha
+    * @param beta
+    * @param dLow
+    * @param dUpp
+    * @param fi
+    * @return
+    */
+  protected
+  def isMonotone(alpha: Double,
+                 beta: Double,
+                 dLow: Double,
+                 dUpp: Double,
+                 fi: Double): Boolean = {
+    (signum(dLow) == signum(dUpp) || dLow == 0 || dUpp == 0) &&
+      (2 * alpha + beta - 3 <= 0.0 || alpha + 2 * beta - 3.0 <= 0 || fi >= 0)
   }
 
   /**
-    * Трансформирует функцию так, чтобы она была монотонной /
-    * Transform function to make it monotone
     *
-    *          `SmoothType` гладкость спайна: {{{"Smooth", "Normal", "Coarse", "Coarsest"}}}
-    *           Если во всех функциях в файле требуется одинаковая гладкость, можно импортировать неявное значение
-    *           из объекта CubicHermitM1 /
+    * Transform function to make it monotone
     *           spline smoothnes:  {{{"Smooth", "Normal", "Coarse", "Coarsest"}}}
-    *           If one smoothness required for all created splines, you may import implicit val from CubicHermitM1 object
-    * @return монотонная функция / monotonic function
+    *           If one smoothness required for all created splines,
+    *           you may import implicit val from CubicHermitM1 object
+    * @return monotonic function
     */
-
   def monothone[S <: SmoothType](sources: Array[Double])(
     implicit coarser: S): Array[Double] = {
 
@@ -137,16 +147,17 @@ object Hermite3 {
       val alpha  = abs(dLow / delta)
       val beta = abs(dUpp / delta)
 
-      if({yLow :: yUpp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные " +
-        " значения функции должны быть вещественными числами / initial values of function must be not NaN")
+      if({yLow :: yUpp :: Nil} exists(_.isNaN))
+        throw new IllegalArgumentException("initial values of function must be not NaN")
 
-      if({dLow :: dUpp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные" +
-        " значение производных должны быть вещественными числами / initial values of derivatives must be not NaN")
+      if({dLow :: dUpp :: Nil} exists(_.isNaN))
+        throw new IllegalArgumentException("initial values of derivatives must be not NaN")
 
-      if({xLow :: xUpp :: Nil} exists(_.isNaN)) throw new IllegalArgumentException(" Исходные" +
-        " значения аргументнов должны быть вещественными числами / initial values of arguments must be not NaN")
+      if({xLow :: xUpp :: Nil} exists(_.isNaN))
+        throw new IllegalArgumentException("initial values of arguments must be not NaN")
 
-      def fi(alpha: Double, beta: Double): Double = alpha - 1.0/3.0*pow(2.0*alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
+      def fi(alpha: Double, beta: Double): Double =
+        alpha - 1.0/3.0*pow(2.0*alpha + beta - 3.0,2.0)/(alpha + beta - 2.0)
 
       val (smoothAlpha, smoothBeta) = coarser.monotonize(alpha, beta)
       val sdLow = smoothAlpha * delta
@@ -161,8 +172,7 @@ object Hermite3 {
     xLow + h / 3.0 * (2 * alpha + beta - 3.0)/(alpha + beta - 2)
 
   def exception() = {
-    throw new IllegalArgumentException(" размер values должен быть больше или равен двум /" +
-      "/ the size of values must equal or more than two")
+    throw new IllegalArgumentException("The size of values must equal or more than two")
   }
 
   def array(xLow: Double, xUpp: Double,
@@ -208,8 +218,8 @@ object Hermite3 {
 
 
   def apply(x: List[Double], y: List[Double]): List[Hermite3] = {
-    if (x.length != y.length) throw new IllegalArgumentException("x array length must be same as y array length")
-    //TODO Rewrite method to avoid data tupling
+    if (x.length != y.length)
+      throw new IllegalArgumentException("x array length must be same as y array length")
     apply(x.zip(y))
   }
 
@@ -229,6 +239,7 @@ object Hermite3 {
     (der1, der2)
   }
 
-  private def deriv(xy1: (Double, Double), xy2: (Double, Double)) = (xy2._2 - xy1._2) / (xy2._1 - xy1._1)
+  private def deriv(xy1: (Double, Double), xy2: (Double, Double)) =
+    (xy2._2 - xy1._2) / (xy2._1 - xy1._1)
 
 }
