@@ -1,7 +1,6 @@
 package piecewise
-import approximation.passion.{ListPassion, Passion}
-import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
+import approximation.passion.{ListPassion}
+
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -28,10 +27,10 @@ import scala.math._
   * @author Тимофеев Д.В. / Timofeev D.V.
   *
   */
-case class Lagrange3(protected val coefs: Array[Double], protected val low: Double, protected val upp: Double)
-  extends PieceFunction {
-
-  type SliceType = Lagrange3
+case class Lagrange3(protected val coefs: Array[Double],
+                     protected val low: Double,
+                     protected val upp: Double
+                    ) extends PieceFunction {
 
   override def apply(x: Double): Double =
     PieceFunction.cubicRuleOfHorner(x - low, coefs(0), coefs(1), coefs(2), coefs(3))
@@ -42,11 +41,12 @@ case class Lagrange3(protected val coefs: Array[Double], protected val low: Doub
   override def derivative(x: Double) =
     PieceFunction.quadraticRuleOfHorner(x, coefs(1), derC, derD)
 
-  /** Значение интеграла функции в точке {@code x}
+  /**
     * v of integral of function at {@code x} point
     *
-    * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
-  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
+    * @param x point, where is yL of function integral searched */
+  override def integral(x: Double): Double =
+    PieceFunction.cubicHornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
 
   override def extremum = ???
 
@@ -64,20 +64,30 @@ object Lagrange3{
     val result = ListBuffer.empty[Lagrange3]
 
     while(c.nonEmpty) {
-      result += new Lagrange3(Array(d.head, c.head, b.head, a.head), min(from.head, to.head), max(from.head, to.head))
+      result += new Lagrange3(
+        Array(d.head, c.head, b.head, a.head),
+        min(from.head, to.head),
+        max(from.head, to.head)
+      )
       a = a.tail; b = b.tail; c = c.tail; d = d.tail; to = to.tail; from = from.tail
     }
     result.result()
   }
 
 
-  @tailrec private def cCoefs(values : List[Tuple2[Double, Double]],
-                              result : ListBuffer[List[Double]] = ListBuffer.empty[List[Double]],
+  @tailrec private def cCoefs(values: List[Tuple2[Double, Double]],
+                              result: ListBuffer[List[Double]] =
+                              ListBuffer.empty[List[Double]],
                       vector : ListBuffer[Double] = ListBuffer.empty[Double])
   : List[Double] = {
     values match{
       case t1 :: t2 :: t3 :: tail if result.isEmpty => {
-        cCoefs(values.tail, result += coefs(hk(t2._1, t1._1), hk(t3._1, t2._1)), vector += vect(t1, t2, t3))
+        cCoefs(
+          values.tail,
+          result += coefs(hk(t2._1, t1._1),
+          hk(t3._1, t2._1)),
+          vector += vect(t1, t2, t3)
+        )
       }
       case t1 :: t2 :: Nil => {
         import approximation.arraygrid._
@@ -93,11 +103,11 @@ object Lagrange3{
   }
 
 
-  @tailrec private def dCoefs(values : List[Tuple2[Double, Double]], c : List[Double],
-                       result : ListBuffer[Double] = ListBuffer.empty[Double]) : List[Double]
+  @tailrec private def dCoefs(values: List[Tuple2[Double, Double]], c: List[Double],
+                       result: ListBuffer[Double] = ListBuffer.empty[Double]): List[Double]
   = {
-    if((values.size - 2) != c.size) throw new UnsupportedOperationException("Лист values должен быть " +
-      "на 2 больше, чем лист с / values list size must be more than c size with 2")
+    if((values.size - 2) != c.size) throw new UnsupportedOperationException(
+      "list of values size minus 2 must be more than c list size")
     values match {
       case v1 :: v2 :: tail if result.isEmpty => {
         dCoefs(values.tail, c, result += (c.head - 0.0) / 3 * hk(v2._1, v1._1))
@@ -106,16 +116,23 @@ object Lagrange3{
         (result += (0.0 - c.head) / 3 * hk(v2._1, v1._1)).toList
       }
       case v1 :: v2 :: v3 :: tail => {
-        dCoefs(values.tail, c.tail, result += (c.head - c.tail.head) / 3 * hk(v2._1, v1._1))
+        dCoefs(
+          values.tail,
+          c.tail,
+          result += (c.head - c.tail.head) / 3 * hk(v2._1, v1._1))
       }
     }
   }
 
-  @tailrec private def bCoefs(values: List[Tuple2[Double, Double]], c : List[Double], d : List[Double],
-                      result : ListBuffer[Double] = ListBuffer.empty[Double]) : List[Double] = {
+  @tailrec private def bCoefs(values: List[Tuple2[Double, Double]],
+                              c : List[Double], d : List[Double],
+                      result : ListBuffer[Double] =
+                              ListBuffer.empty[Double]) : List[Double] = {
     if(values.tail.nonEmpty){
       val h = hk(values.tail.head._1, values.head._1)
-      bCoefs(values.tail, c.tail, d.tail, result += f(values.head, values.tail.head) + c.head * pow(h, 2) - d.head * pow(h, 3))
+      bCoefs(values.tail, c.tail, d.tail,
+        result += f(values.head, values.tail.head) +
+          c.head * pow(h, 2) - d.head * pow(h, 3))
     }
     else result.toList
 
@@ -126,10 +143,13 @@ object Lagrange3{
   }
 
 
-  private def vect(t1 : Tuple2[Double, Double], t2 : Tuple2[Double, Double], t3 : Tuple2[Double, Double]) : Double =
+  private def vect(t1 : Tuple2[Double, Double],
+                   t2 : Tuple2[Double, Double],
+                   t3 : Tuple2[Double, Double]) : Double =
     3*f(t2, t3) - 3*f(t1, t2)
 
-  private def f(x1 : Tuple2[Double, Double], x2 : Tuple2[Double, Double]) : Double = if(x2._1 - x1._1 != 0.0){
+  private def f(x1 : Tuple2[Double, Double],
+                x2 : Tuple2[Double, Double]) : Double = if(x2._1 - x1._1 != 0.0){
     (x2._2 - x1._2) / math.abs(x2._1 - x1._1)}
   else 0.0
 
