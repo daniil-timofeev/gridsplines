@@ -12,8 +12,6 @@ import scala.math._
 case class Lagrange2(override protected val coefs: Array[Double])
   extends Lagrange {
 
-  type SliceType = Lagrange2
-
    def this(coef: (Double, Double, Double)) = {
   this(Array(coef _3, coef _2, coef _1))
   }
@@ -22,7 +20,8 @@ case class Lagrange2(override protected val coefs: Array[Double])
     this(Lagrange2.polynominals(v1, v2, v3))
   }
 
-  override def apply(x: Double): Double = PieceFunction.quadraticRuleOfHorner(x, coefs(0), coefs(1), coefs(2))
+  override def apply(x: Double): Double =
+    PieceFunction.quadraticRuleOfHorner(x, coefs(0), coefs(1), coefs(2))
 
   def integral(x: Double) : Double =
     PieceFunction.cubicRuleOfHorner(x, 0.0, coefs(0), coefs(1) / 2.0, coefs(2) / 3.0)
@@ -47,11 +46,6 @@ case class Lagrange2(override protected val coefs: Array[Double])
     else if (value > 100.0) formatKey(value / 10, power + 1)
     else f"$value%1.2f" + "·" + f"10^$power%1.0f"
   }
-
-
-  def sliceUpper(upper: Double): SliceType = this
-
-  def sliceLower(lower: Double): SliceType = this
 
 }
 object Lagrange2 {
