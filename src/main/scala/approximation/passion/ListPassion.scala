@@ -16,7 +16,8 @@ object ListPassion {
     * @param vector Вектор свободных значений массива
     * @return лист результатов
     */
-  final def solve(lists : List[List[Double]], vector : List[Double]): List[List[Double]] = {
+  final def solve(lists : List[(Double, Double, Double)],
+                  vector: List[Double]): List[List[Double]] = {
     backwardPassion(forwardPassion(lists, vector))
   }
 
@@ -25,23 +26,27 @@ object ListPassion {
     * @param array массив значений трёхдиагональной матрицы
     * @param vector вектор свободных членов
     * @return набор пар значений. Первое из них коэффициент delta, второй - lambda */
-  final def forwardPassion(array : List[List[Double]], vector : List[Double]) : List[List[Double]] = {
+  final def forwardPassion(array: List[(Double, Double, Double)],
+                           vector: List[Double]): List[(Double, Double)] = {
 
-    val b :: c :: d :: _ = array(0)
-
+    val (b, c, d) = array(0)
     val list = forwardFirst(c, d, vector.head)
-    val delta :: lambda :: _ = list
+    val (delta, lambda) = list
 
-    @inline @tailrec def fow(array : List[List[Double]], vector : List[Double],
-                           lists : List[List[Double]] = List.empty[List[Double]], delta : Double, lambda : Double) :
-    List[List[Double]] = {
+    @inline @tailrec def fow(array: List[(Double, Double, Double)],
+                             vector: List[Double],
+                           lists: List[(Double, Double)] =
+                             List.empty[(Double, Double)],
+                             delta: Double,
+                             lambda: Double) :
+    List[(Double, Double)] = {
 
       val row = array.head
-      val b :: c :: d :: _ = row
+      val (b, c, d) = row
 
       if(array.tail.nonEmpty){
         val list = forwardUnit(b, c, d, vector.head, delta, lambda)
-        fow(array.tail, vector.tail, list :: lists, list.head, list.tail.head)
+        fow(array.tail, vector.tail, list :: lists, list._1, list._2)
       }
       else{
         val list = forwardLast(b, c, d, vector.head, delta, lambda)
@@ -60,7 +65,7 @@ object ListPassion {
   @inline private[this] def lam(r : Double, b : Double, lambda : Double, del : Double) : Double = (r - b * lambda) / del
 
   @inline final def forwardUnit(b : Double, c : Double, d : Double,
-                                  vect : Double, delta : Double, lambda : Double) : List[Double] = {
+                                  vect : Double, delta : Double, lambda : Double) : (Double, Double) = {
 
     val format3 = NumberFormat.getNumberInstance(Locale.ROOT)
     format3.setMaximumFractionDigits(3)
@@ -69,35 +74,38 @@ object ListPassion {
       " w: "+ format3.format(b)  +", с: " + format3.format(c, 3) + ", d: " + format3.format(d, 3) +
       ". Вектор: " + format3.format(vect, 3) + ".")
     val bigDelta = del(c, b, delta)
-    List(- d / bigDelta, lam(vect, b, lambda, bigDelta))
+    (- d / bigDelta, lam(vect, b, lambda, bigDelta))
   }
 
   /** Первый крайний шаблон прогонки
     * @param c коэффициент по центру
     * @param d коэффициент справа */
-  @inline final def forwardFirst(c : Double, d : Double, vect : Double) : List[Double] = {
-    List( - d / c,  vect / c)
+  @inline final def forwardFirst(c: Double, d: Double, vect: Double): (Double, Double) = {
+    (- d / c,  vect / c)
   }
 
-  @inline final def forwardLast(b : Double, c : Double, d : Double,
-                                  vect : Double, delta : Double, lambda : Double) : List[Double] = {
+  @inline final def forwardLast(b: Double, c: Double, d: Double,
+                                  vect: Double,
+                                delta: Double, lambda: Double): (Double, Double) = {
     val bigDelta = del(c, b, delta)
     val nextLambda = lam(vect, b, lambda, bigDelta)
-    List(0.0, nextLambda)
+    (0.0, nextLambda)
   }
 
 
   /** Обратную прогонку, для нахождения решений уравнения
     * @param coefficients лист коэффициентов delta :: lambda :: Nil
     */
-   final def backwardPassion(coefficients : List[List[Double]]) : List[List[Double]] = {
+   final def backwardPassion(coefficients : List[(Double, Double)]) : List[List[Double]] = {
 
-    @inline def point(list : List[Double], prev : Double) : Double = {
-    val delta = list.head; val lambda = list.tail.head
+    @inline def point(list: (Double, Double), prev: Double): Double = {
+    val(delta, lambda) = list
       delta * prev + lambda
     }
 
-    @tailrec def back(coefs : List[List[Double]], result : List[Double], prev : Double, last : Double)
+    @tailrec def back(coefs : List[(Double, Double)],
+                      result : List[Double],
+                      prev : Double, last : Double)
     : List[List[Double]] = {
       if(coefs.isEmpty)  List(result, List(last))
       else {

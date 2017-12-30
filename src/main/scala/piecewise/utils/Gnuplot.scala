@@ -1,9 +1,8 @@
 package piecewise.utils
 
-import com.twitter.algebird._
-import com.twitter.algebird.Interval._
-import piecewise.{PieceFunction, Spline}
 import java.nio.file._
+
+import piecewise.{PieceFunction, Spline}
 
 /**
   * Created by Даниил on 10.04.2017.
@@ -19,7 +18,7 @@ object Gnuplot {
 
     val changeable =
       (get.sources zip defNote).map{t => {
-        val ((Intersection(InclusiveLower(lower), ExclusiveUpper(upper)), func), note) = t
+        val ((((lower, upper)), func), note) = t
         val definition = s"${note}=${func.toString.replace("^", "**").replace(",", ".")}"
         val interval = f"[${lower}%.10f:${upper}%.10f]".replace(",", ".")
         val plot = interval + " " + note + " ls 1"
@@ -143,7 +142,7 @@ object Gnuplot {
 
       val changeable =
       (spl.sources zip defNote).map{t => {
-        val ((Intersection(InclusiveLower(lower), ExclusiveUpper(upper)), func), note) = t
+        val ((((lower, upper)), func), note) = t
         val definition = s"${note}=${func.toString.replace("^", "**").replace(",", ".")}"
         val interval = f"[${lower}%.10f:${upper}%.10f]".replace(",", ".")
         val plot = interval + " " + note + " ls 1"
