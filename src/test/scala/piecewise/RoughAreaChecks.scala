@@ -1,11 +1,11 @@
 package piecewise
 import org.scalacheck.Arbitrary.arbDouble
-import org.scalacheck._
-import org.scalacheck.Prop._
 import org.scalacheck.Gen._
-import GenPiecewice.anyPositivePoints
+import org.scalacheck.Prop._
+import org.scalacheck._
+import piecewise.GenPiecewiceCheck.anyPositivePoints
 
-object RoughAreaTest extends Properties("Spline area test"){
+object RoughAreaChecks extends Properties("Spline area test"){
 
 
   val areaPointsGen = for{
@@ -24,8 +24,8 @@ object RoughAreaTest extends Properties("Spline area test"){
 
     val max = points.maxBy(_._2)._2
     val min = points.minBy(_._2)._2
-    val spline = Spline.lines(points)
-    val average = spline.roughAverage(lower, upper)
+    val spline = Spline.lines(points).get
+    val average = spline.average(lower, upper)
     all(
       s"Max ${max} is less than average ${average} " |:
       propBoolean(average <  max),
@@ -37,8 +37,8 @@ object RoughAreaTest extends Properties("Spline area test"){
   property("2") =
   forAllNoShrink{data: (List[(Double, Double)], Double, Double) =>
     val (points, lower, upper) = data
-    val spline = Spline.lines(points)
-    spline.roughAverage(lower, upper) > 0.0
+    val spline = Spline.lines(points).get
+    spline.average(lower, upper) > 0.0
   }
 
 

@@ -2,11 +2,9 @@ package piecewise
 
 import org.scalacheck.Arbitrary.arbDouble
 import org.scalacheck.Gen
-import org.scalacheck.Gen.nonEmptyListOf
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen._
+import org.scalacheck.Gen.{nonEmptyListOf, _}
 
-object GenPiecewice {
+object GenPiecewiceCheck {
 
 
   val xCoords: Gen[Set[Double]] =

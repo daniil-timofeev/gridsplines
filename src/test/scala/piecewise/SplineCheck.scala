@@ -1,13 +1,14 @@
 package piecewise
 
+import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalacheck.{Gen, Properties}
 
 /**
-  * @author Даниил
+  * @author Daniil
   */
-object SplineTest extends Properties("Сплайн / Spline"){
+object SplineCheck extends Properties("Spline"){
 
   val pointGen = for {
     from <- choose(-100.0, 100.0)
@@ -16,27 +17,48 @@ object SplineTest extends Properties("Сплайн / Spline"){
     y <- choose(0.0, 100.0)
   } yield (x, y)
 
-  val listGen: Gen[List[(Double, Double)]] = for{
-    g <- nonEmptyListOf[(Double, Double)](pointGen)
+  val doublesListGen: Gen[List[Double]] = for{
+    g <- nonEmptyListOf[Double](choose(-100.0, 100.0))
   } yield g
 
+  val doublePointsGen: Gen[List[(Double, Double)]] = for{
+    x <- doublesListGen.map(_.distinct.sorted)
+    xy <- x.map(l => (l, arbDouble.arbitrary.sample.get))
+  } yield xy
 
-  property(" correct slicing * 2") =
-    forAll(listGen){(vals: List[(Double, Double)]) =>
-      val spline = Spline.lines(vals)
-      val src1 = spline.sources
-      val splitted = spline.splitWhere((_, _, _) => 2)
-      val src2 = splitted.sources
-      src2.size ?= src1.size * 2
-    }
-
-  property(" get building points") =
-  forAll(listGen){(vals: List[(Double, Double)]) => {
-      import piecewise._
+  property(" Get building points") =
+  forAll(doublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
+    (vals: List[(Double, Double)]) => {
       val spline = Spline[Line](vals)
-      val points = spline.points
-      vals == points
+      if (vals.size == 1) {
+        propBoolean(spline.isEmpty)
+      }
+      else {
+        spline.map(s => s.points.size).getOrElse(0) ?= vals.size
+      }
     }}
+
+  property("bounds") = forAllNoShrink(doublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
+    (vals: List[(Double, Double)]) => {
+      val spline = Spline.lines(vals).get
+      val (lowerX, upperX, lower, upper) = Spline.boundsOf(spline)
+      val lowerX0 = spline.lowerBound
+      val upperX0 = spline.upperBound
+      val lower0 = spline(lowerX0)
+      val upper0 = spline(upperX0)
+      all(
+        "Lower x" |:
+        lowerX ?= lowerX0,
+        "Upper x" |:
+        upperX ?= upperX0,
+        "Lower y" |:
+        lower ?= lower0,
+        "Upper y" |:
+        upper ?= upper0
+      )
+    }
+  }
+
 
 
 

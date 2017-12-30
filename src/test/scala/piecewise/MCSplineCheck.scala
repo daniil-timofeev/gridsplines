@@ -1,17 +1,16 @@
 package piecewise
 
 import org.scalacheck.Gen._
-import org.scalacheck.{Gen, Prop, Properties}
 import org.scalacheck.Prop._
-import org.scalacheck._
-import org.scalacheck.Prop.AnyOperators
+import org.scalacheck.{Gen, Properties}
+
 import scala.math._
 
 
 /**
   * @author Daniil
   */
-object MCSplineTest extends Properties("Монотонный сплайн / Monotonic spline .."){
+object MCSplineCheck extends Properties("Monotonic spline .."){
 
   val pointGen = for {
     from <- choose(-100.0, 100.0)
@@ -27,10 +26,11 @@ object MCSplineTest extends Properties("Монотонный сплайн / Mono
   property(" Совпадение в точках / Coincidence at consctruction points") =
     forAllNoShrink(listGen.suchThat(_.size > 3))((vals : List[(Double, Double)]) =>{
       vals match {
-        case (a, b) :: (c, d) :: (e, f) :: tail if( b.equals(d) || d.equals(f) || (a.equals(c) && a.equals(e)))
+        case (a, b) :: (c, d) :: (e, f) :: tail if(
+          b.equals(d) || d.equals(f) || (a.equals(c) && a.equals(e)))
         => throws(classOf[IllegalArgumentException])(Spline[Hermite3](vals))
         case values =>
-          val spline = Spline[Hermite3](values)
+          val spline = Spline[Hermite3](values).get
           values.sortBy(_._1).dropRight(1) //Because last point exclusive
             .map{point =>
             val res = error(point._2, spline(point._1))
@@ -39,7 +39,7 @@ object MCSplineTest extends Properties("Монотонный сплайн / Mono
       }}
     )
 
-  property(" Аналитическая монотонность / Analytical monotonicity") =
+  property("Analytical monotonicity") =
     forAllNoShrink(listGen suchThat(_.size > 3)){(vals: List[(Double, Double)]) =>
       vals match {
         case (a, b) :: (c, d) :: (e, f) :: tail if (b == d) || d == f || ((a == c) && a == e)
@@ -51,13 +51,13 @@ object MCSplineTest extends Properties("Монотонный сплайн / Mono
         }
       }
     }
-  property(" Монотонность / monotonicity") =
+  property("monotonicity") =
     forAllNoShrink(listGen.suchThat(_.size > 3))((vals : List[(Double, Double)]) => {
       vals match {
         case (a, b) :: (c, d) :: (e, f) :: tail if( b == d) || d == f || ((a == c) && a == e)
         => throws(classOf[IllegalArgumentException])(Spline[M1Hermite3](vals))
         case values =>{
-          val spline = Spline[M1Hermite3](values)
+          val spline = Spline[M1Hermite3](values).get
           val v = values sortBy(_._1) dropRight 1 //because last point exclusive
           (v, v drop 1).zipped
           .map {(p0, p1) =>
@@ -72,7 +72,7 @@ object MCSplineTest extends Properties("Монотонный сплайн / Mono
 
   property(" Производные вещественны / derivatives is not NaN") =
     forAll(listGen suchThat(_.size > 3)){ (vals : List[(Double, Double)]) =>{
-      val spline = Spline[M1Hermite3](vals)
+      val spline = Spline[M1Hermite3](vals).get
       vals.sortBy(_._1).dropRight(1) //because last point exclusive
       .map(v => !spline.der(v._1).isNaN)
       .reduce(_ && _)
