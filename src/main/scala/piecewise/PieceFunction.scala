@@ -4,57 +4,42 @@ import java.util.Objects
 import com.twitter.algebird.Interval.MaybeEmpty.{NotSoEmpty, SoEmpty}
 import com.twitter.algebird._
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.tailrec
 import scala.math.{abs, signum}
-import com.twitter.algebird.Interval._
-import piecewise.Hermite3.{array, deriv, exception}
 
-import scala.collection
-import scala.collection.TraversableOnce
-import scala.collection.mutable.ArrayBuffer
-
-/** Общий трейт для кусочных функций
-  * trait for piecewise functions
-  * Created by Даниил on 06.02.2016.
+/** Trait for piecewise functions
+  * Created by daniil-timofeev on 06.02.2016.
   */
 abstract class PieceFunction{
 
-  /** Значение функции в точке {@code x}
-    * v of function at {@code x} point
+  /** The value of function at `x` argument
     *
-    * @param x точка, в которой ищется значение / point, where is yL of function searched */
+    * @param x function argument
+    */
   def apply(x: Double): Double
 
-  /** Значение производной функции в точке {@code x}
-    * v of derivative of function at {@code x} point
+  /** The value of derivative of function at `x` argument
     *
-    * @param x точка, в которой ищется значение производной / point, where is yL of function derivative searched */
+    * @param x function argument
+    */
   def derivative(x: Double): Double
 
-  /** Значение производной функции в точке {@code x}
-    * v of derivative of function at {@code x} point
+  /** The value of derivative of function at `x` argument
     *
-    * @param x точка, в которой ищется значение производной / point, where is yL of function derivative searched */
+    * @param x function argument
+    */
   final def der(x: Double): Double = derivative(x)
 
-  /** Значение интеграла функции в точке {@code x}
-    * v of integral of function at {@code x} point
+  /** The value of integral of function at `x` argument
     *
-    * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
+    * @param x function argument
+    * */
   def integral(x: Double): Double
 
-  /** Приблизительная площадь под функцией интервале ``[x0:x1]``
+  /** The value of integral of function at `x` argument
     *
-    * @param x0 нижняя граница
-    * @param x1 верхняя граница
-    * @return приблизительная площадь под фукнцией на интервале ``[x0:x1]``
-    */
-  def roughArea(x0: Double, x1: Double): Double
-
-  /** Значение интеграла функции в точке {@code x}
-    * v of integral of function at {@code x} point
-    *
-    * @param x точка, в которой ищется значение интеграла функции / point, where is yL of function integral searched */
+    * @param x function argument
+    * */
   final def int(x: Double): Double = integral(x)
 
   /** Суммирует значения кусочных функций, и возвращает новый сплайн
@@ -87,12 +72,13 @@ abstract class PieceFunction{
     *
     *  @param other другая функция / other function
     * @return значение x функции */
-  def intersect(other: PieceFunction, i : (Double, Double)): List[Double] = {
+  def intersect(other: PieceFunction, i: (Double, Double)): List[Double] = {
     intersectedIntervals(other, i).map(tuple =>  bisect(tuple, other))
   }
 
 
-  @tailrec private[this] def captureInterval(other : PieceFunction, i : (Double, Double), prec : Double) : Option[(Double, Double)]= {
+  @tailrec private[this] def captureInterval(other: PieceFunction, i: (Double, Double),
+                                             prec: Double) : Option[(Double, Double)] = {
     @inline def sig(x : Double) = signum(this(x) - other(x))
     if(abs(i._2 - i._1) > prec ){
       val center = (i._2+i._1)/2.0
@@ -103,9 +89,10 @@ abstract class PieceFunction{
     else Option(i)
   }
 
-  private[this] def intersectedIntervals(other : PieceFunction, x : (Double, Double)) : List[(Double, Double)] = {
+  private[this] def intersectedIntervals(other: PieceFunction,
+                                         x: (Double, Double)): List[(Double, Double)] = {
     val (x1, x2) = x
-    val filteredExt = {extremum ::: other.extremum}.filter(i => valueInsight(i, x))
+    val filteredExt = {extremum(x1, x2) ::: other.extremum(x1, x2)}.filter(i => valueInsight(i, x))
     val intervalBound = {x1 :: filteredExt ::: x2 :: Nil }.sorted.toSet
     (intervalBound zip {intervalBound drop 1}).filter(i => intersectInsight(other, i)).toList
   }
@@ -145,11 +132,11 @@ abstract class PieceFunction{
     integral(upper) - integral(lower)
   }
 
-  /** Экстремум функции `x`
-    * Extremum of function `x`
+  /**
+    * Extremum of function at bounds `x`
     *
-    * @return экстремумы функции / extremums of function */
-  protected def extremum : List[Double]
+    * @return extremums of function */
+  protected def extremum(low: Double, upp: Double): List[Double]
 
 
   /** Максимум функции / maximum of function

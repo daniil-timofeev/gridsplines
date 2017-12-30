@@ -16,40 +16,16 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
     * @return x = f(y) spline
     */
   def swap: Line = {
-    new Line(1.0 / slope, - intercept * slope) // TODO test me
+    new Line(1.0 / slope, - intercept * slope)
   }
 
-  override protected def extremum: List[Double] = ???
-
-
-  //override def +(otherFunc: (A) forSome {type A <: PieceFunction}): (B) forSome {type B <: PieceFunction} = {
-  //  otherFunc match {
-  // case mcspline : MCSpline => mcspline.copy(f = mcspline.f + v(from),
-  //      f1 = mcspline.f1 + v(to),
-  //      d = mcspline.d + derivative(from),
-  //      d1 = mcspline.d1 + derivative(to))
-  //    case qpf : Lagrange2 => {
-  //      val center = (from + to)/2.0
-  //      val points : List[(Double, Double)] = List(from , center, to).map(x => (x, qpf.v(x) + v(x)))
-  //      Lagrange2(points)
-  //    }
-  //    case lspl : LineSpline => this.copy(f = f + lspl.v(from), f1 = f1 + lspl.v(to))
-  //  }
-  //}
-
-
-  //override def +(y: Double): (B) forSome {type B <: PieceFunction} = this.copy(f = f + y, f1 = f1 + y)
-
-
-  //override def +(func: (Double) => Double): (B) forSome {type B <: PieceFunction} =
-  //  this.copy(f = f + func(from), f1 = f1 + func(to))
-
+  override protected def extremum(low: Double, upp: Double): List[Double] = ???
 
   override def apply(x: Double): Double = slope * x + intercept
 
   override def integral(x: Double): Double = slope / 2.0 * x * x + intercept * x
 
-  override def roughArea(x0: Double, x1: Double): Double =
+  override def area(x0: Double, x1: Double): Double =
     (apply(x1) + apply(x0)) / 2.0 * (x1 - x0)
 
   override def toString: String = f"${slope}%.20f*x + ${intercept}%.20f"
@@ -65,7 +41,21 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
 }
 object Line{
 
-  def derivative(yUp: Double, yL: Double, upp: Double, low: Double): Double = (yUp - yL) / (upp - low)
+  import com.twitter.algebird._
+  class LineMonoid extends Monoid[Line]{
+    lazy val zero = Line(1.0, 0.0)
+
+    override def plus(x: Line, y: Line): Line = {
+      val newSlope = x.slope * y.slope
+      val newIntercept = x.intercept * y.slope + y.intercept
+      new Line(newSlope, newIntercept)
+    }
+  }
+
+  def derivative(yUp: Double,
+                 yL: Double,
+                 upp: Double,
+                 low: Double): Double = (yUp - yL) / (upp - low)
 
   def apply(argVals: List[Double], funVals: List[Double]): List[Line] = {
     val argView = argVals.view
@@ -80,12 +70,14 @@ object Line{
   }
 
   def apply(points: List[(Double, Double)]): Iterator[Line] = {
-    points.sliding(2).map{pSeq =>
-      val Seq((xLow, yLow),(xUp, yUp)) = pSeq
-      apply(xLow, xUp, yLow, yUp)
+    if (points.size > 1) {
+      points.sliding(2).map{pSeq =>
+        val Seq((xLow, yLow),(xUp, yUp)) = pSeq
+        apply(xLow, xUp, yLow, yUp)
+      }
     }
+    else Iterator.empty
   }
-  import com.twitter.algebird.AffineFunction
   def apply(xLow: Double, xUp: Double, yLow: Double, yUp: Double): Line = {
     val der = derivative(yUp, yLow, xUp, xLow)
     val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)

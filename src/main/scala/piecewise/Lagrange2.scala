@@ -1,8 +1,5 @@
 package piecewise
 
-import com.twitter.algebird.Interval.InLowExUp
-import com.twitter.algebird.{ExclusiveUpper, InclusiveLower, Intersection}
-
 import scala.annotation.tailrec
 import scala.math._
 
@@ -28,12 +25,11 @@ case class Lagrange2(override protected val coefs: Array[Double])
 
   override def derivative(x: Double) : Double = coefs(2) * 2.0 * x + coefs(1)
 
-  override def roughArea(x0: Double, x1: Double) = ???
-  /** Экстремум функции
-    * extremum of function
-    *
-    * @return экстремумы функции / extremums of function */
-  override protected def extremum: List[Double] = List(- coefs(1) / (2 * coefs(2)))
+  override def area(x0: Double, x1: Double) = ???
+
+  override protected def extremum(low: Double,
+                                  upp: Double): List[Double] =
+    List(low, - coefs(1) / (2 * coefs(2)), upp)
 
   private[this] def format(d: Double) = d match {
     case a if a > 0 => " + " + formatKey(a)
@@ -51,7 +47,8 @@ case class Lagrange2(override protected val coefs: Array[Double])
 object Lagrange2 {
 
   def apply(vals : List[(Double, Double)]): List[Lagrange2] = {
-    if(vals.size != 3) throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
+    if(vals.lengthCompare(3) < 0)
+      throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
     (vals, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
       val (a, b, c) = polynominals(v1, v2, v3)
       val interval = PieceFunction.makeInterval(v1._1, v3._1)
@@ -59,9 +56,9 @@ object Lagrange2 {
     }}
   }
 
-  private def polynominals(v1 : Tuple2[Double, Double],
-                           v2 : Tuple2[Double, Double],
-                           v3 : Tuple2[Double, Double]) : (Double, Double, Double) = {
+  private def polynominals(v1: (Double, Double),
+                           v2: (Double, Double),
+                           v3: (Double, Double)): (Double, Double, Double) = {
     val (x0, y0) = v1
     val (x1, y1) = v2
     val (x2, y2) = v3

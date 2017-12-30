@@ -1,16 +1,12 @@
-import com.twitter.algebird.Interval.InLowExUp
+
 
 /**
-  * Created by Даниил on 18.03.2017.
+  *
   */
 package object piecewise {
 
-  class additionInterval(val interval: InLowExUp[Double]) extends AnyVal{
-      def length = interval.upper.upper - interval.lower.lower
-  }
-
   @inline
-  def cubicRoots(a: Double, b: Double, c: Double, d: Double): Seq[Double] = {
+  final def cubicRoots(a: Double, b: Double, c: Double, d: Double): Seq[Double] = {
     import scala.math.pow
     val p = pow(b, 2.0) - 3 * a * c
     val q = 9 * a * b * c - 2 * pow(b, 3.0) - 27.0 * pow(a, 3.0) * d
@@ -33,7 +29,7 @@ package object piecewise {
 
 
   @inline
-  def cubicRootsVieta(a: Double, b: Double, c: Double): Seq[Double] = {
+  final def cubicRootsVieta(a: Double, b: Double, c: Double): Seq[Double] = {
     import scala.math._
     val q = (math.pow(a, 2.0) - 3.0 * b) / 9.0
     val r = (2 * pow(a, 3.0) - 9.0 * a * b + 27.0 * c) / 54.0
@@ -52,7 +48,6 @@ package object piecewise {
       Seq(s + t - a / 3.0)
     }
   }
-
 
 
 }

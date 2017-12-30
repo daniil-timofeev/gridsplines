@@ -58,7 +58,7 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
     *
     * @return экстремумы функции / extremums of function */
 
-  override protected def extremum: List[Double] = ???
+  override protected def extremum(low: Double, upp: Double): List[Double] = ???
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -70,7 +70,7 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
     }
   }
 
-  override def roughArea(x0: Double, x1: Double) = ???
+  override def area(x0: Double, x1: Double) = ???
 }
 object M1Hermite3 {
 

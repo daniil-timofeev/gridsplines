@@ -48,7 +48,7 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
     ???
   }
 
-  def extremum: List[Double] = ???
+  def extremum(low: Double, upp: Double): List[Double] = ???
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -60,7 +60,7 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
     }
   }
 
-  override def roughArea(x0: Double, x1: Double) = ???
+  override def area(x0: Double, x1: Double) = ???
 }
 object Hermite3 {
 

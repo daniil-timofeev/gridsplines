@@ -15,7 +15,7 @@ case class Const(value: Double) extends PieceFunction{
     * Extremum of function `x`
     *
     * @return экстремумы функции / extremums of function */
-  override protected def extremum: List[Double] = value :: Nil
+  override protected def extremum(low: Double, upp: Double): List[Double] = value :: Nil
 
   override def equals(obj: scala.Any): Boolean = {
     obj match{
@@ -30,5 +30,5 @@ case class Const(value: Double) extends PieceFunction{
     * @param x1 верхняя граница
     * @return площадь функции на интерале ``[x0:x1]``
     */
-  override def roughArea(x0: Double, x1: Double) = (x1 - x0) * value
+  override def area(x0: Double, x1: Double) = (x1 - x0) * value
 }

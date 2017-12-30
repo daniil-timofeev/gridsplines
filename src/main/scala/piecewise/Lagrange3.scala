@@ -1,6 +1,5 @@
 package piecewise
-import approximation.passion.{ListPassion}
-
+import approximation.passion.ListPassion
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -48,14 +47,14 @@ case class Lagrange3(protected val coefs: Array[Double],
   override def integral(x: Double): Double =
     PieceFunction.cubicHornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def extremum = ???
+  override def extremum(low: Double, upp: Double) = ???
 
-  override def roughArea(x0: Double, x1: Double) = ???
+  override def area(x0: Double, x1: Double) = ???
 
 }
 object Lagrange3{
 
-  def apply(values : List[Tuple2[Double, Double]]): List[Lagrange3] = {
+  def apply(values : List[(Double, Double)]): List[Lagrange3] = {
     var c = cCoefs(values)
     var d = dCoefs(values, c)
     var b = bCoefs(values, c, d)
@@ -75,10 +74,10 @@ object Lagrange3{
   }
 
 
-  @tailrec private def cCoefs(values: List[Tuple2[Double, Double]],
-                              result: ListBuffer[List[Double]] =
-                              ListBuffer.empty[List[Double]],
-                      vector : ListBuffer[Double] = ListBuffer.empty[Double])
+  @tailrec private def cCoefs(values: List[(Double, Double)],
+                              result: ListBuffer[(Double, Double, Double)] =
+                              ListBuffer.empty[(Double, Double, Double)],
+                      vector: ListBuffer[Double] = ListBuffer.empty[Double])
   : List[Double] = {
     values match{
       case t1 :: t2 :: t3 :: tail if result.isEmpty => {
@@ -90,8 +89,8 @@ object Lagrange3{
         )
       }
       case t1 :: t2 :: Nil => {
-        import approximation.arraygrid._
-        val r: List[List[Double]] = {result += coefs(hk(t2._1, t1._1), 0.0)}.result()
+        val r: List[(Double, Double, Double)] =
+          {result += coefs(hk(t2._1, t1._1), 0.0)}.result()
         val v: List[Double] = {vector += vect(t1, t2, t2)}.result()
         ListPassion.solve(r, v).head
       }
@@ -103,8 +102,10 @@ object Lagrange3{
   }
 
 
-  @tailrec private def dCoefs(values: List[Tuple2[Double, Double]], c: List[Double],
-                       result: ListBuffer[Double] = ListBuffer.empty[Double]): List[Double]
+  @tailrec private def dCoefs(values: List[(Double, Double)],
+                              c: List[Double],
+                       result: ListBuffer[Double] =
+                              ListBuffer.empty[Double]): List[Double]
   = {
     if((values.size - 2) != c.size) throw new UnsupportedOperationException(
       "list of values size minus 2 must be more than c list size")
@@ -124,10 +125,10 @@ object Lagrange3{
     }
   }
 
-  @tailrec private def bCoefs(values: List[Tuple2[Double, Double]],
-                              c : List[Double], d : List[Double],
-                      result : ListBuffer[Double] =
-                              ListBuffer.empty[Double]) : List[Double] = {
+  @tailrec private def bCoefs(values: List[(Double, Double)],
+                              c: List[Double], d: List[Double],
+                      result: ListBuffer[Double] =
+                              ListBuffer.empty[Double]): List[Double] = {
     if(values.tail.nonEmpty){
       val h = hk(values.tail.head._1, values.head._1)
       bCoefs(values.tail, c.tail, d.tail,
@@ -138,22 +139,23 @@ object Lagrange3{
 
 
   }
-  private def aCoefs(values : List[Tuple2[Double, Double]]) : List[Double] = {
+  private def aCoefs(values: List[(Double, Double)]): List[Double] = {
     values.drop(1).map(_ _2)
   }
 
 
-  private def vect(t1 : Tuple2[Double, Double],
-                   t2 : Tuple2[Double, Double],
-                   t3 : Tuple2[Double, Double]) : Double =
+  private def vect(t1: (Double, Double),
+                   t2: (Double, Double),
+                   t3: (Double, Double)): Double =
     3*f(t2, t3) - 3*f(t1, t2)
 
-  private def f(x1 : Tuple2[Double, Double],
-                x2 : Tuple2[Double, Double]) : Double = if(x2._1 - x1._1 != 0.0){
+  private def f(x1: (Double, Double),
+                x2: (Double, Double)): Double = if(x2._1 - x1._1 != 0.0){
     (x2._2 - x1._2) / math.abs(x2._1 - x1._1)}
   else 0.0
 
-  private def hk(x2 : Double, x1 : Double) = x2 - x1
+  private def hk(x2: Double, x1: Double) = x2 - x1
 
-  private def coefs(h1 : Double, h2 : Double) = h1 :: 2 * (h2 + h1) :: h2 :: Nil
+  private def coefs(h1: Double, h2: Double): (Double, Double, Double) =
+    (h1, 2 * (h2 + h1), h2)
 }
