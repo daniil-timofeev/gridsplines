@@ -49,16 +49,13 @@ developers := List(
 
 publishMavenStyle := true
 
+publishArtifact in Test := false
+
 // Add sonatype repository settings
 publishTo := Some(
+  val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-    Opts.resolver.sonatypeSnapshots
+     Some("snapshots" at nexus + "content/repositories/snapshots")
   else
-    Opts.resolver.sonatypeStaging
+     Some("releases"  at nexus + "service/local/staging/deploy/maven2")
 )
-
-
-
-
-
-
