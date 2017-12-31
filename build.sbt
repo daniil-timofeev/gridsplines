@@ -23,6 +23,42 @@ libraryDependencies ++= "org.slf4j" % "slf4j-api" % "1.7.22" ::
 
 scalacOptions in Test ++= Seq("-Yrangepos")
 
+useGpg := true
+
+pomIncludeRepository := { _ => false }
+
+licenses := Seq("Apache License 2.0" -> url("http://www.apache.org/licenses/"))
+
+homepage := Some(url("https://github.com/daniil-timofeev/gridsplines"))
+
+scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/daniil-timofeev/gridsplines"),
+    "https://github.com/daniil-timofeev/gridsplines.git"
+  )
+)
+
+developers := List(
+  Developer(
+    id    = "daniil-timofeev",
+    name  = "Daniil Timofeev",
+    email = "daniil@fastmail.fm",
+    url   = url("https://github.com/daniil-timofeev/gridsplines")
+  )
+)
+
+publishMavenStyle := true
+
+// Add sonatype repository settings
+publishTo := Some(
+  if (isSnapshot.value)
+    Opts.resolver.sonatypeSnapshots
+  else
+    Opts.resolver.sonatypeStaging
+)
+
+
+
 
 
 
