@@ -1,8 +1,23 @@
-# gridsplines
-Project contains one and two dimensional rectangular grids and finite differece solver
-for radial or orthogonal transient heat transfer or diffusion problems.
-There is a simple polynomial spline library, with which you can create simple lines,
-cubic Lagrange, cubic Hermite, monothone cubic Hermite splines.
+# Gridsplines
+
+### Introdution
+Project contains a finite difference solver for heat transfer and diffusion problems at one or two dimensional grids. The grid can represent orthogonal or cyllindric coordinate spaces.
+There is a simple polynomial spline library also, which contains cubic Lagrange, cubic Hermite and monotone cubic Hermite polinomial splines. 
+
+To add this library into your scala project,
+add the following lines into ```build.sbt``` file:
+
+```scala
+val commonResolvers = Seq(
+  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+  "Sonatype OSS Releases" at  "https://oss.sonatype.org/content/repositories/releases"
+)
+
+resolvers ++= commonResolvers
+
+libraryDependencies += "com.github.daniil-timofeev" %% "gridsplines" % "0.2.0-SNAPSHOT"
+
+```
 
 ## Splines
 
