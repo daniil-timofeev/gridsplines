@@ -2,7 +2,7 @@
 
 ### Introduction
 Project contains a finite difference solver for heat transfer and diffusion problems at one or two dimensional grids. The grid can represent orthogonal or cyllindric coordinate spaces.
-There is also a simple polynomial spline library, which contains cubic Lagrange, cubic Hermite and monotone cubic Hermite polinomial splines. 
+There is also a simple polynomial spline library, which contains cubic Lagrange, cubic Hermite and monotone cubic Hermite polynomial splines. 
 
 To add this library into your scala project,
 add the following lines into ```build.sbt``` file:
