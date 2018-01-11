@@ -1,5 +1,5 @@
 import sbt._
-organization := "org.msuce.daniil"
+organization := "com.github.daniil-timofeev"
 
 name := "gridsplines"
 
@@ -49,13 +49,16 @@ developers := List(
 
 publishMavenStyle := true
 
+sonatypeProfileName := "(com.github.daniil-timofeev)"
+
+
 publishArtifact in Test := false
 
 // Add sonatype repository settings
-publishTo := Some(
+publishTo := {
   val nexus = "https://oss.sonatype.org/"
   if (isSnapshot.value)
-     Some("snapshots" at nexus + "content/repositories/snapshots")
+    Some("snapshots" at nexus + "content/repositories/snapshots")
   else
-     Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-)
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
+}
