@@ -7,6 +7,7 @@ import piecewise.intervaltree._
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable.ListBuffer
+
 /** Spline with type `S`
   */
  class Spline[+S <: PieceFunction](
@@ -14,11 +15,9 @@ import scala.collection.mutable.ListBuffer
 //TODO add possibility to find interval with some others piece functions types
 
   @inline
-  private def get[S1 >: S <: PieceFunction](
-                                             nonEmpty: NonEmptyITree[Double, S1, Upper],
+  private def get[S1 >: S <: PieceFunction]( nonEmpty: NonEmptyITree[Double, S1, Upper],
                                              x: Double,
-                                             fun: S1 => Double => Double
-            ): Double = {
+                                             fun: S1 => Double => Double): Double = {
     nonEmpty.v.apply(x)
   }
 

@@ -33,8 +33,9 @@ abstract class IntervalTree[K, +V]{
 
   def nonEmpty: Boolean = !isEmpty
 
-  private[intervaltree] def updateArray[V1 >: V](array: Array[((K, K), V1)], pos: Int
-                                    ): Array[((K, K), V1)]
+  private[intervaltree] def updateArray[V1 >: V](
+                              array: Array[((K, K), V1)],
+                              pos: Int): Array[((K, K), V1)]
 
   def array[V1 >: V](implicit ord: Ordering[K]): Array[((K, K), V1)] = {
     this match {
@@ -651,8 +652,7 @@ object IntervalTree{
   }
 
   @tailrec
-  def find[K, V](x: K, tree: IntervalTree[K, V]
-  ): IntervalTree[K, V] = {
+  def find[K, V](x: K, tree: IntervalTree[K, V]): IntervalTree[K, V] = {
     tree match {
       case empty: EmptyNode[K, V] => empty
       case internal: InternalNode[K, V] => {
