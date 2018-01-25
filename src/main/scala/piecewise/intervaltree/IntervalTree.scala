@@ -21,9 +21,9 @@ abstract class IntervalTree[K, +V]{
 
   def hasBoundNode: Boolean
 
-  def sliceUpper(x: K)(implicit s: Successible[K]): IntervalTree[K, V]
+  def sliceUpper(x: K): IntervalTree[K, V]
 
-  def sliceLower(x: K)(implicit s: Successible[K]): IntervalTree[K, V]
+  def sliceLower(x: K): IntervalTree[K, V]
 
   def upperThan(x: K): Boolean
 
@@ -71,9 +71,9 @@ case class EmptyNode[K, +V]()extends IntervalTree[K, V]{
 
   override def hasBoundNode = false
 
-  override def sliceUpper(x: K)(implicit s: Successible[K]) = this
+  override def sliceUpper(x: K) = this
 
-  override def sliceLower(x: K)(implicit s: Successible[K]) = this
+  override def sliceLower(x: K) = this
 
   override def upperThan(x: K) = true
 
@@ -229,7 +229,7 @@ extends AbstractInternalNode(interval, v, left, right) {
       System.lineSeparator() + right.toString
   }
 
-  def sliceLower(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  def sliceLower(x: K): IntervalTree[K, V] = {
     x match{
       case c if interval.contains(x) => {
         new InternalNode[K, V](
@@ -247,7 +247,7 @@ extends AbstractInternalNode(interval, v, left, right) {
     }
   }
 
-  def sliceUpper(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  def sliceUpper(x: K): IntervalTree[K, V] = {
     x match {
       case c if interval.contains(c) => {
         val lower = IntervalTree.extLower(interval)
@@ -290,7 +290,7 @@ final case class UpperBoundInternalNode[K, V](override val interval: InLowInUp[K
     array
   }
 
-  def sliceLower(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  def sliceLower(x: K): IntervalTree[K, V] = {
     x match{
       case c if interval.contains(x) => {
         new UpperBoundLeaf[K, V](
@@ -325,7 +325,7 @@ final case class UpperBoundInternalNode[K, V](override val interval: InLowInUp[K
     IntervalTree.show(interval) + " : " + v.toString + ";"
   }
 
-  def sliceUpper(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  def sliceUpper(x: K): IntervalTree[K, V] = {
     x match {
       case c if interval.contains(c) => {
         val (lower, upper) = IntervalTree.ext(interval)
@@ -382,7 +382,7 @@ final case class Leaf[K, +V](
 
   override def upperBound: InclusiveUpper[K] = ???
 
-  override def sliceLower(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  override def sliceLower(x: K): IntervalTree[K, V] = {
     val upp = interval.upper.upper
     if (interval.contains(x)) {
       new Leaf(x, upp, v)
@@ -390,7 +390,7 @@ final case class Leaf[K, +V](
     else this
   }
 
-  override def sliceUpper(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  override def sliceUpper(x: K): IntervalTree[K, V] = {
     val low = interval.lower.lower
     if (interval.contains(x)) {
       IntervalTree.foldToIntTree(
@@ -421,7 +421,7 @@ final case class UpperBoundLeaf[K, +V](
 
   override val size: Int = 1
 
-  override def sliceLower(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  override def sliceLower(x: K): IntervalTree[K, V] = {
     val upp = interval.upper.upper
     if (interval.contains(x)) {
       new UpperBoundLeaf(x, upp, v)
@@ -429,7 +429,7 @@ final case class UpperBoundLeaf[K, +V](
     else this
   }
 
-  override def sliceUpper(x: K)(implicit s: Successible[K]): IntervalTree[K, V] = {
+  override def sliceUpper(x: K): IntervalTree[K, V] = {
     val low = interval.lower.lower
     if (interval.contains(x)) {
       IntervalTree.foldToIntTree(
