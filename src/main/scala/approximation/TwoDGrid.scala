@@ -2,10 +2,7 @@ package approximation
 
 import java.io.{BufferedWriter, IOException}
 
-import approximation.TwoDGrid.{
-BaseBound, BoundSide, Bounds, Coefficients, HeatFlowBound,
-Left, Lower, OneElementBound, Right, TemperatureBound, Upper
-}
+import approximation.TwoDGrid.{BaseBound, BoundSide, Bounds, Coefficients, HeatFlowBound, Left, Lower, OneElementBound, Right, TemperatureBound, Upper}
 import approximation.XDim.RowIterator
 import approximation.YDim.ColumnIterator
 import piecewise.{PieceFunction, Spline}
@@ -47,7 +44,6 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
   }
 
   def avValue: Double = grid.avValue
-  import java.nio.file._
 
   @throws(classOf[IOException])
   def write(writer: BufferedWriter): Unit = {
@@ -130,8 +126,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       var t2 = grid(i)
       var t3 = grid(i + 1)
       var t = grid.get(i)
-      var c0 =
-      bounds.left match {
+      var c0 = bounds.left match {
         case temp: TemperatureBound => {
           val t1 = temp.get(row)
           x.first(time, t1, t2, t3, t,
@@ -164,14 +159,14 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
       t = grid.get(i)
 
       bounds.right match {
-        case temp: TemperatureBound => {
-          t3 = bounds.right.get(row)
+        case tempBound: TemperatureBound => {
+          t3 = tempBound.get(row)
           x.last(col, time, t2, t3, t, c0,
             coefs(col, row))
         }
 
-        case heatFlow: HeatFlowBound => {
-          x.lastHeatFlow(col, time, heatFlow.get(row), t2, t3, t,
+        case heatFlowBound: HeatFlowBound => {
+          x.lastHeatFlow(col, time, heatFlowBound.get(row), t2, t3, t,
             coefs.tempConductivity(col, row),
             coefs.capacity(col, row)
           )
@@ -189,13 +184,23 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
     while (col != colsNum) {
       var i = col
       var row = 0
-      val t1 = bounds.upp.get(col)
       var t2 = grid(i)
       var t3 = grid(i + colsNum)
       var t = grid.res(i)
-      var c0 = y.first(time, t1, t2, t3, t,
-        coefs(col, -1),
-        coefs(col, row))
+      var c0 = bounds.upp match {
+        case tempBound: TemperatureBound => {
+          val t1 = tempBound.get(col)
+          y.first(time, t1, t2, t3, t,
+            coefs(col, -1),
+            coefs(col, row))
+        }
+        case heatFlowBound: HeatFlowBound => {
+          y.firstHeatFlow(time, heatFlowBound.get(col), t2, t3, t,
+            coefs.tempConductivity(col, row),
+            coefs.capacity(col, row)
+          )
+        }
+      }
 
       i += colsNum
       row += 1
@@ -219,6 +224,7 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir](
             coefs(col, row))
         }
         case heatFlow: HeatFlowBound => {
+          val t1 = grid(i - 1)
           y.lastHeatFlow(row, time, heatFlow.get(col), t1, t3, t,
             coefs.tempConductivity(col, row),
             coefs.capacity(col, row)
