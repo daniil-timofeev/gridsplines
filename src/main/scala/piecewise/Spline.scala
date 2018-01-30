@@ -5,7 +5,6 @@ import piecewise.Spline._
 import piecewise.intervaltree._
 
 import scala.annotation.tailrec
-import scala.collection.immutable.SortedSet
 import scala.collection.mutable.ListBuffer
 
 /** Spline with type `S`
@@ -251,7 +250,7 @@ import scala.collection.mutable.ListBuffer
     val list = spl.sources.map(_._1._1) ++ this.sources.map(_._1._1)
     val min = math.max(this.content.low, spl.content.low)
     val max = math.min(this.content.upp, spl.content.upp)
-    list.filter(x => x > min && x < max).to[SortedSet].toList
+    list.view.filter(x => x >= min && x <= max).distinct.sorted.force
   }
 
   def /[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
@@ -375,16 +374,25 @@ object Spline{
   }
 
   def const(xLow: Double, xUpp: Double, y: Double): Option[Spline[Const]] = {
-      IntervalTree.buildOne(xLow, xUpp, new Const(y)).map((nonEmpty: UpperBoundLeaf[Double, Const]) =>
-        new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Upper]]))
+      IntervalTree.buildOne(xLow, xUpp, new Const(y)) match {
+        case empty: EmptyNode[Double, Const] => None
+        case nonEmpty: NonEmptyITree[Double, Const, _] => {
+          Some(new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Upper]]))
+        }
+      }
   }
 
   def const(value: Double): Spline[Const] = {
     IntervalTree.buildOne(
       Double.MinValue,
       Double.MaxValue,
-      new Const(value)).map(nonEmpty =>
-      new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Upper]])).get
+      new Const(value)) match {
+      case _: EmptyNode[Double, Const] =>
+        throw new RuntimeException("Result should not be empty")
+      case nonEmpty: NonEmptyITree[Double, Const, Upper] => {
+        new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Upper]])
+      }
+    }
   }
 
   def line(low: (Double, Double), upp: (Double, Double)): Option[Spline[Line]] = {
@@ -393,9 +401,12 @@ object Spline{
 
   def line(xLow: Double, yLow: Double, xUpp: Double, yUpp: Double): Option[Spline[Line]] = {
     val l = Line(xLow, xUpp, yLow, yUpp)
-    IntervalTree.buildOne(xLow, xUpp, Line(xLow, xUpp, yLow, yUpp))
-      .map(nonEmpty =>
-        new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Line, Upper]]))
+    IntervalTree.buildOne(xLow, xUpp, Line(xLow, xUpp, yLow, yUpp)) match {
+      case empty: EmptyNode[Double, Line] => None
+      case nonEmpty: NonEmptyITree[Double, Line, Upper] => {
+        Some(new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Line, Upper]]))
+      }
+    }
   }
 
   def lines(points: List[(Double, Double)]): Option[Spline[Line]] =
@@ -443,8 +454,7 @@ object Spline{
               funcs: (Double) => Double,
               interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Iterator[P]
 
-    def apply(
-              argVals: List[Double],
+    def apply(argVals: List[Double],
               funcVals: List[Double],
               interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Iterator[P]
 
@@ -649,6 +659,31 @@ object Spline{
       new Lagrange2(Array(y, 0.0, 0.0))
     }
 
+  }
+
+  implicit case object MakeConstPieceFunctions extends PieceFunFactory[Const]{
+
+    override def apply(vect: List[(Double, Double)]): Iterator[Const] = {
+      vect.iterator.map(v => new Const(v._2))
+    }
+
+    override def apply( args: (Int) => Double,
+                        funcs: (Double) => Double,
+                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
+                      ): Iterator[Const] = {
+      val argVals = makeArgsFromFunc(args, interval).iterator
+      argVals.map(x => new Const(funcs(x)))
+    }
+
+    //TODO implement typeclass apply() method with separated argument a function values
+    override def apply( argVals: List[Double],
+                        funcVals: List[Double],
+                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
+                      ): Iterator[Const] = {
+      ???
+    }
+
+    override def applyConst(x0: Double, x1: Double, y: Double): Const = new Const(y)
   }
 
 }
