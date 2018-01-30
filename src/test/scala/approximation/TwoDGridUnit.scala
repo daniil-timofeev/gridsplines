@@ -1,20 +1,15 @@
 package approximation
-import java.io.BufferedWriter
-
-import org.specs2._
-import org.specs2.mutable.Specification
-import org.specs2.mutable._
-import piecewise.{Line, PieceFunction, Spline}
-import approximation._
+import approximation.TwoDGrid.Bounds._
 import approximation.TwoDGrid._
-import org.specs2.matcher._
+import org.specs2.mutable.Specification
+import piecewise.{Const, Spline}
 /**
   *
   */
 class TwoDGridUnit extends Specification{override def is = s2"""
       correctly update X  ${updateX}
       correctly update Y  ${updateY}
-      correct horisontal iteration step ${horIter}
+      correct horizontal iteration step ${horIter}
       correct vertical iteration step ${vertIter}
       correct full iteration step ${makeFullStep}
       no heat flow bound update at upper side ${noHeatFlowUpp}
@@ -24,21 +19,17 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       "write grid ${writeGridTest}
       "x coefficient array size ${getXCoefs}"
       "y coefficient array size ${getYCoefs}"
+      "Orthogonal direction will heated faster than radial ${radialAndOrthoHeating}"
   """
 
   def updateX = {
 
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
-    val bounds = Bounds(
-      upp = new OneElementTemperature,
-      low = new OneElementTemperature,
-      left = new OneElementTemperature,
-      right = new OneElementTemperature
-    )
 
     val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
-    val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
+
+    val grid = TwoDGrid(xD, yD)(One, Temp)(One, Temp)(One, Temp)(One, Temp)(coef)
 
     grid.updateX(x => 1.0)
 
@@ -49,33 +40,23 @@ class TwoDGridUnit extends Specification{override def is = s2"""
 
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
-    val bounds = Bounds(
-      upp = new OneElementTemperature,
-      low = new OneElementTemperature,
-      left = new OneElementTemperature,
-      right = new OneElementTemperature
-    )
 
     val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
-    val grid = new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
+    val grid = TwoDGrid(xD, yD)(One, Temp)(One, Temp)(One, Temp)(One, Temp)(coef)
 
     grid.updateY(y => 1.0)
 
     grid.avValue must_== 1.0
   }
 
-  def makeGrid4Iter(): TwoDGrid[Radial, Ortho] = {
+  def makeGrid4Iter(): TwoDGrid[Radial, Ortho, Const] = {
+
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 12.0)
-    val bounds = Bounds(
-      upp = new OneElementTemperature,
-      low = new OneElementTemperature,
-      left = new OneElementTemperature,
-      right = new OneElementTemperature
-    )
 
     val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
-    new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
+
+    TwoDGrid(xD, yD)(One, Temp)(One, Temp)(One, Temp)(One, Temp)(coef)
   }
 
   def horIter = {
@@ -111,24 +92,17 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     grid.avValue must be_>(1.0)
   }
 
-  def makeGrid(): TwoDGrid[Radial, Ortho] = {
+  def makeGrid(): TwoDGrid[Radial, Ortho, Const] = {
     val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
     val yD = new YDim[Ortho](1.0, y => y + 1.0, 12.0)
-    val bounds = Bounds(
-      upp = new OneElementTemperature,
-      low = new OneElementTemperature,
-      left = new OneElementTemperature,
-      right = new OneElementTemperature
-    )
 
     val coef = new ConstantCoef(Spline.const(1.0), Spline.const(1.0), Spline.const(1.0))
-    new TwoDGrid[Radial, Ortho](xD, yD, bounds, coef)
+    TwoDGrid(xD, yD)(One, Temp)(One, Temp)(One, Temp)(One, Temp)(coef)
   }
 
   def noHeatFlowLeft = {
     val grid = makeGrid()
     grid *= 1.0
-    import TwoDGrid._
     grid.noHeatFlow(Left)
     grid.bounds.left.get(0) must_== 1
   }
@@ -136,7 +110,6 @@ class TwoDGridUnit extends Specification{override def is = s2"""
   def noHeatFlowRight = {
     val grid = makeGrid()
     grid *= 1.0
-    import TwoDGrid._
     grid.noHeatFlow(Right)
     grid.bounds.right.get(0) must_== 1
   }
@@ -144,7 +117,6 @@ class TwoDGridUnit extends Specification{override def is = s2"""
   def noHeatFlowUpp = {
     val grid = makeGrid()
     grid *= 1.0
-    import TwoDGrid._
     grid.noHeatFlow(Upper)
     grid.bounds.upp.get(0) must_== 1
   }
@@ -152,7 +124,6 @@ class TwoDGridUnit extends Specification{override def is = s2"""
   def noHeatFlowLow = {
     val grid = makeGrid()
     grid *= 1.0
-    import TwoDGrid._
     grid.noHeatFlow(Lower)
     grid.bounds.low.get(0) must_== 1
   }
@@ -197,5 +168,47 @@ class TwoDGridUnit extends Specification{override def is = s2"""
     yCoefs.size must_== grid.x.colsNum
   }
 
+
+  def radialAndOrthoHeating = {
+
+    def buildGrid = {
+
+      val xD = new XDim[Radial](1.0, x => x + 1.0, 10.0)
+      val yD = new YDim[Ortho](1.0, y => y + 1.0, 10.0)
+
+      import piecewise._
+      import Spline._
+
+      val coef = new ConstantCoef(Spline.const(1.5), Spline.const(1E6))
+
+      val grid = TwoDGrid(xD, yD)(One, Flow)(One, Flow)(One, Flow)(One, Flow)(coef)
+
+      grid.updateX(x => 6.0)
+      grid.bounds *= 0.0
+      grid
+    }
+
+    val timeStep = 15.0 * 60.0
+
+    val grid = buildGrid
+
+    for (i <- 1 to 100){
+      grid.bounds.left *= 15.0
+      grid.iteration(timeStep)
+    }
+
+    val grid0 = buildGrid
+
+    for (i <- 1 to 100){
+      grid0.bounds.upp *= 15.0
+      grid0.iteration(timeStep)
+    }
+
+    import com.twitter.algebird._
+
+    val verticalSum = grid0.col(5).map(AveragedValue(_)).reduce(_ + _).value
+    val horizontalSum = grid.row(5).map(AveragedValue(_)).reduce(_ + _).value
+    verticalSum must be_>(horizontalSum) //because vertical is ortho, and horizontal is radial
+  }
 
 }

@@ -627,13 +627,13 @@ object IntervalTree{
   type InLowVarUp[K, U[t] <: Upper[t]] = Intersection[InclusiveLower, U, K]
 
   def buildOne[K: Ordering, V](xLow: K, xUpp: K, f: V
-                              ): Option[UpperBoundLeaf[K, V]]= {
+                              ): IntervalTree[K, V] = {
     val ord = implicitly[Ordering[K]]
     if (ord.lt(xLow, xUpp)) {
-      val interval = new Intersection(InclusiveLower(xLow), InclusiveUpper(xLow))
-      Some(new UpperBoundLeaf[K, V](interval, f))
+      val interval = new Intersection(InclusiveLower(xLow), InclusiveUpper(xUpp))
+      new UpperBoundLeaf[K, V](interval, f)
     }
-    else None
+    else EmptyNode[K, V]()
   }
 
 

@@ -1,8 +1,7 @@
 package approximation
+import approximation.TwoDGrid._
 import org.specs2._
-import approximation._
 import piecewise.Spline
-import TwoDGrid._
 
 class GridTest extends Specification{def is = s2"""
      ${test}
@@ -38,16 +37,8 @@ class GridTest extends Specification{def is = s2"""
         (x0, x1) => Spline.const(cond / heatCap)
       )
 
-
-      val bounds =
-      Bounds(
-        upp = new Temperature(Upper, xDim, yDim),
-        low = new Temperature(Lower, xDim, yDim),
-        right = new Temperature(Right, xDim, yDim),
-        left = new HeatFlow(Left, xDim, yDim)
-      )
-
-      val grid = new TwoDGrid(xDim, yDim, bounds, conduct)
+      val grid =
+        TwoDGrid(xDim, yDim)(Many, Temp)(Many, Temp)(Many, Temp)(Many, Flow)(conduct)
       val endTime = 175000
       import scala.collection._
       val points = mutable.Buffer.apply[Array[Double]]()
@@ -65,6 +56,7 @@ class GridTest extends Specification{def is = s2"""
         }
         grid.left(leftArray)
         points += Array(math.log(current), leftArray(0))
+        import TwoDGrid.Bounds._
         grid.noHeatFlow(Right)
         grid.noHeatFlow(Upper)
         grid.noHeatFlow(Lower)
