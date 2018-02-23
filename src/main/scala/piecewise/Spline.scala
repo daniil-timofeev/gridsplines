@@ -1,11 +1,10 @@
 package piecewise
 
-import com.twitter.algebird.{Intersection, _}
+import com.twitter.algebird._
 import piecewise.Spline._
 import piecewise.intervaltree._
 
-import scala.annotation.tailrec
-import scala.collection.mutable.ListBuffer
+import scala.collection.immutable.SortedSet
 
 /** Spline with type `S`
   */
@@ -29,8 +28,8 @@ import scala.collection.mutable.ListBuffer
     */
   def apply(x: Double): Double = {
     IntervalTree.find(x, content) match {
-      case empty: EmptyNode[Double, S] => throw new java.util.NoSuchElementException(
-        f"Spline apply fails on $x input, with funcs: ${sources.toList.toString}")
+      case empty: EmptyNode[Double, S] => throw new NoSuchElementException(
+        f"Spline apply fails on $x input, with funcs: ${sources.toString}")
       case nonEmpty: NonEmptyITree[Double, S, Upper] => get(nonEmpty, x, _.apply)
     }
   }
@@ -59,7 +58,7 @@ import scala.collection.mutable.ListBuffer
     */
   def der(x: Double): Double = {
     IntervalTree.find(x, content) match {
-      case empty: EmptyNode[Double, S] => throw new java.util.NoSuchElementException(
+      case empty: EmptyNode[Double, S] => throw new NoSuchElementException(
         f"Spline der fails on $x input, with funcs: ${sources.toString}")
       case nonEmpty: NonEmptyITree[Double, S, Upper] => get(nonEmpty, x, _.der)
     }
@@ -88,7 +87,7 @@ import scala.collection.mutable.ListBuffer
     */
   def integral(x: Double): Double = {
     IntervalTree.find(x, content) match {
-      case empty: EmptyNode[Double, S] =>  throw new java.util.NoSuchElementException(
+      case empty: EmptyNode[Double, S] =>  throw new NoSuchElementException(
         f"Spline integral fails on $x input, with funcs: ${sources.toList.toString}")
       case nonEmpty: NonEmptyITree[Double, S, Upper] => get(nonEmpty, x, _.integral)
     }
@@ -146,7 +145,8 @@ import scala.collection.mutable.ListBuffer
 
   def map[R <: PieceFunction](f: S => R): Spline[R] = {
 
-    content.map[Double, S, R]((low: Double, upp: Double, pf: S) => (low, upp, f(pf))) match {
+    content.map[Double, S, R]((low: Double, upp: Double, pf: S) =>
+      (low, upp, f(pf))) match {
       case nonEmpty: NonEmptyITree[Double, R, Upper] => new Spline(nonEmpty)
       case empty: EmptyNode[Double, R] => ???
     }
@@ -247,10 +247,12 @@ import scala.collection.mutable.ListBuffer
     * @return
     */
   protected def sumArguments(spl: Spline[PieceFunction]): List[Double] = {
-    val list = spl.sources.map(_._1._1) ++ this.sources.map(_._1._1)
+    val list =
+      spl.iterator.flatMap(x => Iterator(x._1._1, x._1._2)) ++
+      this.iterator.flatMap(x => Iterator(x._1._1, x._1._2))
     val min = math.max(this.content.low, spl.content.low)
     val max = math.min(this.content.upp, spl.content.upp)
-    list.view.filter(x => x >= min && x <= max).distinct.sorted.force
+    list.filter(x => x >= min && x <= max).to[SortedSet].toList
   }
 
   def /[B >: S <: PieceFunction](spl: Spline[PieceFunction])(
@@ -347,7 +349,7 @@ object Spline{
         spline: Spline[S])(implicit factory: PieceFunFactory[S]): Spline[S1] = {
     import com.twitter.algebird._
 
-    val source = factory.->(spline)
+    val source = factory.unapply(spline)
 
     IntervalTree.buildLeft[Double, S1](source, spline.content.size + 2) match {
       case nonEmpty: NonEmptyITree[Double, S1, Upper] => new Spline[S1](nonEmpty)
@@ -422,46 +424,37 @@ object Spline{
 
   def smooth = ???
 
-  def apply[S <: PieceFunction: PieceFunFactory](vect: List[(Double, Double)]
-                                                ): Option[Spline[S]] = {
-    val v = vect.sortBy(_._1)
-    val factory = implicitly[PieceFunFactory[S]]
-    val pieceFunctions = factory(v)
+  def apply[S <: PieceFunction: PieceFunFactory](
+            list: List[(Double, Double)]): Option[Spline[S]] = {
+    val size = list.size
+    val iter = list.sortBy(_._1).iterator
+    apply(iter, size)(implicitly[PieceFunFactory[S]])
+  }
+
+
+  def apply[S <: PieceFunction: PieceFunFactory](iter: Iterator[(Double, Double)],
+                                                 size: Int): Option[Spline[S]] = {
+    val pieceFunctions = implicitly[PieceFunFactory[S]].apply(iter)
 
     if (pieceFunctions.isEmpty) {
       None
     }
     else {
-      val initial =
-        v.map(_._1)
-         .sliding(2)
-         .map(list => (list(0), list(1)))
-         .zip(pieceFunctions)
-
-    IntervalTree.buildRight(initial, v.size - 1) match {
-      case empty: EmptyNode[Double, S] => None
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(new Spline(nonEmpty))
+      IntervalTree.buildRight(pieceFunctions, size - 1) match {
+        case empty: EmptyNode[Double, S] => None
+        case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(new Spline(nonEmpty))
+      }
     }
-    }
-
   }
 
   abstract class PieceFunFactory[P <: PieceFunction]{
 
-    def apply(args: List[(Double, Double)]): Iterator[P]
-
-    def apply(args: (Int) => Double,
-              funcs: (Double) => Double,
-              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Iterator[P]
-
-    def apply(argVals: List[Double],
-              funcVals: List[Double],
-              interval: Intersection[InclusiveLower, ExclusiveUpper, Double]): Iterator[P]
+    def apply(args: Iterator[(Double, Double)]): Iterator[((Double, Double), P)]
 
     def applyConst(x0: Double, x1: Double, y: Double): P
 
-    def ->[P1 >: P <: PieceFunction](spl: Spline[P]
-          ): Iterator[((Double, Double), P1)] = {
+    def unapply[P1 >: P <: PieceFunction](spl: Spline[P]
+                                         ): Iterator[((Double, Double), P1)] = {
       val (lowerX, upperX, lower, upper) = Spline.boundsOf(spl)
 
       val lowInterval = (Double.MinValue, lowerX)
@@ -479,183 +472,70 @@ object Spline{
 
   }
 
-  @tailrec
-  protected final def makeArgsFromFunc(args: (Int) => Double,
-                               interval: Intersection[InclusiveLower, ExclusiveUpper, Double],
-                               res: ListBuffer[Double] = ListBuffer.empty[Double],
-                               i: Int = 0): List[Double] = {
-    i match{
-      case in if interval(args(i)) =>
-        makeArgsFromFunc(args, interval, res += args(i), i + 1)
-      case before if !interval(args(i)) && interval.upper(args(i)) =>
-        makeArgsFromFunc(args, interval, res, i + 1)
-      case after => res.result()
-    }
-  }
 
-  @tailrec final def getArgsWithIndexes(
-                       args: (Int) => Double,
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double],
-                       res: ListBuffer[(Double, Int)] = ListBuffer.empty[(Double, Int)],
-                       i: Int = 0
-                       ): List[(Double, Int)] = {
-    i match{
-      case in if interval(args(i)) =>
-        getArgsWithIndexes(args, interval, res += Tuple2(args(i), i), i + 1)
-      case before if !interval(args(i)) && interval.upper(args(i)) =>
-        getArgsWithIndexes(args, interval, res, i + 1)
-      case after => res.result()
-    }
-  }
+  implicit case object CubicHermiteFactory extends PieceFunFactory[Hermite3] {
 
-  implicit case object CubicHermiteFactory extends PieceFunFactory[Hermite3]{
-
-    override def apply(vect: List[(Double, Double)]): Iterator[Hermite3] = {
-      Hermite3.apply(vect).iterator
+    override def apply(args: Iterator[(Double, Double)]
+                      ): Iterator[((Double, Double), Hermite3)] = {
+      Hermite3.applyIncremental(args)
     }
 
-    override def apply(
-                   args: (Int) => Double,
-                   funcs: (Double) => Double,
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                      ): Iterator[Hermite3] = {
-      val argVals = makeArgsFromFunc(args, interval)
-      Hermite3(argVals, argVals.map(funcs(_))).iterator
-    }
-
-    //TODO implement typeclass apply() method with separated argument a function values
-    override def apply(
-                   argVals: List[Double],
-                   funcVals: List[Double],
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]) = {
-      ???
-    }
 
     override def applyConst(x0: Double, x1: Double, y: Double): Hermite3 = {
       val x0 = 0.0
       new Hermite3(Array(y, 0.0, 0.0, 0.0, 0.0), x0)
     }
-
   }
 
-  implicit case object CubicHermiteMonotoneFactory extends PieceFunFactory[M1Hermite3]{
+  implicit case object CubicHermiteMonotoneFactory extends PieceFunFactory[M1Hermite3] {
 
-    override def apply(vect: List[(Double, Double)]): Iterator[M1Hermite3] = {
-      M1Hermite3.apply(vect).iterator //TODO make M1Hermitre3.apply result type as Iterator[M1Hermite3]
+    override def apply(args: Iterator[(Double, Double)])
+    : Iterator[((Double, Double), M1Hermite3)] = {
+      M1Hermite3(args)
     }
-
-    override def apply(args: (Int) => Double,
-                       funcs: (Double) => Double,
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-      ): Iterator[M1Hermite3] = {
-      val argVals = makeArgsFromFunc(args, interval)
-      M1Hermite3(argVals, argVals map (funcs(_))).iterator
-    }
-
-    //TODO implement typeclass apply() method with separated argument a function values
-    override def apply(argVals: List[Double],
-                       funcVals: List[Double],
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
-    : Iterator[M1Hermite3] = ???
 
     override def applyConst(x0: Double, x1: Double, y: Double): M1Hermite3 = {
       new M1Hermite3(Array(y, 0.0, 0.0, 0.0), x0)
     }
-
   }
 
   implicit case object LinesFactory extends PieceFunFactory[Line]{
 
-    override def apply(vect: List[(Double, Double)]): Iterator[Line] = {
-      Line.apply(vect)
+    override def apply(args: Iterator[(Double, Double)])
+    : Iterator[((Double, Double), Line)] = {
+      Line(args)
     }
 
     def apply(xLow: Double, yLow: Double, xUpp: Double, yUpp: Double): Line = {
-     Line.apply(xLow, xUpp, yLow, yUpp)
+      Line.apply(xLow, xUpp, yLow, yUpp)
     }
-
-    override def apply(
-                   args: (Int) => Double,
-                   funcs: (Double) => Double,
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                   ): Iterator[Line] = {
-      val argVals = makeArgsFromFunc(args, interval)
-      Line(argVals, argVals map(funcs(_))).iterator
-    }
-
-    //TODO implement typeclass apply() method with separated argument a function values
-    override def apply(
-                   argVals: List[Double],
-                   funcVals: List[Double],
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                   ): Iterator[Line] = ???
 
     override def applyConst(x0: Double, x1: Double, y: Double): Line = new Line(0.0, y)
+
   }
 
-  implicit object CubicLagrangeFactory extends PieceFunFactory[Lagrange3]{
+  implicit object CubicLagrangeFactory extends PieceFunFactory[Lagrange3] {
 
-    override def apply(
-                   vect: List[(Double, Double)]): Iterator[Lagrange3] = {
-      Lagrange3.apply(vect).iterator
-    }
+    override def apply(args: Iterator[(Double, Double)]
+                      ): Iterator[((Double, Double), Lagrange3)] = {
+      Lagrange3(args.toList).map(s => ((s.low, s.upp), s))
+    }.iterator
 
-    override def apply(
-                   args: (Int) => Double,
-                   funcs: (Double) => Double,
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                   ): Iterator[Lagrange3] = {
-      val argVals = makeArgsFromFunc(args, interval)
-      Lagrange3(argVals.map(x => (x, funcs(x)))).iterator
-    }
 
-    //TODO implement type class apply() method with separated argument a function values
-    override def apply(
-                   argVals: List[Double],
-                   funcVals: List[Double],
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                   ): Iterator[Lagrange3] = {
-      val atInterval = (argVals zip funcVals).filter((point: (Double, Double)) =>
-        interval(point._1))
-      Lagrange3(atInterval).iterator
-    }
-
-    override def applyConst(
-                   x0: Double, x1: Double, y: Double): Lagrange3 = {
+    override def applyConst(x0: Double, x1: Double, y: Double): Lagrange3 = {
       new Lagrange3(Array(y, 0.0, 0.0, 0.0), x0, x1)
     }
-
   }
 
   implicit case object MakeSquarePieceFunctions extends PieceFunFactory[Lagrange2]{
 
-    override def apply(
-                   vect: List[(Double, Double)]): Iterator[Lagrange2] = {
-      Lagrange2.apply(vect.toList).iterator
-    }
-
-    override def apply(
-                   args: (Int) => Double,
-                   funcs: (Double) => Double,
-                   interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                   ): Iterator[Lagrange2] = {
-      val argVals = makeArgsFromFunc(args, interval)
-      Lagrange2(argVals.map(x => (x, funcs(x)))).iterator
-    }
-
-    //TODO implement type class apply() method with separated argument a function values
-    override def apply(
-                       argVals: List[Double],
-                       funcVals: List[Double],
-                       interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                      ): Iterator[Lagrange2] = {
-      val atInterval = (argVals zip funcVals)
-        .filter((point: (Double, Double)) => interval(point._1))
-      Lagrange2(atInterval).iterator
+    override def apply(args: Iterator[(Double, Double)]
+                      ): Iterator[((Double, Double), Lagrange2)] = {
+      Lagrange2.apply(args)
     }
 
     override def applyConst(
-                   x0: Double, x1: Double, y: Double): Lagrange2 = {
+    x0: Double, x1: Double, y: Double): Lagrange2 = {
       new Lagrange2(Array(y, 0.0, 0.0))
     }
 
@@ -663,27 +543,16 @@ object Spline{
 
   implicit case object MakeConstPieceFunctions extends PieceFunFactory[Const]{
 
-    override def apply(vect: List[(Double, Double)]): Iterator[Const] = {
-      vect.iterator.map(v => new Const(v._2))
-    }
-
-    override def apply( args: (Int) => Double,
-                        funcs: (Double) => Double,
-                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                      ): Iterator[Const] = {
-      val argVals = makeArgsFromFunc(args, interval).iterator
-      argVals.map(x => new Const(funcs(x)))
-    }
-
-    //TODO implement typeclass apply() method with separated argument a function values
-    override def apply( argVals: List[Double],
-                        funcVals: List[Double],
-                        interval: Intersection[InclusiveLower, ExclusiveUpper, Double]
-                      ): Iterator[Const] = {
-      ???
+    override def apply(args: Iterator[(Double, Double)]
+                      ): Iterator[((Double, Double), Const)] = {
+      args.sliding(2).map{src: Seq[(Double, Double)] =>
+        val Seq(low, upp) = src
+        ((low._1, upp._1), new Const(low._2))
+      }
     }
 
     override def applyConst(x0: Double, x1: Double, y: Double): Const = new Const(y)
+
   }
 
 }
