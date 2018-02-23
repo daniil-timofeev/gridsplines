@@ -1,6 +1,5 @@
 package piecewise
 
-import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalacheck.{Gen, Properties}
@@ -21,13 +20,18 @@ object SplineCheck extends Properties("Spline"){
     g <- nonEmptyListOf[Double](choose(-100.0, 100.0))
   } yield g
 
-  val doublePointsGen: Gen[List[(Double, Double)]] = for{
-    x <- doublesListGen.map(_.distinct.sorted)
-    xy <- x.map(l => (l, arbDouble.arbitrary.sample.get))
-  } yield xy
 
-  property(" Get building points") =
-  forAll(doublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
+  val doublePointsGen: Gen[List[(Double, Double)]] =
+    doublesListGen.map(_.distinct.sorted)
+      .flatMap((x: List[Double]) => {
+        x.map(x => choose(-100.0, 100.0).map(y => List((x, y)))).reduce((a, b) => {
+          a.flatMap((a: List[(Double, Double)]) =>
+            b.map((b: List[(Double, Double)]) => a ++ b))
+        })
+      })
+
+  property(" Get lines building points") =
+  forAllNoShrink(doublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
     (vals: List[(Double, Double)]) => {
       val spline = Spline[Line](vals)
       if (vals.size == 1) {
@@ -38,23 +42,24 @@ object SplineCheck extends Properties("Spline"){
       }
     }}
 
-  property("bounds") = forAllNoShrink(doublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
-    (vals: List[(Double, Double)]) => {
+  property("bounds") =
+    forAllNoShrink(
+      doublePointsGen.map(_.sortBy(_._1)) suchThat(list => list.lengthCompare(3) > 0)
+    ){(vals: List[(Double, Double)]) => {
       val spline = Spline.lines(vals).get
-      val (lowerX, upperX, lower, upper) = Spline.boundsOf(spline)
-      val lowerX0 = spline.lowerBound
-      val upperX0 = spline.upperBound
-      val lower0 = spline(lowerX0)
-      val upper0 = spline(upperX0)
+      val lowerX = spline.lowerBound
+      val upperX = spline.upperBound
+      val lower = spline(lowerX)
+      val upper  = spline(upperX)
+      val lowX = vals(0)._1
+      val low = vals(0)._2
+      val uppX = vals.last._1
+      val upp = vals.last._2
       all(
-        "Lower x" |:
-        lowerX ?= lowerX0,
-        "Upper x" |:
-        upperX ?= upperX0,
-        "Lower y" |:
-        lower ?= lower0,
-        "Upper y" |:
-        upper ?= upper0
+        "Lower x" |: {propBoolean(lowerX / lowX < 1.0001)},
+        "Upper x" |: {propBoolean(upperX / uppX < 1.0001)},
+        "Lower y" |: {propBoolean(lower / low < 1.0001)},
+        "Upper y" |: {propBoolean(upper / upp < 1.0001)}
       )
     }
   }

@@ -14,7 +14,7 @@ case class Lagrange2(override protected val coefs: Array[Double])
   }
 
   def this(v1: (Double, Double), v2: (Double, Double), v3: (Double, Double)) = {
-    this(Lagrange2.polynominals(v1, v2, v3))
+    this(Lagrange2.polynomials(v1, v2, v3))
   }
 
   override def apply(x: Double): Double =
@@ -46,17 +46,20 @@ case class Lagrange2(override protected val coefs: Array[Double])
 }
 object Lagrange2 {
 
-  def apply(vals : List[(Double, Double)]): List[Lagrange2] = {
-    if(vals.lengthCompare(3) < 0)
-      throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
-    (vals, vals drop 1, vals drop 2).zipped map{(v1, v2, v3) =>{
-      val (a, b, c) = polynominals(v1, v2, v3)
-      val interval = PieceFunction.makeInterval(v1._1, v3._1)
-      new Lagrange2(Array(c, b, a))
-    }}
+  def apply(vals: Iterator[(Double, Double)]
+           ): Iterator[((Double, Double), Lagrange2)] = {
+    vals.sliding(3)map{(src: Seq[(Double, Double)]) =>
+      if (src.lengthCompare(3) < 0)
+        throw new IllegalArgumentException("Должно быть 3 точки / Must be 3 points")
+      else {
+        val Seq(v1, v2, v3) = src
+        val (a, b, c) = polynomials(v1, v2, v3)
+        ((v1._1, v3._1),  new Lagrange2(Array(c, b, a)))
+      }
+    }
   }
 
-  private def polynominals(v1: (Double, Double),
+  private def polynomials(v1: (Double, Double),
                            v2: (Double, Double),
                            v3: (Double, Double)): (Double, Double, Double) = {
     val (x0, y0) = v1

@@ -64,12 +64,6 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
 }
 object Hermite3 {
 
-  def h(low: Double, upp: Double) = upp - low
-
-  def delta(yLow: Double, yUpp: Double, low: Double, upp: Double) = {
-    (yUpp - yLow) / h(low, upp)
-  }
-
   abstract class SmoothType{
 
     final def monotonize(alpha: Double, beta: Double): (Double, Double) = {
@@ -175,71 +169,99 @@ object Hermite3 {
     throw new IllegalArgumentException("The size of values must equal or more than two")
   }
 
+  private[piecewise]
   def array(xLow: Double, xUpp: Double,
             dLow: Double, dUpp: Double,
             yLow: Double, yUpp: Double): Array[Double] = {
     Array(xLow, xUpp, dLow, dUpp, yLow, yUpp)
   }
 
-  def makeSources(values: List[(Double, Double)]): Iterator[Array[Double]] = {
-    values match {
-      case Nil => Iterator.empty
-      case any :: Nil => Iterator.empty
-      case v1 :: v2 :: Nil => {
-        Iterator(array(v1._2, v2._2, 0.0, 0.0, v1._1, v2._1))
-      }
-      case v1 :: v2 :: v3 :: Nil => {
-        val der1 = deriv(v1, v2)
-        val der2 = deriv(v2, v3)
-        val der = (der1 + der2) / 2.0
-        Iterator(
-          array(v1._2, v2._2, 0.0, der, v1._1, v2._1),
-          array(v2._2, v3._2, der, 0.0, v2._1, v3._1)
-        )
-      }
-      case vals => {
-        val dervs = derivatives(vals)
-        (vals.sliding(2) zip dervs.sliding(2)).map(lists => {
-          val (((x1, y1) :: (x2, y2) :: Nil), Seq(d1, d2)) = lists
-          array(y1, y2, d1, d2, x1, x2)
-        })
+  def makeSources(values: Iterator[(Double, Double)]): Iterator[Array[Double]] = {
+    new Iterator[Array[Double]] {
+      val vals = values
+      var isFirst = true
+      var isLast = true
+
+      var v1: (Double, Double) = _
+      var v2: (Double, Double) = _
+      var der: Double = _
+
+      var last: Array[Double] = _
+
+      override def hasNext: Boolean = vals.hasNext || isLast
+
+
+      override def next(): Array[Double] = {
+        if (isFirst && hasNext){
+          isFirst = false
+          val v0 = vals.next()
+          if (hasNext) {
+            v1 = vals.next()
+            if (hasNext) {
+              v2 = vals.next()
+              if (vals.hasNext) {
+                val der1 = deriv(v0, v1)
+                val der2 = deriv(v0, v2)
+                der = der2
+                array(v0._2, v1._2, der1, der2, v0._1, v1._1)
+              }
+              else {
+                val der1 = deriv(v0, v1)
+                val der2 = deriv(v1, v2)
+                der = (der1 + der2) / 2.0
+                last = array(v1._2, v2._2, der, 0.0, v1._1, v2._1)
+                array(v0._2, v1._2, 0.0, der, v0._1, v1._1)
+              }
+            }
+            else array(v0._2, v1._2, 0.0, 0.0, v0._1, v1._1)
+          }
+          else
+            throw new IllegalArgumentException("Iterator must link to more than 1 value")
+        }
+        else if (vals.hasNext){
+          val v3 = vals.next()
+          val der2 = deriv(v1, v3)
+          val res = array(v1._2, v2._2, der, der2, v1._1, v2._1)
+          v1 = v2
+          v2 = v3
+          der = der2
+          if (vals.isEmpty) {
+            val der2 = deriv(v1, v2)
+            last = array(v1._2, v2._2, der, der2, v1._1, v2._1)
+          }
+          res
+        }
+        else {
+          isLast = false
+          last
+        }
       }
     }
   }
 
-  def apply(values: List[(Double, Double)]): List[Hermite3] = {
+  def apply(values: Iterator[(Double, Double)]): Iterator[Hermite3] = {
     makeSources(values).map{src =>
       val d_a = delta(src(0), src(1), src(4), src(5))
       val h0 = h(src(4), src(5))
       new Hermite3(src(0), src(1), src(2), src(3), src(4), src(5), h0, d_a)
-    }.toList
+    }
   }
 
+  def applyIncremental(
+        values: Iterator[(Double, Double)]
+        ): Iterator[((Double, Double), Hermite3)] = {
+    makeSources(values).map{src =>
+      val d_a = delta(src(0), src(1), src(4), src(5))
+      val h0 = h(src(4), src(5))
+      ((src(4), src(5)),
+        new Hermite3(src(0), src(1), src(2), src(3), src(4), src(5), h0, d_a))
+    }
+  }
 
-
-  def apply(x: List[Double], y: List[Double]): List[Hermite3] = {
+  def apply(x: List[Double], y: List[Double]): Iterator[Hermite3] = {
     if (x.length != y.length)
       throw new IllegalArgumentException("x array length must be same as y array length")
-    apply(x.zip(y))
+    apply(x.iterator.zip(y.iterator))
   }
-
-  private def derivatives(values : List[(Double, Double)]): Iterator[Double] = {
-    val onBound = boundDervs(values)
-    onBound._1 :: (values, values drop 2).zipped.map(deriv) :::
-      onBound._2 :: Nil
-    Iterator(onBound._1) ++
-    values.sliding(3).map(list => deriv(list(0), list(2))) ++
-    Iterator(onBound._2)
-  }
-
-  private def boundDervs(values: List[(Double, Double)]) = {
-    val rightVals = values takeRight 2
-    val der1 = deriv(values.head, values.tail.head)
-    val der2 = deriv(rightVals.head, rightVals.tail.head)
-    (der1, der2)
-  }
-
-  private def deriv(xy1: (Double, Double), xy2: (Double, Double)) =
-    (xy2._2 - xy1._2) / (xy2._1 - xy1._1)
 
 }

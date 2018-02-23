@@ -92,21 +92,19 @@ class SplineSpecs extends Specification {def is = s2"""
   }
 
   def bounds = {
-    val points = List((-1.2, 0.0), (-0.5, 0.0), (0.3, 0.0), (1.0, 0.0), (2.0, 0.0))
+    val points = List((-1.2, 1.0), (-0.5, 2.0), (0.3, 3.0), (1.0, 2.0), (2.0, 1.0))
     val spline = Spline[Line](points).get
 
-    val (lowerX, upperX, lower, upper) = Spline.boundsOf(spline)
     val lowerBoundX = spline.lowerBound
     val upperBoundX = spline.upperBound
-    val lowerBoundY = spline(lowerX)
-    val upperBoundY = spline(upperX)
+    val lowerBoundY = spline(lowerBoundX)
+    val upperBoundY = spline(upperBoundX)
 
-    (lowerBoundX must_== lowerX) and
-    (upperBoundX must_== upperX) and
-    (lowerBoundY must_== lower) and
-    (upperBoundY must_== upper) and
-    (lowerX must_== -1.2) and
-    (upperX must_== 2.0)
+    (lowerBoundX must_== -1.2) and
+    (upperBoundX must_== 2.0) and
+    (lowerBoundY must beCloseTo(1.0, 0.000000001)) and
+    (upperBoundY must beCloseTo(1.0, 0.000000001))
+
   }
 
   def sliceLowerAt1 = {

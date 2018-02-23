@@ -27,8 +27,8 @@ import scala.math._
   *
   */
 case class Lagrange3(protected val coefs: Array[Double],
-                     protected val low: Double,
-                     protected val upp: Double
+                     private[piecewise] val low: Double,
+                     private[piecewise] val upp: Double
                     ) extends PieceFunction {
 
   override def apply(x: Double): Double =

@@ -42,7 +42,8 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
 object Line{
 
   import com.twitter.algebird._
-  class LineMonoid extends Monoid[Line]{
+
+  implicit val LineMonoid = new Monoid[Line]{
     lazy val zero = Line(1.0, 0.0)
 
     override def plus(x: Line, y: Line): Line = {
@@ -54,34 +55,20 @@ object Line{
 
   def derivative(yUp: Double,
                  yL: Double,
-                 upp: Double,
-                 low: Double): Double = (yUp - yL) / (upp - low)
+                 xUp: Double,
+                 xLow: Double): Double = (yUp - yL) / (xUp - xLow)
 
-  def apply(argVals: List[Double], funVals: List[Double]): List[Line] = {
-    val argView = argVals.view
-    val funView = funVals.view
-
-    {argView.zip(argView.drop(1)) zip (funView.zip((funView.drop(1))))} map{t =>{
-      val ((xLow, xUp),(yLow, yUp)) = t
-      val der = derivative(yUp, yLow, xUp, xLow)
-      val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
-      new Line(der, free)
-    }} toList
-  }
-
-  def apply(points: List[(Double, Double)]): Iterator[Line] = {
-    if (points.size > 1) {
-      points.sliding(2).map{pSeq =>
-        val Seq((xLow, yLow),(xUp, yUp)) = pSeq
-        apply(xLow, xUp, yLow, yUp)
+  def apply(points: Iterator[(Double, Double)]): Iterator[((Double, Double), Line)] = {
+      points.sliding(2).collect{
+        case Seq((xLow, yLow),(xUp, yUp)) =>
+          ((xLow, xUp), apply(xLow, xUp, yLow, yUp))
       }
-    }
-    else Iterator.empty
   }
+
   def apply(xLow: Double, xUp: Double, yLow: Double, yUp: Double): Line = {
-    val der = derivative(yUp, yLow, xUp, xLow)
-    val free = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
-    new Line(der, free)
+    val slope = derivative(yUp, yLow, xUp, xLow)
+    val intercept = PieceFunction.interpolate(xLow, xUp, yLow, yUp, 0.0)
+    new Line(slope, intercept)
   }
 
  class LineConverter[S <: PieceFunction] extends SplineConvert[S, Line]{

@@ -1,6 +1,5 @@
 package piecewise
 
-import scala.collection.mutable.ListBuffer
 import scala.math._
 
 /** Монотонная кусочная кубическая кривая для интерполяции / Monotonic piecewise cubic curve for interpolation
@@ -74,16 +73,16 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 }
 object M1Hermite3 {
 
-  def constructSpline(source: Array[Double]): M1Hermite3 = {
+  def constructSpline(source: Array[Double]): ((Double, Double), M1Hermite3) = {
     val Array(yLow, yUpp, sdLow, sdUpp, xLow, xUpp) = source
-    val delta = Hermite3.delta(yLow, yUpp, xLow, xUpp)
-    val h = Hermite3.h(xLow, xUpp)
+    val delta_ = delta(yLow, yUpp, xLow, xUpp)
+    val h_ = h(xLow, xUpp)
     val coefs: Array[Double] = Array(
         yLow, sdLow,
-        (-2.0 * sdLow - sdUpp + 3.0 * delta) / h,
-        (sdLow + sdUpp - 2.0 * delta) / pow(h, 2.0)
+        (-2.0 * sdLow - sdUpp + 3.0 * delta_) / h_,
+        (sdLow + sdUpp - 2.0 * delta_) / pow(h_, 2.0)
     )
-    M1Hermite3(coefs, xLow)
+    ((xLow, xUpp), M1Hermite3(coefs, xLow))
   }
 
   def smoothness(prev: Array[Double],
@@ -96,31 +95,41 @@ object M1Hermite3 {
     prev
   }
 
-  def apply(values: List[(Double, Double)]): List[M1Hermite3] = {
+  def apply(values: Iterator[(Double, Double)]
+           ): Iterator[((Double, Double), M1Hermite3)] = {
     import Hermite3._
     val sources = Hermite3.makeSources(values)
       .map(monothone(_)(Normal))
-    if (sources.isEmpty) Nil
-    else {
-    val buffer = ListBuffer.empty[M1Hermite3]
 
-    var prevous = sources.next()
-    if(sources.hasNext) {
-      while (sources.hasNext) {
-        val next = sources.next()
-        val source = smoothness(prevous, next)
-        buffer += constructSpline(source)
-        if(sources.isEmpty) {
-          next.update(2, source(3))
-          buffer += constructSpline(next)
+      if (sources.isEmpty) Iterator.empty
+      else new Iterator[((Double, Double), M1Hermite3)]{
+
+      val src = sources
+
+      override def hasNext: Boolean = src.hasNext
+
+      private var prevous = if (sources.hasNext) src.next else ???
+
+      override def next(): ((Double, Double), M1Hermite3) = {
+        if (hasNext) {
+          val next = src.next()
+          val transformed = smoothness(prevous, next)
+          val res = constructSpline(transformed)
+          if (hasNext) {
+            prevous = next
           }
-        prevous = next
+          else {
+            next.update(2, transformed(3))
+            prevous = next
+          }
+          res
+        }
+        else constructSpline(prevous)
+        }
       }
     }
-    else buffer += constructSpline(prevous)
-    buffer.result()
-    }
-  }
+
+
 
   def apply(x: List[Double], y: List[Double]): List[M1Hermite3] = {
       ???

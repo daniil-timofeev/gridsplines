@@ -157,7 +157,7 @@ object UniSpline{
               vect: List[(Double, Double)]): Option[UniSpline[S]] = {
       val v = vect.sortBy(_._1)
       val factory = implicitly[PieceFunFactory[S]]
-      val pieceFunctions = factory(v)
+      val pieceFunctions = factory(v.iterator)
 
       if (pieceFunctions.isEmpty) {
         None
