@@ -16,13 +16,11 @@ object SplineCheck extends Properties("Spline"){
     y <- choose(0.0, 100.0)
   } yield (x, y)
 
-  val doublesListGen: Gen[List[Double]] = for{
-    g <- nonEmptyListOf[Double](choose(-100.0, 100.0))
-  } yield g
+  val listOfDoublesGen: Gen[List[Double]] =
+    nonEmptyListOf[Double](choose(-100.0, 100.0))
 
-
-  val doublePointsGen: Gen[List[(Double, Double)]] =
-    doublesListGen.map(_.distinct.sorted)
+  val listOfDoublePointsGen: Gen[List[(Double, Double)]] =
+    listOfDoublesGen.map(_.distinct.sorted)
       .flatMap((x: List[Double]) => {
         x.map(x => choose(-100.0, 100.0).map(y => List((x, y)))).reduce((a, b) => {
           a.flatMap((a: List[(Double, Double)]) =>
@@ -31,7 +29,7 @@ object SplineCheck extends Properties("Spline"){
       })
 
   property(" Get lines building points") =
-  forAllNoShrink(doublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
+  forAllNoShrink(listOfDoublePointsGen suchThat(list => list.lengthCompare(3) > 0)){
     (vals: List[(Double, Double)]) => {
       val spline = Spline[Line](vals)
       if (vals.size == 1) {
@@ -44,7 +42,7 @@ object SplineCheck extends Properties("Spline"){
 
   property("bounds") =
     forAllNoShrink(
-      doublePointsGen.map(_.sortBy(_._1)) suchThat(list => list.lengthCompare(3) > 0)
+      listOfDoublePointsGen.map(_.sortBy(_._1)) suchThat(list => list.lengthCompare(3) > 0)
     ){(vals: List[(Double, Double)]) => {
       val spline = Spline.lines(vals).get
       val lowerX = spline.lowerBound

@@ -14,6 +14,7 @@ class IntervalTreeSpecs extends Specification{def is = s2"""
     Build interval tree with eight members ${buildEight}
     Build interval tree with nine members ${buildNine}
     Build interval tree with ten members ${buildTen}
+    Ten integers fold ${fold}
   """
 
   def iterator: Iterator[((Double, Double), Int)] = {
@@ -111,4 +112,18 @@ class IntervalTreeSpecs extends Specification{def is = s2"""
     (tree.size must_== 10) and
     (iter.size must_== 10)
   }
+
+
+  def fold = {
+    val tree = IntervalTree.buildRight(iterator.take(10), 10)
+
+    val sum = iterator.take(10).map(_._2).sum
+
+    val calcSum =
+      IntervalTree.subIntervalFold(tree, 0.0, 11.0, (l: Double, u: Double, v: Int) => v)
+
+    calcSum must_== sum
+    }
+
 }
+

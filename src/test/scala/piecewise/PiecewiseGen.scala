@@ -1,10 +1,11 @@
 package piecewise
 
 import org.scalacheck.Arbitrary.arbDouble
-import org.scalacheck.Gen
 import org.scalacheck.Gen.{nonEmptyListOf, _}
+import org.scalacheck.{Arbitrary, Gen}
+import piecewise.SplineCheck.listOfDoublesGen
 
-object GenPiecewiceCheck {
+object PiecewiseGen {
 
 
   val xCoords: Gen[Set[Double]] =
@@ -28,5 +29,25 @@ object GenPiecewiceCheck {
     toList.
     zip(xVals.toList.map(_ => posNum[Double].sample.getOrElse(0.0))).
     sortBy(_._1)
+
+  val points: Gen[List[(Double, Double)]] =
+    listOfDoublesGen.map(_.distinct.sorted)
+      .flatMap((x: List[Double]) => {
+        var max = 0.0
+        x.map(x => {
+          choose(max, 100.0)
+            .map(y => {
+              max = y
+              List((x, y))
+            })
+        }).reduce((a, b) => {
+          for {
+            aa <- a
+            bb <- b
+          } yield aa ++ bb
+        })
+      }) suchThat(list => list.lengthCompare(3) == 1)
+
+  implicit val ArbPoints = Arbitrary(points)
 
 }

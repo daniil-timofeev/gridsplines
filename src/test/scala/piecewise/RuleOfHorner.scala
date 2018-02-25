@@ -1,15 +1,18 @@
+package piecewise
 
+
+import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalacheck._
 import piecewise.PieceFunction._
-import org.scalacheck.Gen._
+
 import scala.math._
 /**
   * rule of Horner tests
   */
 object RuleOfHorner extends Properties("Rule of Horner implementation") {
 
-  implicit val double = choose(0.0, 10.0)
+  implicit val double = choose(5.0, 10.0)
 
   property("Square Horner coincidence") =
     Prop.forAllNoShrink(double, double, double, double){
@@ -18,8 +21,8 @@ object RuleOfHorner extends Properties("Rule of Horner implementation") {
     val specGorner = quadraticRuleOfHorner(x, a0, a1, a2)
     val accurate = polynomial(x, a2, a1, a0)
     all(
-      abs((genGorner - accurate) / accurate) < 3.00,
-      abs((specGorner - accurate) / accurate) < 3.00
+      abs((genGorner - accurate) / accurate) < 4.00,
+      abs((specGorner - accurate) / accurate) < 4.00
     )
   }}
 
@@ -30,8 +33,8 @@ object RuleOfHorner extends Properties("Rule of Horner implementation") {
     val specGorner = cubicRuleOfHorner(x, a0, a1, a2, a3)
     val accurate = polynomial(x, a3, a2, a1, a0)
     all(
-      abs((genGorner - accurate) / accurate) < 3.00,
-      abs((specGorner - accurate) / accurate) < 3.00
+      abs((genGorner - accurate) / accurate) < 4.00,
+      abs((specGorner - accurate) / accurate) < 4.00
     )
   }}
 
@@ -42,8 +45,8 @@ object RuleOfHorner extends Properties("Rule of Horner implementation") {
       val specGorner = quadRuleOfHorner(x, a0, a1, a2, a3, a4)
       val accurate = polynomial(x, a4, a3, a2, a1, a0)
       all(
-        abs((genGorner - accurate) / accurate) < 3.00,
-        abs((specGorner - accurate) / accurate) < 3.00
+        abs((genGorner - accurate) / accurate) < 4.00,
+        abs((specGorner - accurate) / accurate) < 4.00
       )
     }}
 }
