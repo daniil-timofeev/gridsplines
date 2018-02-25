@@ -4,8 +4,8 @@ import org.specs2._
 import piecewise.Spline
 
 class Coefficients extends Specification{def is = s2"""
-               ${test}
-               ${test0}
+  Patched coefficient ${test}
+  Not patched coefficient ${test0}
   """
 
 
@@ -47,6 +47,6 @@ class Coefficients extends Specification{def is = s2"""
     val grid = TwoDGrid(xD, yD)(One, Temp)(One, Temp)(One, Temp)(One, Temp)(coef0)
 
     val rC = grid.rowCoefs(5).toSet
-    rC.size must_== 2
+    rC.size must_== 1
   }
 }

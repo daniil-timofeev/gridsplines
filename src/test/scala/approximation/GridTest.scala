@@ -63,30 +63,29 @@ class GridTest extends Specification{def is = s2"""
         grid.iteration(900)
         current += time
       }
-      import java.nio.file._
-      val dest =
-        Paths.get(
-          "C:", "Users", "Даниил", "Documents",
-          "Аспирантура", "Диссертация", "images",
-          "GHEValidation", "snapshots", "simple.dat"
-        )
-      val writer = Files.newBufferedWriter(dest,
-        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
-
-      import java.text._
-      import java.util.Locale
-      val numb = NumberFormat.getInstance(Locale.ROOT)
-      numb.setGroupingUsed(false)
-      numb.setMaximumFractionDigits(2)
-      writer.write("#time\ttemp")
-      writer.newLine()
-      try {
-        points.drop(1).foreach{lineVars =>
-          val line = s"${numb.format(lineVars(0))}.0\t${numb.format(lineVars(1))}"
-          writer.write(line)
-          writer.newLine()
-        }
-      } finally writer.close()
+    //  import java.nio.file._
+    //  val dest =
+    //    Paths.get(
+    //      "C:", "Users", "Даниил", "Documents",
+    //      "Аспирантура", "Диссертация", "images",
+    //      "GHEValidation", "snapshots", "simple.dat"
+    //    )
+    //  val writer = Files.newBufferedWriter(dest,
+    //    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+    //
+    //  import java.text._
+    //  val numb = NumberFormat.getInstance(Locale.ROOT)
+    //  numb.setGroupingUsed(false)
+    //  numb.setMaximumFractionDigits(2)
+    //  writer.write("#time\ttemp")
+    // writer.newLine()
+    // try {
+    //    points.drop(1).foreach{lineVars =>
+    //      val line = s"${numb.format(lineVars(0))}.0\t${numb.format(lineVars(1))}"
+    //      writer.write(line)
+    //      writer.newLine()
+    //   }
+    // } finally writer.close()
 
       import org.apache.commons.math3.stat.regression._
 
