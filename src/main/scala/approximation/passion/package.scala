@@ -19,7 +19,8 @@ package object passion{
     *         <code>val w = -(a+w)- 1.0/tau)</code>, где tau - время шага, сек.
     */
   @inline
-   final def cons(t1: Double, t2: Double, c: Double, z: Spline[PieceFunction]): Double = {
+   final def cons(t1: Double, t2: Double, c: Double,
+                  z: AlwaysDefinedSpline[PieceFunction]): Double = {
     val cond = z((t1 + t2) / 2.0)
     cond * c
   }
@@ -30,17 +31,18 @@ package object passion{
   }
 
   @inline
-  final def takeAverage[S <: Spline[PieceFunction]](t1: Double,
-                                                    t2: Double, z: S): Double = {
-    if (t1 == t2) z(t1)
-    else z.average(math.min(t1, t2), math.max(t1, t2))
+  final def takeAverage[P <: PieceFunction](t1: Double, t2: Double,
+                        z: AlwaysDefinedSpline[P]): Double = {
+    z.average(math.min(t1, t2), math.max(t1, t2))
   }
 
   @inline
   final def iterateFirst(timeStep: Double, pVal1: Double,
                     val2: Double,
                     pVal2: Double, pVal3: Double,
-                    pDef: Array[Double], conds: Array[Spline[PieceFunction]], toPassion: Array[Double]): Unit = {
+                    pDef: Array[Double],
+                    conds: Array[AlwaysDefinedSpline[PieceFunction]],
+                    toPassion: Array[Double]): Unit = {
     val a = cons(pVal1, pVal2, pDef(0), conds(0))
     val c = cons(pVal2, pVal3, pDef(1), conds(1))
     val vect = - val2 / timeStep - a * pVal1
@@ -49,7 +51,8 @@ package object passion{
 
   @inline
   final def iteration(time: Double, firstT: Double, t: Array[Double], lastT: Double,
-  predict: Array[Double], preDef: Array[Array[Double]], conductivities: Array[Array[Spline[PieceFunction]]],
+  predict: Array[Double], preDef: Array[Array[Double]],
+  conductivities: Array[Array[AlwaysDefinedSpline[PieceFunction]]],
   toPassion: Array[Array[Double]], result: Array[Double]): Unit = {
 
     var z = 0
@@ -93,7 +96,8 @@ package object passion{
   }
 
   final def iteration(time: Double, firstT: Double, t: Array[Double], lastT: Double,
-  predict: Array[Double], preDef: Array[Array[Double]], z: Spline[PieceFunction],
+  predict: Array[Double], preDef: Array[Array[Double]],
+                      z: AlwaysDefinedSpline[PieceFunction],
   toPassion: Array[Array[Double]], result: Array[Double]): Unit = {
 
     var r = 0
@@ -157,7 +161,8 @@ package object passion{
   @inline
   final def iteration(time: Double, indices: Array[Int], lengths: Array[Int], upper: Array[Double],
                       grid: Array[Double], predicted: Array[Double], localResult: Array[Double], result: Array[Double],
-                      lower: Array[Double], preDef: Array[Array[Double]], conds: Array[Array[Spline[PieceFunction]]],
+                      lower: Array[Double], preDef: Array[Array[Double]],
+                      conds: Array[Array[AlwaysDefinedSpline[PieceFunction]]],
                       toPassion: Array[Array[Double]]) = {
     var line = 0 // Indexes, passed to upper and lower bounds arrays
     var flatten = 0 // Indexes, passed to preDef array

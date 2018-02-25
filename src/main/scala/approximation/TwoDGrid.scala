@@ -3,7 +3,7 @@ package approximation
 import java.io.{BufferedWriter, IOException}
 
 import approximation.TwoDGrid.Bounds._
-import approximation.TwoDGrid._
+import approximation.TwoDGrid.{Coefficients, _}
 import approximation.XDim.RowIterator
 import approximation.YDim.ColumnIterator
 import piecewise.Spline.PieceFunFactory
@@ -324,8 +324,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir, P <: PieceFunction](
     }
   }
 
-  def rowCoefs(rowNum: Int): Array[Spline[PieceFunction]] = {
-    val result = new Array[Spline[PieceFunction]](x.colsNum)
+  def rowCoefs(rowNum: Int): Array[AlwaysDefinedSpline[P]] = {
+    val result = new Array[AlwaysDefinedSpline[P]](x.colsNum)
     var xInd = 0
     while (xInd != x.colsNum) {
       result.update(xInd, coefs(xInd, rowNum))
@@ -334,8 +334,8 @@ class TwoDGrid[XType <: TypeDir, YType <: TypeDir, P <: PieceFunction](
     result
   }
 
-  def colCoefs(colNum: Int): Array[Spline[PieceFunction]] = {
-    val result = new Array[Spline[PieceFunction]](y.rowsNum)
+  def colCoefs(colNum: Int): Array[AlwaysDefinedSpline[P]] = {
+    val result = new Array[AlwaysDefinedSpline[P]](y.rowsNum)
     var yInd = 0
     while (yInd != y.rowsNum) {
       result.update(yInd, coefs(colNum, yInd))
@@ -778,49 +778,71 @@ object TwoDGrid {
     }
   }
   abstract class Coefficients[P <: PieceFunction] {
-    def thermConductivity(x: Int, y: Int): Spline[P]
-    def capacity(x: Int, y: Int): Spline[P]
-    def tempConductivity(x: Int, y: Int): Spline[P]
-    def apply(x: Int, y: Int): Spline[P]
+    def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P]
+    def capacity(x: Int, y: Int): AlwaysDefinedSpline[P]
+    def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P]
+    def apply(x: Int, y: Int): AlwaysDefinedSpline[P]
     def contains(x: Int, y: Int): Boolean = true
   }
 
   class ConstantCoef[P <: PieceFunction](
-    private val thermCond: Spline[P],
-    private val cap: Spline[P],
-    private val tempCond: Spline[P]) extends Coefficients[P]{
+    private val thermCond: AlwaysDefinedSpline[P],
+    private val cap: AlwaysDefinedSpline[P],
+    private val tempCond: AlwaysDefinedSpline[P]) extends Coefficients[P]{
+
+    def this(thermCond: Spline[P], cap: Spline[P], tempCond: Spline[P]){
+      this(
+        new AlwaysDefinedSpline(thermCond),
+        new AlwaysDefinedSpline(cap),
+        new AlwaysDefinedSpline(tempCond)
+      )
+    }
 
     def this(thermCond: Spline[P], cap: Spline[P])(
       implicit P: PieceFunFactory[P]){
-      this(thermCond, cap, {thermCond / cap}.get)
+      this(
+        new AlwaysDefinedSpline(thermCond),
+        new AlwaysDefinedSpline(cap),
+        new AlwaysDefinedSpline({thermCond / cap}.get))
     }
 
-    def thermConductivity(x: Int, y: Int): Spline[P] = thermCond
-    def capacity(x: Int, y: Int): Spline[P] = cap
-    def tempConductivity(x: Int, y: Int): Spline[P] = tempCond
-    def apply(x: Int, y: Int): Spline[P] = tempCond
+    def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = thermCond
+    def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = cap
+    def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = tempCond
+    def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = tempCond
     val contains = true
   }
 
   class VarYCoef[P <: PieceFunction](
-                 private val thermCond: Array[Spline[P]],
-                 private val cap: Array[Spline[P]],
-                 private val tempCond: Array[Spline[P]]
+                 private val thermCond: Array[AlwaysDefinedSpline[P]],
+                 private val cap: Array[AlwaysDefinedSpline[P]],
+                 private val tempCond: Array[AlwaysDefinedSpline[P]]
                 ) extends Coefficients[P]{
 
-    override def thermConductivity(x: Int, y: Int): Spline[P] = {
+    def this(thermCond: Array[Spline[P]],
+             cap: Array[Spline[P]],
+             tempCond: Array[Spline[P]]
+            ){
+      this(
+        thermCond.map(c => new AlwaysDefinedSpline(c)),
+        cap.map(c => new AlwaysDefinedSpline(c)),
+        tempCond.map(c => new AlwaysDefinedSpline(c))
+      )
+      }
+
+    override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       thermCond(y + 1)
     }
 
-    override def capacity(x: Int, y: Int): Spline[P] = {
+    override def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       cap(y + 1)
     }
 
-    override def tempConductivity(x: Int, y: Int): Spline[P] = {
+    override def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       tempCond(y + 1)
     }
 
-    def apply(x: Int, y: Int): Spline[P] = tempCond(y + 1)
+    def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = tempCond(y + 1)
   }
 
   object VarYCoef{
@@ -831,38 +853,46 @@ object TwoDGrid {
              ): VarYCoef[P] = {
       new VarYCoef[P](
         yDim.values.sliding(2).collect{
-          case Array(y0, y1) => buildThermCond(y0, y1)
+          case Array(y0, y1) => new AlwaysDefinedSpline(buildThermCond(y0, y1))
         }.toArray,
         yDim.values.sliding(2).collect{
-          case Array(y0, y1) => buildCapCond(y0, y1)
+          case Array(y0, y1) => new AlwaysDefinedSpline(buildCapCond(y0, y1))
         }.toArray,
         yDim.values.sliding(2).collect{
-          case Array(y0, y1) => buildTempCond(y0, y1)
+          case Array(y0, y1) => new AlwaysDefinedSpline(buildTempCond(y0, y1))
         }.toArray
       )
     }
   }
 
   class VarXCoef[P <: PieceFunction](
-                 private val thermCond: Array[Spline[P]],
-                 private val cap: Array[Spline[P]],
-                 private val tempCond: Array[Spline[P]]
+                 private val thermCond: Array[AlwaysDefinedSpline[P]],
+                 private val cap: Array[AlwaysDefinedSpline[P]],
+                 private val tempCond: Array[AlwaysDefinedSpline[P]]
                 ) extends Coefficients[P]{
 
-
-    override def thermConductivity(x: Int, y: Int): Spline[P] = {
+     def this(thermCond: Array[Spline[P]],
+              cap: Array[Spline[P]],
+              tempCond: Array[Spline[P]]){
+       this(
+         thermCond.map(c => new AlwaysDefinedSpline(c)),
+         cap.map(c => new AlwaysDefinedSpline(c)),
+         tempCond.map(c => new AlwaysDefinedSpline(c))
+       )
+     }
+    override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       thermCond(y + 1)
     }
 
-    override def capacity(x: Int, y: Int): Spline[P] = {
+    override def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       cap(y + 1)
     }
 
-    override def tempConductivity(x: Int, y: Int): Spline[P] = {
+    override def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       tempCond(y + 1)
     }
 
-    def apply(x: Int, y: Int): Spline[P] = tempCond(y + 1)
+    def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = tempCond(y + 1)
 
   }
   object VarXCoef{
@@ -872,13 +902,13 @@ object TwoDGrid {
               buildTempCond: (Double, Double) => Spline[P]): VarXCoef[P] = {
       new VarXCoef(
         xDim.values.sliding(2).collect{
-        case Array(x0, x1) => buildThermCond(x0, x1)
+        case Array(x0, x1) => new AlwaysDefinedSpline(buildThermCond(x0, x1))
         }.toArray,
         xDim.values.sliding(2).collect{
-          case Array(x0, x1) => buildCapCond(x0, x1)
+          case Array(x0, x1) => new AlwaysDefinedSpline(buildCapCond(x0, x1))
         }.toArray,
         xDim.values.sliding(2).collect{
-          case Array(x0, x1) => buildTempCond(x0, x1)
+          case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
         }.toArray
       )
     }
@@ -886,29 +916,43 @@ object TwoDGrid {
 
   import com.twitter.algebird._
   class PatchXCoef[P <: PieceFunction](
-                   private val thermCond: Array[Spline[P]],
-                   private val cap: Array[Spline[P]],
-                   private val tempCond: Array[Spline[P]],
+                   private val thermCond: Array[AlwaysDefinedSpline[P]],
+                   private val cap: Array[AlwaysDefinedSpline[P]],
+                   private val tempCond: Array[AlwaysDefinedSpline[P]],
                         rangeX: Interval[Int],
                         rangeY: Interval[Int]) extends Coefficients[P]{
+
+    def this(thermCond: Array[Spline[P]],
+             cap: Array[Spline[P]],
+             tempCond: Array[Spline[P]],
+             rangeX: Interval[Int],
+             rangeY: Interval[Int]
+            ){
+      this(
+        thermCond.map(c => new AlwaysDefinedSpline(c)),
+        cap.map(c => new AlwaysDefinedSpline(c)),
+        tempCond.map(c => new AlwaysDefinedSpline(c)),
+        rangeX, rangeY
+      )
+    }
 
     override def contains(x: Int, y: Int): Boolean = {
       rangeX.contains(x) && rangeY.contains(y)
     }
 
-    override def thermConductivity(x: Int, y: Int): Spline[P] = {
+    override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       thermCond(y + 1)
     }
 
-    override def capacity(x: Int, y: Int): Spline[P] = {
+    override def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       cap(y + 1)
     }
 
-    override def tempConductivity(x: Int, y: Int): Spline[P] = {
+    override def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       tempCond(y + 1)
     }
 
-    def apply(x: Int, y: Int) = tempCond(y + 1)
+    def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = tempCond(y + 1)
 
   }
   object PatchXCoef{
@@ -921,13 +965,13 @@ object TwoDGrid {
 
      new PatchXCoef(
        xDim.values.sliding(2).collect{
-          case Array(x0, x1) => buildThermCond(x0, x1)
+          case Array(x0, x1) => new AlwaysDefinedSpline(buildThermCond(x0, x1))
        }.toArray,
        xDim.values.sliding(2).collect{
-         case Array(x0, x1) => buildCapCond(x0, x1)
+         case Array(x0, x1) => new AlwaysDefinedSpline(buildCapCond(x0, x1))
        }.toArray,
        xDim.values.sliding(2).collect{
-         case Array(x0, x1) => buildTempCond(x0, x1)
+         case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
        }.toArray,
         Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
         Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
@@ -947,29 +991,43 @@ object TwoDGrid {
   }
 
   class PatchYCoef[P <: PieceFunction](
-                   private val thermCond: Array[Spline[P]],
-                   private val cap: Array[Spline[P]],
-                   private val tempCond: Array[Spline[P]],
+                   private val thermCond: Array[AlwaysDefinedSpline[P]],
+                   private val cap: Array[AlwaysDefinedSpline[P]],
+                   private val tempCond: Array[AlwaysDefinedSpline[P]],
                    rangeX: Interval[Int],
                    rangeY: Interval[Int]) extends Coefficients[P]{
+
+    def this(thermCond: Array[Spline[P]],
+             cap: Array[Spline[P]],
+             tempCond: Array[Spline[P]],
+             rangeX: Interval[Int],
+             rangeY: Interval[Int]
+            ){
+      this(
+        thermCond.map(c => new AlwaysDefinedSpline(c)),
+        cap.map(c => new AlwaysDefinedSpline(c)),
+        tempCond.map(c => new AlwaysDefinedSpline(c)),
+        rangeX, rangeY
+      )
+    }
 
     override def contains(x: Int, y: Int): Boolean = {
       rangeX.contains(x) && rangeY.contains(y)
     }
 
-    override def thermConductivity(x: Int, y: Int): Spline[P] = {
+    override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       thermCond(y + 1)
     }
 
-    override def capacity(x: Int, y: Int): Spline[P] = {
+    override def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       cap(y + 1)
     }
 
-    override def tempConductivity(x: Int, y: Int): Spline[P] = {
+    override def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       tempCond(y + 1)
     }
 
-    def apply(x: Int, y: Int): Spline[P] = tempCond(x + 1)
+    def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = tempCond(x + 1)
   }
   object PatchYCoef {
     def apply[P <: PieceFunction](yDim: YDim[TypeDir],
@@ -979,13 +1037,13 @@ object TwoDGrid {
               lX: Int, uX: Int, lY: Int, uY: Int): PatchYCoef[P] = {
       new PatchYCoef(
         yDim.values.sliding(2).collect {
-          case Array(x0, x1) => buildThermCond(x0, x1)
+          case Array(x0, x1) => new AlwaysDefinedSpline(buildThermCond(x0, x1))
         }.toArray,
         yDim.values.sliding(2).collect {
-          case Array(x0, x1) => buildCapCond(x0, x1)
+          case Array(x0, x1) => new AlwaysDefinedSpline(buildCapCond(x0, x1))
         }.toArray,
         yDim.values.sliding(2).collect {
-          case Array(x0, x1) => buildTempCond(x0, x1)
+          case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
         }.toArray,
         Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
         Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
@@ -1008,22 +1066,22 @@ object TwoDGrid {
                                               path: PatchXCoef[P])
     extends Coefficients[P]{
 
-    override def thermConductivity(x: Int, y: Int): Spline[P] = {
+    override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path.thermConductivity(x, y)
       else xCoefs.thermConductivity(x, y)
     }
 
-    override def capacity(x: Int, y: Int): Spline[P] = {
+    override def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path.capacity(x, y)
       else xCoefs.capacity(x, y)
     }
 
-    override def tempConductivity(x: Int, y: Int): Spline[P] = {
+    override def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path.tempConductivity(x, y)
       else xCoefs.tempConductivity(x, y)
     }
 
-    override def apply(x: Int, y: Int): Spline[P] = {
+    override def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path(x, y) else xCoefs(x, y)
     }
   }
@@ -1032,22 +1090,22 @@ object TwoDGrid {
                                               path: PatchYCoef[P])
     extends Coefficients[P]{
 
-    override def thermConductivity(x: Int, y: Int): Spline[P] = {
+    override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path.thermConductivity(x, y)
       else yCoefs.thermConductivity(x, y)
     }
 
-    override def capacity(x: Int, y: Int): Spline[P] = {
+    override def capacity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path.capacity(x, y)
       else yCoefs.capacity(x, y)
     }
 
-    override def tempConductivity(x: Int, y: Int): Spline[P] = {
+    override def tempConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path.tempConductivity(x, y)
       else yCoefs.tempConductivity(x, y)
     }
 
-    override def apply(x: Int, y: Int): Spline[P] = {
+    override def apply(x: Int, y: Int): AlwaysDefinedSpline[P] = {
       if (path.contains(x, y)) path(x, y) else yCoefs(x, y)
     }
   }

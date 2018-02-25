@@ -1,4 +1,4 @@
-
+import piecewise._
 
 /**
   * Created by Даниил on 13.03.2017.
@@ -9,4 +9,8 @@ package object approximation {
   implicit val radial = new Radial
   implicit val left = new Left
   implicit val right = new Right
+
+  def applyAlwaysDefined[S <: PieceFunction](spl: Spline[S])(arg: Double): Double = {
+    spl(arg)
+  }
 }

@@ -1,7 +1,7 @@
 package approximation
 
 import approximation.passion.{forwardFirst, forwardLast, forwardUnit}
-import piecewise.{PieceFunction, Spline}
+import piecewise.PieceFunction
 
 abstract class Dim[+T <: TypeDir] {
 
@@ -30,13 +30,13 @@ abstract class Dim[+T <: TypeDir] {
   }
 
   final
-  def first(time: Double,
+  def first[P <: PieceFunction](time: Double,
             t1: Double,
             t2: Double,
             t3: Double,
             t: Double,
-            z0: Spline[PieceFunction],
-            z: Spline[PieceFunction]): Double = {
+            z0: AlwaysDefinedSpline[P],
+            z: AlwaysDefinedSpline[P]): Double = {
     val co0 = passion.takeAverage(t1, t2, z0)
     val co = passion.takeAverage(t2, t3, z)
     val a = coefs(0)(0) * co0
@@ -48,13 +48,13 @@ abstract class Dim[+T <: TypeDir] {
   }
 
   final
-  def firstHeatFlow(time: Double,
+  def firstHeatFlow[P <: PieceFunction](time: Double,
                     heatFlow: Double,
                     t2: Double,
                     t3: Double,
                     t: Double,
-                    conductivity: Spline[PieceFunction],
-                    capacity: Spline[PieceFunction]): Double = {
+                    conductivity: AlwaysDefinedSpline[P],
+                    capacity: AlwaysDefinedSpline[P]): Double = {
 
     val cap = passion.takeAverage(t, t, capacity)
     val cond = passion.takeAverage(t, t, conductivity)
@@ -66,13 +66,13 @@ abstract class Dim[+T <: TypeDir] {
   }
 
   final
-  def general(posAtLayer: Int,
+  def general[P <: PieceFunction](posAtLayer: Int,
               time: Double,
               t2: Double,
               t3: Double,
               t: Double,
               co0: Double,
-              z: Spline[PieceFunction]): Double = {
+              z: AlwaysDefinedSpline[P]): Double = {
     val co = passion.takeAverage(t2, t3, z)
     val a = coefs(posAtLayer)(0) * co0
     val c = coefs(posAtLayer)(1) * co
@@ -83,13 +83,14 @@ abstract class Dim[+T <: TypeDir] {
   }
 
   final
-  def last(posAtLayer: Int,
+  def last[P <: PieceFunction](
+           posAtLayer: Int,
            time: Double,
            t2: Double,
            t3: Double,
            t: Double,
            co0: Double,
-           z: Spline[PieceFunction]): Unit = {
+           z: AlwaysDefinedSpline[P]): Unit = {
     val co = passion.takeAverage(t2, t3, z)
     val a = coefs(posAtLayer)(0) * co0
     val c = coefs(posAtLayer)(1) * co
@@ -100,14 +101,14 @@ abstract class Dim[+T <: TypeDir] {
   }
 
   final
-  def lastHeatFlow( posAtLayer: Int,
+  def lastHeatFlow[P <: PieceFunction](posAtLayer: Int,
                     time: Double,
                     heatFlow: Double,
                     t1: Double,
                     t2: Double,
                     t: Double,
-                    conductivity: Spline[PieceFunction],
-                    capacity: Spline[PieceFunction]): Double = {
+                    conductivity: AlwaysDefinedSpline[P],
+                    capacity: AlwaysDefinedSpline[P]): Double = {
 
     val cap = passion.takeAverage(t, t, capacity)
     val cond = passion.takeAverage(t, t, conductivity)

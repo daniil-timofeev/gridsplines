@@ -1,9 +1,8 @@
 package approximation
-import approximation.CoordSystem.{CoordsConvert, Radians}
-import com.twitter.algebird.{Monoid}
+import approximation.CoordSystem.{CoordsConvert, Radians, _}
+import com.twitter.algebird.Monoid
 
 import scala.math._
-import CoordSystem._
 /**
   * Created by Даниил on 14.03.2017.
   */
@@ -27,7 +26,8 @@ case class Polar(radius: Double, angle: Double) extends CoordSystem{
   override def toDecart = new Decart(radius * cos(angle), radius * sin(angle))
 
   def rangeByAngle(angleStep: Double): Vector[Polar] = {
-    {correctAngle.v to {correctAngle.v + math.Pi * 2.0} by angleStep}.view.map(x => new Polar(radius, x)).toVector
+    {correctAngle.v to {correctAngle.v + math.Pi * 2.0} by angleStep}
+      .view.map(x => new Polar(radius, x)).toVector
   }
 
   def rangeByAngleNumbers(angles: Int): Vector[Polar] = {

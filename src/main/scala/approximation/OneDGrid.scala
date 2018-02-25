@@ -3,7 +3,8 @@ package approximation
 import java.text.NumberFormat
 import java.time.LocalDateTime
 import java.util.Locale
-import passion._
+
+import approximation.passion._
 import piecewise._
 
 
@@ -13,7 +14,7 @@ import piecewise._
 case class OneDGrid[Dir <: TypeDir](leftX: Double,
                                     rangeX: Array[Double],
                                     rightX: Double,
-                                    conductivities: Array[Array[Spline[PieceFunction]]],
+                                    conductivities: Array[Array[AlwaysDefinedSpline[PieceFunction]]],
                                     sigma: Double)(implicit dir: Dir){
 
   val grid = Array.fill(rangeX.length)(4.0)
@@ -67,8 +68,12 @@ object OneDGrid{
   //TODO add "implicit not found" annotation
   def apply[Dir <: TypeDir](leftX: Double, rangeX: Array[Double], rightX: Double,
                             conductivity: Spline[PieceFunction], sigma: Double)(implicit  dir: Dir) = {
-    val array: Array[Array[Spline[PieceFunction]]] =
-      Array.fill(rangeX.length)(Array(conductivity, conductivity))
+    val array: Array[Array[AlwaysDefinedSpline[PieceFunction]]] =
+      Array.fill(rangeX.length)(
+        Array(
+          new AlwaysDefinedSpline(conductivity),
+          new AlwaysDefinedSpline(conductivity))
+      )
     new OneDGrid[Dir](leftX, rangeX, rightX, array, sigma)
   }
 }
