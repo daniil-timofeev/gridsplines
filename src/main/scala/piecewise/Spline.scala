@@ -9,7 +9,7 @@ import scala.collection.immutable.SortedSet
 /** Spline with type `S`
   */
  class Spline[+S <: PieceFunction](
-         protected val content: NonEmptyITree[Double, S, Upper]) {
+         protected val content: NonEmptyITree[Double, S, Upper]){
 //TODO add possibility to find interval with some others piece functions types
 
   @inline
@@ -21,7 +21,8 @@ import scala.collection.immutable.SortedSet
 
   /** Value of function at `x`.
     *
-    * NOTE: in case, when `x` out of the spline interval, an exception will be thrown.
+    * NOTE: provide unsafe access to value.
+    * In a case, where `x` out of the spline interval, an exception will be thrown.
     *
     * @param x function argument
     * @return function value
@@ -36,7 +37,8 @@ import scala.collection.immutable.SortedSet
 
   /** Value of function at `x`.
     *
-    * NOTE: in case, when `x` out of the spline interval, the result will be None.
+    * NOTE: provide safe access to value.
+    * Returns `None` in a case, where `x` out of the spline interval.
     *
     * @param x function argument
     * @return function value
@@ -51,7 +53,7 @@ import scala.collection.immutable.SortedSet
 
   /** Derivative of function at `x`.
     *
-    * NOTE: in case, when `x` out of the spline interval, the result will be an Exception.
+    * NOTE: in a case, when `x` out of the spline interval, the result will be an Exception.
     *
     * @param x function argument
     * @return function derivative
@@ -118,13 +120,9 @@ import scala.collection.immutable.SortedSet
   def average(lower: Double, upper: Double): Double = {
     import com.twitter.algebird.Monoid._
     IntervalTree.subIntervalFold(
-      content,
-      lower,
-      upper,
-      (l: Double, u: Double, fun: S) => {
-        fun.area(l, u) / (u - l)
-      }
-    )
+      content, lower, upper,
+      (l: Double, u: Double, fun: S) => fun.area(l, u)
+    ) / (upper - lower)
   }
 
   /** Area under the spline domain at [`lower` to `upper`]
@@ -135,9 +133,7 @@ import scala.collection.immutable.SortedSet
     */
   def area(lower: Double, upper: Double): Double = {
     IntervalTree.subIntervalFold(
-      content,
-      lower,
-      upper,
+      content, lower, upper,
       (l: Double, u: Double, fun: S) => fun.area(l, u)
     )
   }
@@ -316,7 +312,7 @@ import scala.collection.immutable.SortedSet
     }
   }
 
-  def toUniSpline: UniSpline[S] = new UniSpline[S](content)
+
 
   def asUniSpline[S1 >: S <: PieceFunction, S2 >: S1 <: PieceFunction](
         implicit builder: PieceFunFactory[S1]): Spline[S2] =
