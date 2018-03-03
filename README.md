@@ -1,5 +1,7 @@
 # Gridsplines
 
+[![Join the chat at https://gitter.im/gridsplines/Lobby](https://badges.gitter.im/gridsplines/Lobby.svg)](https://gitter.im/gridsplines/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ### Introduction
 Project contains a finite difference solver for heat transfer and diffusion problems at one or two dimensional grids. The grid can represent orthogonal or cyllindric coordinate spaces.
 There is also a simple polynomial spline library, which contains cubic Lagrange, cubic Hermite and monotone cubic Hermite polynomial splines. 
