@@ -11,12 +11,12 @@ import scala.collection.Iterator
 
 
 
-/**
+/** Interval tree algorithm AST root
   *
   */
-
 abstract class IntervalTree[K, +V]{
 
+  /** size of interval tree. Will over */
   def size: Int
 
   def hasBoundNode: Boolean

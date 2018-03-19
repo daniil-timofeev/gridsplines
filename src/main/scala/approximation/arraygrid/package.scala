@@ -7,12 +7,12 @@ import scala.math.pow
   */
 package object arraygrid {
 
-  /** Ширина объёма, который представляет узел
+  /** A Width of the volume which presents the node
     *
-    * @param lOne   координата первого узла
-    * @param lTwo   координата среднего узла
-    * @param lThree координата третьего узла
-    * @return Ширина объёма, который представляет узел, м
+    * @param lOne   coordinate of the prevous node
+    * @param lTwo   coordinate of the current node
+    * @param lThree coordinate of the next node
+    * @return A Width of the volume which presents the node, m
     */
   @inline def ah(lOne: Double, lTwo: Double, lThree: Double) = {
     (lThree + lTwo) / 2.0 - (lOne + lTwo) / 2.0
@@ -23,13 +23,13 @@ package object arraygrid {
                            lowerBoundCoord: Double,
                            sigma: Double = 1.0): Array[Array[Double]] = {
 
-    /**
-      * Генерирует лист коэффициентов а и с (без учёта температуропроводности)
-      * трёхдиагональной матрицы. Коэффициент w далее находится как -(alpha1 x a + alpha2 x w)
+    /** Provide a list of the coefficients `a` and `c` (without taking into account the temperature conductivity)
+      * for the current node. This coefficients will be used in bound diagonal at the three diagonal matrix.
+      * Central diagonal will be calculated as `-(alpha1 x a + alpha2 x w)`
       *
-      * @param l1 координата r1 шаблона, м;
-      * @param l2 координата r2 шаблона, м;
-      * @param l3 координата r3 шаблона, м.
+      * @param l1 prevous node coordinate, m;
+      * @param l2 current node coordinate r2, m;
+      * @param l3 next node coordinate r3, m.
       * @return List(a, c)
       **/
     @inline def listOfCoef(l1: Double, l2: Double, l3: Double) = {
@@ -39,12 +39,12 @@ package object arraygrid {
       Array(a, c)
     }
 
-    /** Генерирует значение коэффициентa трёхдиагональной матрицы на шаблоне
+    /** Provide a value of coefficient of the tridiagonal matrix
       *
-      * @param lOne координата одного узла на шаблоне
-      * @param lTwo координата следующего узла на шаблоне
-      * @param h    объём средней ячейки шаблона
-      * @return коэффициет a или с, без учёта коэффициента температуропроводности
+      * @param lOne coordinate of the node
+      * @param lTwo coordinate of the next node
+      * @param h    average node width
+      *
       */
     @inline def coef(lOne: Double, lTwo: Double, h: Double): Double = {
       sigma / h / dh(lOne, lTwo)
@@ -77,10 +77,9 @@ package object arraygrid {
     result.toArray
   }
 
-  /** Переопределяет предположение о темепературе на следующем шаге
-    * @param oldVal температуры до итерирования
-    * @param newVal температуры после итерирования
-    * @return предполагаемая температура на следующем шаге
+  /** Predicts the temperature at the next step
+    * @param oldVal old temperature values
+    * @param newVal current temperature value
     */
   @inline
   final def aVal(oldVal: Double, newVal: Double): Double = {
@@ -91,11 +90,10 @@ package object arraygrid {
   final def midVal(oldVal: Double, newVal: Double): Double = {
     (oldVal + newVal) / 2.0
   }
-  /** Шаг по расстоянию между двумя узлами
-    *
-    * @param l1 координата первого узла, м
-    * @param l2 координата следующего узла, м
-    * @return шаг по расстоянию, м
+  /** A distance between the two adjacent nodes
+    * @param l1 position of the first node, m
+    * @param l2 position of the second node, m
+    * @return a distance between nodes, m
     */
   @inline final def dh(l1 : Double, l2 : Double) = {
     l2 - l1
@@ -106,12 +104,6 @@ package object arraygrid {
                         maxX: Double,
                         sigma: Double = 1.0): Array[Double] = {
 
-    /** Генерирует значение коэффициентa трёхдиагональной матрицы на шаблоне
-      *
-      * @param lOne координата одного узла на шаблоне
-      * @param lTwo координата следующего узла на шаблоне
-      * @return коэффициет a или с, без учёта коэффициента температуропроводности
-      */
     @inline def coef(lOne: Double, lTwo: Double): Double = {
       1.0 / dh(lOne, lTwo)
     }
@@ -144,28 +136,28 @@ package object arraygrid {
                        rightBoundCoord: Double, sigma: Double = 1.0)
   : Array[Array[Double]] = {
 
-    /**
-      * Генерирует лист коэффициентов а и с (без учёта температуропроводности)
-      * трёхдиагональной матрицы. Коэффициент w далее находится как -(alpha1 x a + alpha2 x w)
+    /** Provide a list of the coefficients `a` and `c` (without taking into account the temperature conductivity)
+      * for the current node. This coefficients will be used in bound diagonal at the three diagonal matrix.
+      * Central diagonal will be calculated as `-(alpha1 x a + alpha2 x w)`
       *
-      * @param r1 координата r1 шаблона
-      * @param r2 координата r2 шаблона
-      * @param r3 координата r3 шаблона
+      * @param r1 prevous node coordinate, m;
+      * @param r2 current node coordinate r2, m;
+      * @param r3 next node coordinate r3, m.
       * @return List(a, c)
-      */
+      **/
     @inline def listOfCoef(r1 : Double, r2 : Double, r3 : Double) = {
       val volume = vol(r1, r2, r3)
       val a = coef(r1, r2, volume); val c = coef(r2, r3, volume)
       Array(a, c)
     }
 
-    /** Генерирует значение коэффициент трёхдиагональной матрицы на шаблоне
-
-      * @param rOne координата одного узла на шаблоне
-      * @param rTwo координата следующего узла на шаблоне
-      * @param v объём средней ячейки шаблона
-      * @return коэффициет a или с, без учёта коэффициента температуропроводности
-      * **/
+    /** Provide a value of coefficient of the tridiagonal matrix
+      *
+      * @param rOne coordinate of the node
+      * @param rTwo coordinate of the next node
+      * @param v    average node volume
+      *
+      */
     @inline def coef(rOne : Double, rTwo : Double, v : Double) : Double= {
       sigma / v * rAtHalf(rOne, rTwo) / dh(rOne, rTwo)
     }
@@ -198,22 +190,22 @@ package object arraygrid {
   }
 
 
-  /** Значение кооординаты между двумя узлами
+  /** Position value between the two adjacent nodes
     *
-    * @param rOne координата первого узла, м
-    * @param rTwo координата второго узал, м
-    * @return середина, м
+    * @param rOne right node position, m
+    * @param rTwo left node position, m
+    * @return center, m
     */
   @inline def rAtHalf(rOne : Double, rTwo : Double) = {
     (rOne + rTwo) / 2.0
   }
 
-  /** Объём ячейки шаблона высотой один метр, которую пердставляет средний узел
+  /** Node volume with one meter height, which presents the central node
     *
-    * @param rOne координата первого узла
-    * @param rTwo координата среднего узла
-    * @param rThree координата третьего узла
-    * @return объём ячейки, м3/м
+    * @param rOne prevous node position
+    * @param rTwo current node position
+    * @param rThree next node position
+    * @return node volume, m3/m
     */
   @inline def vol(rOne : Double, rTwo : Double, rThree : Double) = {
     (pow(rAtHalf(rTwo, rThree), 2.0) - pow(rAtHalf(rOne, rTwo), 2.0)) / 2.0

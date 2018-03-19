@@ -2,7 +2,7 @@ package piecewise
 
 
 /**
-  * Created by Даниил on 19.02.2017.
+  * Hermite trait
   */
 abstract class Hermite extends Polynomial{
 

@@ -2,9 +2,9 @@ package piecewise
 
 import scala.math._
 
-/** Монотонная кусочная кубическая кривая для интерполяции / Monotonic piecewise cubic curve for interpolation
-  * Кривая, предназначеная для аппроксимации явлений физической реальности, где требуется монотонность
-  * / Сurve, that serve for approximation physical reality definitions, where monotonic property required
+/** Monotonic piecewise cubic curve for the spline interpolation
+  *
+  * A Сurve, that serve for the approximation physical reality definitions, where monotonic property required
  *
   * @see Fritsch, F. N. Monotone piecewise cubic interpolation
   *      / F. N. Fritsch, R. E. Carlson // SIAM J. Numer. Anal. — 1980. — 17. № 2. — pp. 238 — 246.
@@ -36,10 +36,10 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 
  // private[this] lazy val fi1 = if(alpha < 0.3 && beta < 0.3 || fi2 == false) true else false
 
-  /** Гладкость сплайна / Spline smoothness
+  /** Spline smoothness
     *
-    * @return строку со значениями "Smooth", "Normal", "Coarse", "Coarsest", в зависимости от гладкости /
-    *         string with "Smooth", "Normal", "Coarse", "Coarsest", in dependence of curve smoothness
+    * @return
+    *  string with "Smooth", "Normal", "Coarse", "Coarsest", which depends on curve smoothness
     */
  // def smoothness = {
   //  true match {
@@ -52,10 +52,9 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
  //   }
  // }
 
-  /** Экстремум функции `x`
-    * Extremum of function `x`
+  /** Extremum of the function `x`
     *
-    * @return экстремумы функции / extremums of function */
+    * @return extremums of function */
 
   override protected def extremum(low: Double, upp: Double): List[Double] = ???
 

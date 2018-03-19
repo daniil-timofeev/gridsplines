@@ -3,8 +3,8 @@ package piecewise
 import scala.annotation.tailrec
 import scala.math._
 
-/** Кусочная кваратичная функция
-  * Created by Даниил on 06.02.2016.
+/** The Lagrange spline with power of 2
+  *
   */
 case class Lagrange2(override protected val coefs: Array[Double])
   extends Lagrange {

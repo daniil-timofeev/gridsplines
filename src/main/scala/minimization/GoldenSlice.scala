@@ -3,19 +3,17 @@ package minimization
 import scala.annotation.tailrec
 import scala.math._
 
-/** Поиск минимума при помощи метода золотого сечения.
-  * Find minimum with the gold slice (gold slice) method application
-  * Created by Даниил on 29.07.2016.
+/** Find minimum with the gold search algorithm
+  *
   */
 object GoldenSlice {
 
-  /** Поиск минимума при помощи метода зологого сечения.
-    * Find minimum with the golden slice method application
+  /** Find minimum with the gold search procedure
     *
-    * @param x01 левая граница минимизации. Left searching bound
-    * @param x02 правая граница минимизации. Right searching bound
-    * @param f функция минимизации. Minimized function
-    * @return значение x минимума. x of the minimum
+    * @param x01 left searching bound
+    * @param x02 right searching bound
+    * @param f minimized function
+    * @return x of the minimum
     */
   def apply(x01: Double, x02: Double, f: (Double) => Double,
             tol: Double = 0.0001, deviation: Boolean = false): Double = {
@@ -23,29 +21,33 @@ object GoldenSlice {
     assert(x01 < x02, f"left boundary ${x01}%.2f must be lower, than right boundary ${x02}%.2f")
     val fx01 = f(x01)
     val fx02 = f(x02)
-    val x11 = x01 + 0.38*(x02 - x01)
-    val x22 = x02 - 0.38*(x02 - x01)
+    val x11 = x01 + 0.38 * (x02 - x01)
+    val x22 = x02 - 0.38 * (x02 - x01)
 
     @inline
     def solver(fx1: Double, fx2: Double, fx3: Double, fx4: Double): Int = {
       var min : Int = 0
+
       @inline
-      val first = if(fx1 < fx2){
-        min = 0
-        fx1
-      }
-      else {
-        min = 1
-        fx2
-      }
+      val first =
+        if (fx1 < fx2){
+          min = 0
+          fx1
+        }
+        else {
+          min = 1
+          fx2
+        }
+
       @inline
-      val second = if(first < fx3) first
-      else{
-        min = 2
-        fx3
-      }
-      @inline
-      val third = if(second < fx4) second
+      val second =
+        if (first < fx3) first
+        else{
+          min = 2
+          fx3
+         }
+
+      if (second < fx4) second
       else {
         min = 3
         fx4
@@ -60,7 +62,8 @@ object GoldenSlice {
       @inline
       def ready = {
         abs(x1 - x2) < tol || abs(x2 - x3) < tol ||
-          {deviation && min(min(fx1, fx2), fx3) < tol}}
+          {deviation && min(min(fx1, fx2), fx3) < tol}
+      }
       val x = x3 + x1 - x2
       if(x < x2) {
         val fx = f(x)

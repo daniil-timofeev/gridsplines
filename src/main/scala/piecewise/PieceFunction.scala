@@ -65,15 +65,13 @@ abstract class PieceFunction{
     */
   // def * (y : Double) : B forSome{type B <: PieceFunction}
 
-  /** Определяет значение x при котором две кусочные функции пересекаются. Если фукнции не пересекаются, возвращается
-    *  пустой лист
-    *  find yL of x, where this and other functions are intersected. If functions is not intersected, an empty list
+  /** Find yL of x, where this and other functions are intersected. If functions is not intersected, an empty list
     *  returned
     *
     *  @param other другая функция / other function
     * @return значение x функции */
   def intersect(other: PieceFunction, i: (Double, Double)): List[Double] = {
-    intersectedIntervals(other, i).map(tuple =>  bisect(tuple, other))
+    intersectedIntervals(other, i).map(tuple => bisect(tuple, other))
   }
 
 
@@ -121,53 +119,29 @@ abstract class PieceFunction{
     }
   }
 
-  /** Величина площади, взятой под графиком на интервале {@code [from;to]}
-    * Value of area, takes below spline on interval {@code [from;to]}
+  /** Value of area, takes below spline on interval {@code [from;to]}
     *
-    * @param lower нижнее значение интервала / lover yL of interval
-    * @param upper верхнее значение интервала / upper yL of interval
-    * @return Площадь под этим графиком / area below this spline
+    * @param lower lover yL of the interval
+    * @param upper upper yL of the interval
+    * @return an area below this spline
     * */
   def area(lower: Double, upper: Double): Double = {
     integral(upper) - integral(lower)
   }
 
   /**
-    * Extremum of function at bounds `x`
+    * Extremum of the function at bounds `x`
     *
     * @return extremums of function */
   protected def extremum(low: Double, upp: Double): List[Double]
 
+  def max: Double
 
-  /** Максимум функции / maximum of function
-    *
-    * @return максимум функции / maximum of function */
-  def max: Double = {
-  ???
-  }
+  def maxX: Double
 
-  /** Значение {@code x} при максимуме функции / yL of x, where y is mamximum
-    *
-    * @return значение x при максимуме функции / yL of x, where y is mamximum */
-  def maxX: Double = {
-    ???
-    }
+  def min: Double
 
-
-
-  /** Минимум функции / minimum of function
-    *
-    * @return минимум функции / minimum of function */
-  def min: Double = {
-    ???
-  }
-
-  /** Значение {@code x} при минимуме функции / yL of x, where y is minimum
-    *
-    * @return значение x при минимуме функции / yL of x, where y is minimum */
-  def minX = {
-   ???
-  }
+  def minX: Double
 }
 object PieceFunction{
 
@@ -217,7 +191,7 @@ object PieceFunction{
   }
 
 
-  /** General rule of Gorner for quad degree polynomial function v finder
+  /** General Horner's rule which finds a value of the quad degree polynomial function
     * @param x argument position
     * @param a4 coef at x^4^
     * @param a3 coef at x^3^
@@ -231,7 +205,7 @@ object PieceFunction{
   }
 
 
-  /** General rule of Gorner for third degree polynomial function v finder
+  /** General Horner's rule which finds a value of the third degree polynomial function
     * @param x argument position
     * @param a3 coef at x^3^
     * @param a2 coef at x^2^
@@ -251,7 +225,7 @@ object PieceFunction{
     quadraticRuleOfHorner(x, a1, 2.0 * a2, 3.0 * a3)
   }
 
-  /** General rule of Gorner for second degree polynomial function v finder
+  /** General Horner's rule which finds a value of the second degree polynomial function
     * @param x argument position
     * @param a2 coef at x^2^
     * @param a1 coef at x^1^
@@ -329,10 +303,6 @@ object PieceFunction{
     else whenEmpty
   }
 
-  /** Интерполирует значение между двумя ближайшими точками к значению в коллекции
-    * @param value значений
-    * @param coll коллекция
-    * @param func значение, между которыми интеполируем */
   def int2Points(value : Double, coll : List[Double], func : Array[Double]) = {
     val solved = interpolate2(value, coll)
     interpolate(solved.head._1, solved.last._1, func(solved.head._2), func(solved.last._2), value)

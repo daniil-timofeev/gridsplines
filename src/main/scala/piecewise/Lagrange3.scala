@@ -5,25 +5,24 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import scala.math._
 
-/** Интерполяционный кубический сплайн дефекта 1 /
-  * Linear cubic spline with defect 1
+/** The linear cubic spline with defect 1
   *
-  * ='''Определение'''=
+  * ='''Definition'''=
   * ''
-  * ''' Кубическим сплайном дефекта 1,''' интерполирующим на отрезке ''[''a, w'']'' данную
-  * функцию f(x), называется функция
+  * ''' Cubic spline with defect 1,''' which interpolate the function at ''[''a, w'']'' interval'' and written as
+  *
   * g(x) := {g,,k,,(x) := a,,k,, + b,,k,,(x-x,,k,,) + c,,k,,(x - x,,k,,)^2^ + d,,k,, (x - x,,k,,)^3^
-  * при x принадлежащим [x,,k-1,,,k,,x,,] }^n^,,k=1,,
-  * удовлетворяющая совокупности условий:
-  * a. g(x,,k,,) = f,,k,, (условие интерполяции в узлах сплайна);
-  * б. g(x) принадлежащая С^2^''[''a, w'']'' (двойная непрерывная дифференцируемость);
-  * в. g"(a) = g"(w) = 0 (краевые условия)
+  * where x ∈ [x,,k-1,,,k,,x,,] }^n^,,k=1,,
+  * ''and satisfy the following conditions:
+  * a. g(x,,k,,) = f,,k,, (spline function values is matched to the primordial values at the spline nodes);
+  * b. g(x) принадлежащая С^2^''[''a, w'']'' (the double continuing derivability);
+  * c. g"(a) = g"(w) = 0 (bound conditions)
   * ''
   *
   * @see '''Вержбицкий В.М.''' Основы численных методов: Учебник для вузов
   *      / В.М. Вержбицкий — 3-e изд., стер. — М.: Высш. шк., 2009. — 840 с.: ил.
   * @version 0.0
-  * @author Тимофеев Д.В. / Timofeev D.V.
+  * @author Timofeev D.V.
   *
   */
 case class Lagrange3(protected val coefs: Array[Double],

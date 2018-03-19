@@ -4,18 +4,10 @@ import java.text.NumberFormat
 import java.util.Locale
 
 import scala.annotation.tailrec
-/** Прогонка
-  * Created by Даниил on 02.12.2015.
-  */
 import scala.math._
 object ListPassion {
 
-  /**  Решает систему уравнений, записанную в виде трёхдиагональной матрицы методом прогонки
-    * @param lists лист значений, во втором наборе List по три значения, на первом набре List, по длине
-    *              строки, для которой строился массив
-    * @param vector Вектор свободных значений массива
-    * @return лист результатов
-    */
+
   final def solve(lists : List[(Double, Double, Double)],
                   vector: List[Double]): List[List[Double]] = {
     backwardPassion(forwardPassion(lists, vector))

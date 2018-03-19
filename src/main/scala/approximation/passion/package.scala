@@ -239,9 +239,6 @@ package object passion{
     forwardFirst(- (a + c) - 1.0 / time, c, vect, res)
   }
 
-  /** Первый крайний шаблон прогонки
-    * @param c коэффициент по центру
-    * @param d коэффициент справа */
   @inline
   final def forwardFirst(c: Double, d: Double, vect: Double, res: Array[Double]): Unit = {
     res.update(0, - d / c)
@@ -277,8 +274,8 @@ package object passion{
 
   @inline
   final def assertion(b : Double, c : Double, d : Double, vect : Double) : Unit ={
-    assert(abs(c) >= abs(d) + abs(b), "Прогонка некорректна и/или неустойчива." +
-      f" w: $b%2.7f, c: $c%2.7f, d: $d%2.7f. Вектор: $vect%2.7f.")
+    assert(abs(c) >= abs(d) + abs(b), "Passion is not correct or unstable." +
+      f" w: $b%2.7f, c: $c%2.7f, d: $d%2.7f. Vector: $vect%2.7f.")
   }
 
   def backwardPassion(coeffficients: Array[Array[Double]],
@@ -341,13 +338,10 @@ package object passion{
     }
   }
 
-  /** Обратную прогонку, для нахождения решений уравнения
-    * @param coefficients массив коэффициентов delta lambda, заполняется в том же направлении, что и сетка
-    * @param result результирующий массив, в который записываются значения
-    * @param length длина массива, которая используется для записи (0 to length - 1)*/
+
   def backwardPassion(coefficients: Array[Array[Double]], result: Array[Double], length: Int): Unit = {
 
-    /** Расчёт результата */
+
     @inline def point(vals: Array[Double], prev: Double): Double = {
       val delta = vals(0); val lambda = vals(1)
       delta * prev + lambda
@@ -363,9 +357,6 @@ package object passion{
     }
   }
 
-  /** Обратную прогонку, для нахождения решений уравнения
-    * @param coefficients массив коэффициентов delta lambda, заполняется в том же направлении, что и сетка
-    * @param result результирующий массив, в который записываются значения */
   def backwardPassion(coefficients: Array[Array[Double]], result: Array[Double]) : Unit = {
     backwardPassion(coefficients, result, result.length)
   }

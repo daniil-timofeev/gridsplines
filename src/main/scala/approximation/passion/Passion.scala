@@ -1,16 +1,14 @@
 package approximation.passion
 
-import scala.annotation.switch
-
 /**
-  * Created by Даниил on 02.03.2017.
+  *
   */
 class Passion(size: Int) {
 
-  /**  Решает систему уравнений, записанную в виде трёхдиагональной матрицы методом прогонки
-    * @param lists массив значений, length x 3
-    * @param vector Вектор свободных значений массива
-    * @param result массив, в который записываются значения
+  /**  Solve a system of linear equation formed into tridiagonal matrix with Thomas algorithm
+    * @param lists matrix values, length x 3
+    * @param vector vector values
+    * @param result result array
     */
   def solve(lists : Array[Array[Double]], vector : Array[Double], result: Array[Double]) : Unit = {
     backwardPassion(forwardPassion(lists, vector, result), result)
@@ -18,11 +16,10 @@ class Passion(size: Int) {
 
   private[this] val afterForwardPassion : Array[Array[Double]] = Array.fill(size, 2)(0.0)
 
-  /** Прямая прогонка, во время которой определяются коэффициенты lambda и
-    * delta
-    * @param array массив значений трёхдиагональной матрицы
-    * @param vector вектор свободных членов
-    * @return набор пар значений. Первое из них коэффициент delta, второй - lambda */
+  /** Forward passion, which determine lambda and delta coefficients
+    * @param array matrix
+    * @param vector vector values
+    * @return fitst -- delta, second -- lambda */
   protected final def forwardPassion(array : Array[Array[Double]], vector : Array[Double], result : Array[Double]):
   Array[Array[Double]] = {
     var i = 0

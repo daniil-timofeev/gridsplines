@@ -3,9 +3,7 @@ import approximation.CoordSystem.{CoordsConvert, Radians, _}
 import com.twitter.algebird.Monoid
 
 import scala.math._
-/**
-  * Created by Даниил on 14.03.2017.
-  */
+
 sealed trait CoordSystem{
 
   def toPolar: Polar

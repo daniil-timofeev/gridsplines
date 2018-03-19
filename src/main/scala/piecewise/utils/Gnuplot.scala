@@ -5,7 +5,7 @@ import java.nio.file._
 import piecewise.{PieceFunction, Spline}
 
 /**
-  * Created by Даниил on 10.04.2017.
+  * export splines to gnuplot
   */
 object Gnuplot {
 

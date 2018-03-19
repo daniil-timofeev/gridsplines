@@ -1,9 +1,8 @@
 package piecewise
 
-import com.twitter.algebird.Interval.InLowExUp
-import PieceFunction._
+import piecewise.PieceFunction._
 /**
-  * Created by Даниил on 16.03.2017.
+  *
   */
 abstract class Lagrange extends Polynomial{
 

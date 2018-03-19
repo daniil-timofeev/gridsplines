@@ -87,6 +87,7 @@ package object piecewise {
     }
   }
 
+
   def deriv(xy1: (Double, Double), xy2: (Double, Double)) =
     (xy2._2 - xy1._2) / (xy2._1 - xy1._1)
 

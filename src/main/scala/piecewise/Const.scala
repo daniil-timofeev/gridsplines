@@ -1,7 +1,7 @@
 package piecewise
 
 /**
-  * Created by Даниил on 16.03.2017.
+  *
   */
 case class Const(value: Double) extends PieceFunction{
 
@@ -11,10 +11,9 @@ case class Const(value: Double) extends PieceFunction{
 
   override def integral(x: Double): Double = x * value
 
-  /** Экстремум функции `x`
-    * Extremum of function `x`
+  /** Extremum of the function of `x`
     *
-    * @return экстремумы функции / extremums of function */
+    * @return extremums */
   override protected def extremum(low: Double, upp: Double): List[Double] = value :: Nil
 
   override def equals(obj: scala.Any): Boolean = {
@@ -24,11 +23,11 @@ case class Const(value: Double) extends PieceFunction{
     }
   }
 
-  /** Приблизительное значение площади под функцией на интервале ``[x0:x1]``
+  /** Area value at the ``[x0:x1]`` interval
     *
-    * @param x0 нижняя граница
-    * @param x1 верхняя граница
-    * @return площадь функции на интерале ``[x0:x1]``
+    * @param x0 low bound
+    * @param x1 upper bound
+    * @return area at the ``[x0:x1]`` interval
     */
   override def area(x0: Double, x1: Double) = (x1 - x0) * value
 }
