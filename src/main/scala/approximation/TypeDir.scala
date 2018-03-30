@@ -4,6 +4,7 @@ package approximation
   * Created by Даниил on 14.03.2017.
   */
 sealed trait TypeDir{
+
   def preDef(leftX: Double, rangeX: Array[Double], rightX: Double, sigma: Double): Array[Array[Double]]
 
   def toastHeatFlow(heatFlow: Double, x0: Double, x1: Double, x3: Double): Double
@@ -31,7 +32,7 @@ class Ortho extends TypeDir{
     1.0 / (uppX - lowX)
   }
 
-  override def analyticalCoefs(lowX: Double, uppX: Double): Double = Double.NaN
+  override def analyticalCoefs(lowX: Double, uppX: Double): Double = heatFlowCoefs(lowX, uppX)
 }
 
 
@@ -52,6 +53,14 @@ class Radial extends TypeDir{
   override def heatFlowCoefs(lowX: Double, uppX: Double): Double = {
     val rAtHalf = (lowX + uppX) / 2.0
      rAtHalf  / (uppX - lowX) * math.Pi * 2.0
+  }
+
+
+
+  def heatFlowCoefs(lowX: Double,
+                    midX: Double,
+                    uppX: Double): (Double, Double) = {
+    (heatFlowCoefs(lowX, midX), heatFlowCoefs(midX, uppX))
   }
 
   override def analyticalCoefs(lowX: Double, uppX: Double): Double = {

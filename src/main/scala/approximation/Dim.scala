@@ -9,6 +9,7 @@ abstract class Dim[+T <: TypeDir] {
   val low: Double
   val range: Array[Double]
   val upp: Double
+
   def values: Array[Double] = Array(low) ++ range ++ Array(upp)
   private val coefs: Array[Array[Double]] = t.preDef(low, range, upp, 1.0)
   private val firstHeatFlowCoefs: Array[Double] = t.generalCoefs(low, range(0), range(1))
