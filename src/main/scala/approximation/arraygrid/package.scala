@@ -99,20 +99,6 @@ package object arraygrid {
     l2 - l1
   }
 
-  def generalOrthoCoefs(lowX: Double,
-                        midX: Double,
-                        maxX: Double,
-                        sigma: Double = 1.0): Array[Double] = {
-
-    @inline def coef(lOne: Double, lTwo: Double): Double = {
-      1.0 / dh(lOne, lTwo)
-    }
-    val height = ah(lowX, midX, maxX)
-    val a = coef(lowX, midX)
-    val c = coef(midX, maxX)
-
-    Array(height / sigma, a, c)
-  }
 
   def generalRadialCoefs(lowR: Double,
                          midR: Double,

@@ -34,7 +34,7 @@ class Passion(size: Int) {
           forwardFirst(c, d, vect, afterForwardPassion(i))
         }
         case LAST => {
-          forwardLast(b, c, d, vect,
+          forwardLast(b, c, vect,
             afterForwardPassion(i-1)(0), afterForwardPassion(i-1)(1), afterForwardPassion(i))
         }
         case _ => {

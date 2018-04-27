@@ -89,7 +89,7 @@ package object passion{
     c = cons(t2, t3, preDef(z)(1), conductivities(z)(1))
     vect = - t(z) / time - c * t3
 
-    forwardLast(a, - (a + c) - 1.0 / time, c, vect,
+    forwardLast(a, - (a + c) - 1.0 / time, vect,
     toPassion(z - 1)(0), toPassion(z -1)(1), toPassion(z))
 
     backwardPassion(toPassion, result)
@@ -133,7 +133,7 @@ package object passion{
     c = cons(t2, t3, preDef(r)(1), z)
     vect = - t(r) / time - c * t3
 
-    forwardLast(a, - (a + c) - 1/time, c, vect,
+    forwardLast(a, - (a + c) - 1/time, vect,
     toPassion(r - 1)(0), toPassion(r - 1)(1), toPassion(r))
 
     backwardPassion(toPassion, result)
@@ -209,7 +209,7 @@ package object passion{
         c = cons(t2, t3, preDef(flatten)(1), conds(flatten)(1))
         vect = - grid(global) / time - c * t3
 
-        forwardLast(a, -(a + c) - 1.0 / time, c, vect,
+        forwardLast(a, -(a + c) - 1.0 / time, vect,
           toPassion(local - 1)(0), toPassion(local - 1)(1), toPassion(local))
 
         backwardPassion(toPassion, localResult, localLength)
@@ -263,7 +263,7 @@ package object passion{
 
 
   @inline
-  final def forwardLast(b: Double, c: Double, d: Double,
+  final def forwardLast(b: Double, c: Double,
                         vect: Double, delta: Double,
                         lambda: Double, res: Array[Double]): Unit = {
     val bigDelta = del(c, b, delta)

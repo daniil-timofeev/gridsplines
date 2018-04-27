@@ -1,5 +1,7 @@
 package approximation
 
+import approximation.arraygrid.{ah, dh, rAtHalf, vol}
+
 /**
   * Created by Даниил on 14.03.2017.
   */
@@ -9,7 +11,9 @@ sealed trait TypeDir{
 
   def toastHeatFlow(heatFlow: Double, x0: Double, x1: Double, x3: Double): Double
 
-  def generalCoefs(lowX: Double, midX: Double, uppX: Double): Array[Double]
+  def lowerHeatFlow(lowX: Double, midX: Double, uppX: Double): (Double, Double)
+
+  def upperHeatFlow(lowX: Double, midX: Double, uppX: Double): (Double, Double)
 
   def heatFlowCoefs(lowX: Double, uppX: Double): Double
 
@@ -18,14 +22,26 @@ sealed trait TypeDir{
 }
 
 class Ortho extends TypeDir{
+
   override def preDef(leftX: Double, rangeX: Array[Double], rightX: Double, sigma: Double) = {
     arraygrid.makeOrthogonalMatrix(leftX, rangeX, rightX, sigma)
   }
 
   override def toastHeatFlow(heatFlow: Double, x0: Double, x1: Double, x3: Double) = ???
 
-  override def generalCoefs(lowX: Double, midX: Double, uppX: Double): Array[Double] = {
-    arraygrid.generalOrthoCoefs(lowX, midX, uppX)
+  override def lowerHeatFlow(lowX: Double, midX: Double, uppX: Double): (Double, Double) = {
+
+      val height = ah(lowX, midX, uppX)
+      val c = 1.0 / dh(midX, uppX)
+
+    (height, c)
+  }
+
+  override def upperHeatFlow(lowX: Double, midX: Double, uppX: Double): (Double, Double) = {
+    val height = ah(lowX, midX, uppX)
+    val a = 1.0 / dh(lowX, midX)
+
+    (height, a)
   }
 
   override def heatFlowCoefs(lowX: Double, uppX: Double): Double = {
@@ -47,8 +63,22 @@ class Radial extends TypeDir{
     heatFlow / (math.Pi * 2.0)
   }
 
-  override def generalCoefs(lowX: Double, midX: Double, uppX: Double): Array[Double] =
-    arraygrid.generalRadialCoefs(lowX, midX, uppX)
+  override def lowerHeatFlow(lowR: Double, midR: Double, uppR: Double): (Double, Double) = {
+
+    val volume = vol(lowR, midR, uppR)
+    val c =  rAtHalf(midR, uppR) / dh(midR, uppR)
+
+    (volume, c)
+  }
+
+  override def upperHeatFlow(lowR: Double, midR: Double, uppR: Double): (Double, Double) = {
+
+    val volume = vol(lowR, midR, uppR)
+    val a =  rAtHalf(lowR, midR) / dh(lowR, midR)
+
+    (volume, a)
+  }
+
 
   override def heatFlowCoefs(lowX: Double, uppX: Double): Double = {
     val rAtHalf = (lowX + uppX) / 2.0
@@ -78,12 +108,14 @@ class Angular extends TypeDir{
 
   override def toastHeatFlow(heatFlow: Double, x0: Double, x1: Double, x3: Double) = ???
 
-  override def generalCoefs(lowX: Double, midX: Double, uppX: Double) = ???
+  override def lowerHeatFlow(lowX: Double, midX: Double, uppX: Double) : (Double, Double) = ???
 
   override def heatFlowCoefs(lowX: Double, uppX: Double): Double = {
     ???
   }
 
   override def analyticalCoefs(lowX: Double, uppX: Double) = ???
+
+  override def upperHeatFlow(lowX: Double, midX: Double, uppX: Double): (Double, Double) = ???
 }
 

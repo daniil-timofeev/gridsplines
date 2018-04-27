@@ -20,7 +20,7 @@ sealed trait CoordSystem{
 case class Polar(radius: Double, angle: Double) extends CoordSystem{
 
   private lazy val correctAngle: Radians = double2Radians(angle)
-  override def toPolar = this
+    override def toPolar = this
   override def toDecart = new Decart(radius * cos(angle), radius * sin(angle))
 
   def rangeByAngle(angleStep: Double): Vector[Polar] = {
@@ -70,16 +70,12 @@ object CoordSystem{
     override def apply(coord: CoordSystem): Decart = coord.toDecart
   }
 
-
-
   implicit object PolarMonoid extends Monoid[Polar]{
     override def zero: Polar = new Polar(0.0, 0.0)
     override def plus(x: Polar, y: Polar): Polar = {
       DecartMonoid.plus(x.toDecart, y.toDecart).toPolar
     }
   }
-
-
 
   implicit object DecartMonoid extends Monoid[Decart]{
     override def zero: Decart = new Decart(0.0, 0.0)

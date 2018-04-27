@@ -863,6 +863,18 @@ object TwoDGrid {
         }.toArray
       )
     }
+
+    def apply[P <: PieceFunction: PieceFunFactory](yDim: YDim[TypeDir],
+                                  buildThermCond: (Double, Double) => Spline[P],
+                                  buildCapCond: (Double, Double) => Spline[P]
+                                 ): VarYCoef[P] = {
+      apply(
+        yDim,
+        buildThermCond,
+        buildCapCond,
+        (x: Double, y: Double) => {buildThermCond(x, y) / buildCapCond(x, y)}.get
+      )
+    }
   }
 
   class VarXCoef[P <: PieceFunction](
@@ -912,6 +924,19 @@ object TwoDGrid {
         }.toArray
       )
     }
+
+    def apply[P <: PieceFunction: PieceFunFactory]( xDim: XDim[TypeDir],
+                                   buildThermCond: (Double, Double) => Spline[P],
+                                   buildCapCond: (Double, Double) => Spline[P]
+                                 ): TwoDGrid.VarXCoef[P] = {
+      apply(
+        xDim,
+        buildThermCond,
+        buildCapCond,
+        (x: Double, y: Double) => {buildThermCond(x, y) / buildCapCond(x, y)}.get
+      )
+    }
+
   }
 
   import com.twitter.algebird._

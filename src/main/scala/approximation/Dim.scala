@@ -11,16 +11,10 @@ abstract class Dim[+T <: TypeDir] {
   val upp: Double
 
   def values: Array[Double] = Array(low) ++ range ++ Array(upp)
+
   private val coefs: Array[Array[Double]] = t.preDef(low, range, upp, 1.0)
-  private val firstHeatFlowCoefs: Array[Double] = t.generalCoefs(low, range(0), range(1))
-  private val lastHeatFlowCoefs: Array[Double] =
-    t.generalCoefs(range(range.length - 2), range(range.length - 1), upp)
-  private val firstHeatFlowC: Double = t.heatFlowCoefs(range(0), range(1))
-  private val lowerAnalyticalCoefs: Double = t.analyticalCoefs(range(0), range(1))
-  private val upperAnalyticalCoefs: Double = t.analyticalCoefs(
-      range(range.length - 2), range(range.length - 1)
-    )
-  private val lastHeatFlowC: Double = t.heatFlowCoefs(range(range.length - 1), upp)
+  private val (firstVol, fC) = t.lowerHeatFlow(low, range(0), range(1))
+  private val (lastVol, lA) = t.upperHeatFlow(range(range.length - 2), range.last, upp)
   protected val toPassion: Array[Array[Double]] =
     Array.fill(coefs.length)(new Array[Double](2))
 
@@ -57,12 +51,15 @@ abstract class Dim[+T <: TypeDir] {
                     conductivity: AlwaysDefinedSpline[P],
                     capacity: AlwaysDefinedSpline[P]): Double = {
 
-    val cap = passion.takeAverage(t, t, capacity)
-    val cond = passion.takeAverage(t, t, conductivity)
-    val coef = lowerAnalyticalCoefs / cond
+    val cap = capacity(t)
+    val cond = conductivity.average(t2, t3)
+    val vol = firstVol * cap / time
+    val c = - cond * fC
+    val b = vol - c
+    val vect = vol + heatFlow
     val tCond = cond / cap
 
-    forwardFirst(1, -1, heatFlow * coef , toPassion(0))
+    forwardFirst(b, c, vect, toPassion(0))
     tCond
   }
 
@@ -79,7 +76,9 @@ abstract class Dim[+T <: TypeDir] {
     val c = coefs(posAtLayer)(1) * co
     val vect = - t / time
     forwardUnit(a, - (a + c) - 1.0 / time, c, vect,
-      toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
+      toPassion(posAtLayer - 1)(0),
+      toPassion(posAtLayer - 1)(1),
+      toPassion(posAtLayer))
     co
   }
 
@@ -97,8 +96,10 @@ abstract class Dim[+T <: TypeDir] {
     val c = coefs(posAtLayer)(1) * co
     val vect = - t / time - c * t3
 
-    forwardLast(a, - (a + c) - 1.0 / time, c, vect,
-      toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
+    forwardLast(a, - (a + c) - 1.0 / time, vect,
+      toPassion(posAtLayer - 1)(0),
+      toPassion(posAtLayer - 1)(1),
+      toPassion(posAtLayer))
   }
 
   final
@@ -111,13 +112,18 @@ abstract class Dim[+T <: TypeDir] {
                     conductivity: AlwaysDefinedSpline[P],
                     capacity: AlwaysDefinedSpline[P]): Double = {
 
-    val cap = passion.takeAverage(t, t, capacity)
-    val cond = passion.takeAverage(t, t, conductivity)
-    val coef = upperAnalyticalCoefs / cond
+    val cap = capacity(t)
+    val cond = conductivity.average(t1, t2)
+    val vol = cap * lastVol / time
+    val a = - cond * lA
+    val b = vol - a
+    val vect = vol - heatFlow
     val tCond = cond / cap
 
-    forwardLast(1, -1, 0, heatFlow * coef,
-      toPassion(posAtLayer - 1)(0), toPassion(posAtLayer - 1)(1), toPassion(posAtLayer))
+    forwardLast(a, b, vect,
+      toPassion(posAtLayer - 1)(0),
+      toPassion(posAtLayer - 1)(1),
+      toPassion(posAtLayer))
     tCond
   }
 
