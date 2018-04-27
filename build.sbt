@@ -4,19 +4,46 @@ organization := "com.github.daniil-timofeev"
 name := "gridsplines"
 
 
-version := "0.2.0-SNAPSHOT"
-
-scalaVersion := "2.12.5"
-
-crossScalaVersions := Seq("2.12.5", "2.11.11")
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 resolvers += Resolver.bintrayRepo("edadma", "maven")
 
 // set fullClasspath in Compile in console += Attributed.blank(file("C:/Program Files/Java/jdk1.8.0_112/lib/tools.jar"))
 
+lazy val commonSettings = Seq(
+  organization := "com.github.daniil-timofeev",
+  version := "0.2.0-SNAPSHOT",
+  scalaVersion := "2.12.5",
+  crossScalaVersions := Seq("2.12.5", "2.11.12")
+)
+
+lazy val commonDependencies = "com.outr" %% "scribe" % "2.3.3" ::
+                              "org.scalacheck" %% "scalacheck" % "1.13.4" % "test" ::
+                              "org.specs2" %% "specs2-core" % "3.8.9" % "test" :: Nil
+
+
+
+
+lazy val piecewise = (project in file("piecewise")).settings(
+  libraryDependencies ++=
+    commonDependencies ++ Seq("com.twitter" %% "algebird-core" % "0.13.0"),
+  commonSettings
+)
+
+lazy val approximation = (project in file("approximation"))
+  .settings(
+    libraryDependencies ++= commonDependencies ++
+      Seq("org.apache.commons" % "commons-math3" % "3.6.1" % "test"),
+    commonSettings
+  ).dependsOn(piecewise)
+
+lazy val gridsplines = (project in file("."))
+  .aggregate(piecewise, approximation)
+  .settings(
+    commonSettings
+  )
+
 libraryDependencies ++= "org.slf4j" % "slf4j-api" % "1.7.22" ::
-                        "ch.qos.logback" % "logback-core" % "1.1.8" ::
-                        "ch.qos.logback" % "logback-classic" % "1.1.8" ::
+                        "com.outr" %% "scribe" % "2.3.3" ::
                         "com.twitter" %% "algebird-core" % "0.13.0" ::
                         "org.scalacheck" %% "scalacheck" % "1.13.4" % "test" ::
                         "org.specs2" %% "specs2-core" % "3.8.9" % "test" :: Nil
