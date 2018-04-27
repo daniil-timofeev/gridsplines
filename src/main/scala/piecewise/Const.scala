@@ -1,5 +1,4 @@
 package piecewise
-
 /**
   *
   */
@@ -12,8 +11,7 @@ case class Const(value: Double) extends PieceFunction{
   override def integral(x: Double): Double = x * value
 
   /** Extremum of the function of `x`
-    *
-    * @return extremums */
+    * */
   override protected def extremum(low: Double, upp: Double): List[Double] = value :: Nil
 
   override def equals(obj: scala.Any): Boolean = {
@@ -29,5 +27,5 @@ case class Const(value: Double) extends PieceFunction{
     * @param x1 upper bound
     * @return area at the ``[x0:x1]`` interval
     */
-  override def area(x0: Double, x1: Double) = (x1 - x0) * value
+  override def area(x0: Double, x1: Double): Double = (x1 - x0) * value
 }

@@ -48,7 +48,7 @@ class GridTest extends Specification{def is = s2"""
       val leftArray, leftArray0 = new Array[Double](grid.y.range.length)
       var current = 0
       while (current <= endTime) {
-        val heat = power / 92.0
+        val heat = power / (92.0 * 2.0 * math.Pi)
         var i = 0
         while (i != leftArray.length) {
           grid.bounds.left.update(heat)

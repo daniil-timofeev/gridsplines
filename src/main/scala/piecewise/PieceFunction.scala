@@ -130,18 +130,11 @@ abstract class PieceFunction{
   }
 
   /**
-    * Extremum of the function at bounds `x`
+    * Extremum of the functions at bounds `x`
     *
     * @return extremums of function */
   protected def extremum(low: Double, upp: Double): List[Double]
 
-  def max: Double
-
-  def maxX: Double
-
-  def min: Double
-
-  def minX: Double
 }
 object PieceFunction{
 

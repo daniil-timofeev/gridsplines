@@ -6,11 +6,11 @@ import piecewise.intervaltree._
 
 import scala.collection.immutable.SortedSet
 
-/** Spline with type `S`
+/** Spline with piece function type `S`
   */
  class Spline[+S <: PieceFunction](
          protected val content: NonEmptyITree[Double, S, Upper]){
-//TODO add possibility to find interval with some others piece functions types
+
 
   @inline
   private def get[S1 >: S <: PieceFunction]( nonEmpty: NonEmptyITree[Double, S1, Upper],
@@ -21,8 +21,9 @@ import scala.collection.immutable.SortedSet
 
   /** Value of function at `x`.
     *
-    * NOTE: provide unsafe access to value.
-    * In a case, where `x` out of the spline interval, an exception will be thrown.
+    * @note provide unsafe access to value.
+    * In a case, where `x` out of the spline interval,
+    * an exception will be thrown.
     *
     * @param x function argument
     * @return function value
@@ -37,7 +38,7 @@ import scala.collection.immutable.SortedSet
 
   /** Value of function at `x`.
     *
-    * NOTE: provide safe access to value.
+    * @note provide safe access to value.
     * Returns `None` in a case, where `x` out of the spline interval.
     *
     * @param x function argument
@@ -53,7 +54,8 @@ import scala.collection.immutable.SortedSet
 
   /** Derivative of function at `x`.
     *
-    * NOTE: in a case, when `x` out of the spline interval, the result will be an Exception.
+    * @note Unsafe method. In a case, when `x` out of the spline interval,
+    * the result will be an Exception.
     *
     * @param x function argument
     * @return function derivative
@@ -68,7 +70,7 @@ import scala.collection.immutable.SortedSet
 
   /** Derivative of function at `x`.
     *
-    * NOTE: in case, when `x` out of the spline interval, the result will be None.
+    * @note in a case, when `x` out of the spline interval, the result will be None.
     *
     * @param x function argument
     * @return function derivative
@@ -82,8 +84,8 @@ import scala.collection.immutable.SortedSet
 
   /** Antiderivative of function at `x`.
     *
-    * NOTE: in case, when `x` out of the spline interval, the result will be None.
-    *
+    * @note Unsafe method. In a case, when `x` out of the spline interval,
+    *       the result will be an Exception.
     * @param x function argument
     * @return function antiderivative
     */
@@ -96,7 +98,7 @@ import scala.collection.immutable.SortedSet
   }
   /** Antiderivative of function at `x`.
     *
-    * NOTE: in case, when `x` out of the spline interval, the result will be None.
+    * @note in a case, when `x` out of the spline interval, the result will be None.
     *
     * @param x function argument
     * @return function antiderivative
@@ -111,13 +113,16 @@ import scala.collection.immutable.SortedSet
 
   def swap = ???
 
-  /** Average value of spline at [`lower` to `upper`] to domain
+  /** Average value of spline at [`a`, `b`] to domain.
+    * `a` may be greater than `b`, or `b` greater than `a`
     *
-    * @param lower lower bound
-    * @param upper upper bound
+    * @param a first bound
+    * @param b second bound
     * @return
     */
-  def average(lower: Double, upper: Double): Double = {
+  def average(a: Double, b: Double): Double = {
+    val lower = math.min(a, b)
+    val upper = math.max(a, b)
     import com.twitter.algebird.Monoid._
     IntervalTree.subIntervalFold(
       content, lower, upper,
