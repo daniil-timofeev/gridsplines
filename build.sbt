@@ -6,9 +6,9 @@ name := "gridsplines"
 
 version := "0.2.0-SNAPSHOT"
 
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.5"
 
-crossScalaVersions := Seq("2.12.4", "2.11.11")
+crossScalaVersions := Seq("2.12.5", "2.11.11")
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 resolvers += Resolver.bintrayRepo("edadma", "maven")
 
@@ -20,7 +20,7 @@ libraryDependencies ++= "org.slf4j" % "slf4j-api" % "1.7.22" ::
                         "com.twitter" %% "algebird-core" % "0.13.0" ::
                         "org.scalacheck" %% "scalacheck" % "1.13.4" % "test" ::
                         "org.specs2" %% "specs2-core" % "3.8.9" % "test" :: Nil
-
+         
 scalacOptions in Test ++= Seq("-Yrangepos")
 
 useGpg := true
