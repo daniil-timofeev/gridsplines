@@ -3,7 +3,7 @@ package piecewise
 import scala.annotation.tailrec
 import scala.math._
 
-/** The Lagrange spline with power of 2
+/** Lagrange spline with power of 2
   *
   */
 case class Lagrange2(override protected val coefs: Array[Double])

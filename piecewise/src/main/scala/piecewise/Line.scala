@@ -41,16 +41,17 @@ case class Line(slope: Double, intercept: Double) extends Lagrange{
 }
 object Line{
 
-  import com.twitter.algebird._
+  import cats.Monoid
 
   implicit val LineMonoid = new Monoid[Line]{
-    lazy val zero = Line(1.0, 0.0)
 
-    override def plus(x: Line, y: Line): Line = {
+    override def combine(x: Line, y: Line): Line = {
       val newSlope = x.slope * y.slope
       val newIntercept = x.intercept * y.slope + y.intercept
       new Line(newSlope, newIntercept)
     }
+
+    override def empty: Line = Line(1.0, 0.0)
   }
 
   def derivative(yUp: Double,
@@ -71,19 +72,13 @@ object Line{
     new Line(slope, intercept)
   }
 
- class LineConverter[S <: PieceFunction] extends SplineConvert[S, Line]{
-
-   override def apply(low: Double, upp: Double, fn: S): Line = {
-     fn match {
-       case line: Line => line
-       case noLine => Line(low, upp, noLine(low), noLine(upp))
-     }
-   }
- }
-
-  implicit def line[S <: PieceFunction]: LineConverter[S] = {
-    new LineConverter[S]
+  def convert[S <: PieceFunction](low: Double, upp: Double, fn: S): Line = {
+    fn match {
+      case line: Line => line
+      case noLine => Line(low, upp, noLine(low), noLine(upp))
+    }
   }
+
 
 
 }

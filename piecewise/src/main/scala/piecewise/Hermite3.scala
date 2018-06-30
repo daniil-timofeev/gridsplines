@@ -1,5 +1,7 @@
 package piecewise
 
+import cats.Show
+
 import scala.math.{abs, pow, signum, sqrt}
 
 /**
@@ -100,6 +102,10 @@ object Hermite3 {
       (math.min(alpha, 3.0 / (c._2 + c._1 * beta / alpha)),
         math.min(beta, 3.0 / (c._1 + c._2 * alpha / beta)))
     }
+  }
+
+  implicit val show: Show[Hermite3] = new Show[Hermite3] {
+    override def show(t: Hermite3): String = t.toString
   }
 
   /** Check if function is monotone

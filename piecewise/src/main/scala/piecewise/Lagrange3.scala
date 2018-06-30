@@ -15,7 +15,7 @@ import scala.math._
   * where x ∈ [x,,k-1,,,k,,x,,] }^n^,,k=1,,
   * ''and satisfy the following conditions:
   * a. g(x,,k,,) = f,,k,, (spline function values is matched to the primordial values at the spline nodes);
-  * b. g(x) принадлежащая С^2^''[''a, w'']'' (the double continuing derivability);
+  * b. g(x)  С^2^''[''a, w'']'' (the double continuing derivability);
   * c. g"(a) = g"(w) = 0 (bound conditions)
   * ''
   *

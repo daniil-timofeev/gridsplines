@@ -1,9 +1,6 @@
 package piecewise
 import java.util.Objects
 
-import com.twitter.algebird.Interval.MaybeEmpty.{NotSoEmpty, SoEmpty}
-import com.twitter.algebird._
-
 import scala.annotation.tailrec
 import scala.math.{abs, signum}
 
@@ -119,7 +116,7 @@ abstract class PieceFunction{
     }
   }
 
-  /** Value of area, takes below spline on interval {@code [from;to]}
+  /** Value of area, takes below spline on interval `[from;to]`
     *
     * @param lower lover yL of the interval
     * @param upper upper yL of the interval
@@ -137,26 +134,6 @@ abstract class PieceFunction{
 
 }
 object PieceFunction{
-
-  def makeInterval(low: Double, up: Double): Intersection[InclusiveLower, ExclusiveUpper, Double] = {
-    Interval.leftClosedRightOpen(low, up) match{
-      case NotSoEmpty(interval) => interval
-      case SoEmpty() => throw new IllegalArgumentException("Interval must not be empty")
-    }
-  }
-
-  def sliceUpper(value: Double,
-                 interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
-  : Intersection[InclusiveLower, ExclusiveUpper, Double] = {
-    Intersection.apply(interval.lower, ExclusiveUpper(value))
-  }
-
-  def sliceLower(value: Double,
-                 interval: Intersection[InclusiveLower, ExclusiveUpper, Double])
-  : Intersection[InclusiveLower, ExclusiveUpper, Double] = {
-    Intersection.apply(InclusiveLower(value), interval.upper)
-  }
-
 
   /** General rule of Gorner for polynomial function valu finder
     * @param x argument position

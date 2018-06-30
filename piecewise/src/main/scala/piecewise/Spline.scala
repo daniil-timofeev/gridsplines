@@ -1,19 +1,21 @@
 package piecewise
 
-import com.twitter.algebird._
+import cats.instances.double.catsKernelStdGroupForDouble
 import piecewise.Spline._
 import piecewise.intervaltree._
 
 import scala.collection.immutable.SortedSet
+import scala.language.higherKinds
+
 
 /** Spline with piece function type `S`
   */
  class Spline[+S <: PieceFunction](
-         protected val content: NonEmptyITree[Double, S, Upper]){
+         protected val content: NonEmptyITree[Double, S, _]){
 
 
   @inline
-  private def get[S1 >: S <: PieceFunction]( nonEmpty: NonEmptyITree[Double, S1, Upper],
+  private def get[S1 >: S <: PieceFunction]( nonEmpty: NonEmptyITree[Double, S1, _],
                                              x: Double,
                                              fun: S1 => Double => Double): Double = {
     nonEmpty.v.apply(x)
@@ -32,7 +34,7 @@ import scala.collection.immutable.SortedSet
     IntervalTree.find(x, content) match {
       case empty: EmptyNode[Double, S] => throw new NoSuchElementException(
         f"Spline apply fails on $x input, with funcs: ${sources.toString}")
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => get(nonEmpty, x, _.apply)
+      case nonEmpty: NonEmptyITree[Double, S, _] => get(nonEmpty, x, _.apply)
     }
   }
 
@@ -45,10 +47,8 @@ import scala.collection.immutable.SortedSet
     * @return function value
     */
   def applyOption(x: Double): Option[Double] = {
-    IntervalTree.find(x, content) match {
-      case empty: EmptyNode[Double, S] => None
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(get(nonEmpty, x, _.apply))
-    }
+    IntervalTree.find(x, content)
+      .mapOption(tree => get(tree, x, _.apply))
   }
 
 
@@ -64,7 +64,7 @@ import scala.collection.immutable.SortedSet
     IntervalTree.find(x, content) match {
       case empty: EmptyNode[Double, S] => throw new NoSuchElementException(
         f"Spline der fails on $x input, with funcs: ${sources.toString}")
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => get(nonEmpty, x, _.der)
+      case nonEmpty: NonEmptyITree[Double, S, _] => get(nonEmpty, x, _.der)
     }
   }
 
@@ -78,7 +78,7 @@ import scala.collection.immutable.SortedSet
   def derOption(x: Double): Option[Double] = {
     IntervalTree.find(x, content) match {
       case empty: EmptyNode[Double, S] => None
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(get(nonEmpty, x, _.der))
+      case nonEmpty: NonEmptyITree[Double, S, _] => Some(get(nonEmpty, x, _.der))
     }
   }
 
@@ -93,7 +93,7 @@ import scala.collection.immutable.SortedSet
     IntervalTree.find(x, content) match {
       case empty: EmptyNode[Double, S] =>  throw new NoSuchElementException(
         f"Spline integral fails on $x input, with funcs: ${sources.toList.toString}")
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => get(nonEmpty, x, _.integral)
+      case nonEmpty: NonEmptyITree[Double, S, _] => get(nonEmpty, x, _.integral)
     }
   }
   /** Antiderivative of function at `x`.
@@ -106,7 +106,7 @@ import scala.collection.immutable.SortedSet
   def integralOption(x: Double): Option[Double] = {
     IntervalTree.find(x, content) match {
       case empty: EmptyNode[Double, S] => None
-      case nonEmpty: NonEmptyITree[Double, S, Upper] =>
+      case nonEmpty: NonEmptyITree[Double, S, _] =>
         Some(get(nonEmpty, x, _.integral))
     }
   }
@@ -121,9 +121,9 @@ import scala.collection.immutable.SortedSet
     * @return
     */
   def average(a: Double, b: Double): Double = {
+    import cats.instances.double.catsKernelStdGroupForDouble
     val lower = math.min(a, b)
     val upper = math.max(a, b)
-    import com.twitter.algebird.Monoid._
     IntervalTree.subIntervalFold(
       content, lower, upper,
       (l: Double, u: Double, fun: S) => fun.area(l, u)
@@ -137,6 +137,7 @@ import scala.collection.immutable.SortedSet
     * @return area under the spline domain
     */
   def area(lower: Double, upper: Double): Double = {
+    import cats.instances.double.catsKernelStdGroupForDouble
     IntervalTree.subIntervalFold(
       content, lower, upper,
       (l: Double, u: Double, fun: S) => fun.area(l, u)
@@ -145,11 +146,10 @@ import scala.collection.immutable.SortedSet
 
 
   def map[R <: PieceFunction](f: S => R): Spline[R] = {
-
-    content.map[Double, S, R]((low: Double, upp: Double, pf: S) =>
-      (low, upp, f(pf))) match {
-      case nonEmpty: NonEmptyITree[Double, R, Upper] => new Spline(nonEmpty)
-      case empty: EmptyNode[Double, R] => ???
+    val res = content.bimap(d => d, f)
+    res match {
+      case empty: EmptyNode[_, _] => ???
+      case nonEmpty: NonEmptyITree[Double, R, _] => new Spline(nonEmpty)
     }
   }
 
@@ -186,11 +186,9 @@ import scala.collection.immutable.SortedSet
     * @return sliced spline
     */
   def sliceUpper(bound: Double): Option[Spline[S]] = {
-    import com.twitter.algebird._
-    implicit val s = Successible.fromNextOrd[Double](d => Some(d + 1.0))
     content.sliceUpper(bound) match {
       case empty: EmptyNode[Double, S] => None
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(new Spline(nonEmpty))
+      case nonEmpty: NonEmptyITree[Double, S, _] => Some(new Spline(nonEmpty))
     }
   }
 
@@ -200,11 +198,9 @@ import scala.collection.immutable.SortedSet
     * @return sliced spline
     */
   def sliceLower(bound: Double): Option[Spline[S]] = {
-    import com.twitter.algebird._
-    implicit val s = Successible.fromNextOrd[Double](d => Some(d + 1.0))
     content.sliceLower(bound) match {
       case empty: EmptyNode[Double, S] => None
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(new Spline(nonEmpty))
+      case nonEmpty: NonEmptyITree[Double, S, _] => Some(new Spline(nonEmpty))
     }
   }
 
@@ -220,7 +216,7 @@ import scala.collection.immutable.SortedSet
     val wholeSize = thisSize + thatSize
     IntervalTree.buildLeft(wholePieces, wholeSize) match {
       case empty: EmptyNode[Double, T] => ???
-      case nonEmpty: NonEmptyITree[Double, T, Upper] => new Spline(nonEmpty)
+      case nonEmpty: NonEmptyITree[Double, T, _] => new Spline(nonEmpty)
     }
   }
 
@@ -278,8 +274,8 @@ import scala.collection.immutable.SortedSet
   }
 
   def convert[R <: PieceFunction](f: SplineConvert[S, R]): Spline[R] = {
-    content.map((l: Double, u: Double, pf: S) => (l, u, f.apply(l, u, pf))) match {
-      case nonEmpty: NonEmptyITree[Double, R, Upper] => new Spline[R](nonEmpty)
+    content.bimap(d => d, f) match {
+      case nonEmpty: NonEmptyITree[Double, R, _] => new Spline[R](nonEmpty)
       case empty: EmptyNode[Double, R] => ???
     }
   }
@@ -310,7 +306,7 @@ import scala.collection.immutable.SortedSet
     val size = itt.size
 
     IntervalTree.buildRight(it, size) match {
-      case nonEmpty: NonEmptyITree[Double, S, Upper] => new Spline(nonEmpty)
+      case nonEmpty: NonEmptyITree[Double, S, _] => new Spline(nonEmpty)
       case empty: EmptyNode[Double, S] =>
         throw new RuntimeException("Something goes wrong..." +
           " split operation with non empty spline must have non empty result")
@@ -324,7 +320,15 @@ import scala.collection.immutable.SortedSet
     Spline.makeUniSpline[S1, S2](this)
 
   override def toString: String = {
-    s"Spline(${content.toString})"
+    import cats.instances.double.catsStdShowForDouble
+    import intervaltree._
+    implicit val showClosedLower = Bound.showBound[Double, Closed, Lower]
+    implicit val showClosedUpper = Bound.showBound[Double, Closed, Upper]
+    implicit val showOpenUpper = Bound.showBound[Double, Open, Upper]
+    implicit val showClosed = Interval.showInterval[Double, Closed, Closed](showClosedLower, showClosedUpper)
+    implicit val showClosedOpen = Interval.showInterval[Double, Closed, Open](showClosedLower, showOpenUpper)
+    s"Spline(${IntervalTree.showNonEmptyIntervalTree[Double, S](
+      showClosed, showClosedOpen).show(content)})"
   }
 
   override def equals(obj: scala.Any): Boolean = {
@@ -335,25 +339,23 @@ import scala.collection.immutable.SortedSet
   }
 
   def intervalLength: Double = {
-    import com.twitter.algebird.Group._
     content.intervalLength
   }
 
-  def lowerBound: Double = content.lowerBound.lower
+  def lowerBound: Double = content.lowerBound.bound
 
-  def upperBound: Double = content.upperBound.upper
+  def upperBound: Double = content.upperBound.bound
 
 }
 object Spline{
 
   private def makeUniSpline[S <: PieceFunction, S1 >: S <: PieceFunction](
         spline: Spline[S])(implicit factory: PieceFunFactory[S]): Spline[S1] = {
-    import com.twitter.algebird._
 
     val source = factory.unapply(spline)
 
     IntervalTree.buildLeft[Double, S1](source, spline.content.size + 2) match {
-      case nonEmpty: NonEmptyITree[Double, S1, Upper] => new Spline[S1](nonEmpty)
+      case nonEmpty: NonEmptyITree[Double, S1, _] => new Spline[S1](nonEmpty)
       case empty: EmptyNode[Double, S1] => {
         throw new RuntimeException("Something goes wrong..." +
           " Sources not empty apriori, because spline content non empty")
@@ -379,8 +381,8 @@ object Spline{
   def const(xLow: Double, xUpp: Double, y: Double): Option[Spline[Const]] = {
       IntervalTree.buildOne(xLow, xUpp, new Const(y)) match {
         case empty: EmptyNode[Double, Const] => None
-        case nonEmpty: NonEmptyITree[Double, Const, _] => {
-          Some(new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Upper]]))
+        case nonEmpty: NonEmptyITree[Double, Const, Closed] => {
+          Some(new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Closed]]))
         }
       }
   }
@@ -392,8 +394,8 @@ object Spline{
       new Const(value)) match {
       case _: EmptyNode[Double, Const] =>
         throw new RuntimeException("Result should not be empty")
-      case nonEmpty: NonEmptyITree[Double, Const, Upper] => {
-        new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, Upper]])
+      case nonEmpty: NonEmptyITree[Double, Const, _] => {
+        new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Const, _]])
       }
     }
   }
@@ -406,8 +408,8 @@ object Spline{
     val l = Line(xLow, xUpp, yLow, yUpp)
     IntervalTree.buildOne(xLow, xUpp, Line(xLow, xUpp, yLow, yUpp)) match {
       case empty: EmptyNode[Double, Line] => None
-      case nonEmpty: NonEmptyITree[Double, Line, Upper] => {
-        Some(new Spline(nonEmpty.asInstanceOf[NonEmptyITree[Double, Line, Upper]]))
+      case nonEmpty: NonEmptyITree[Double, Line, _] => {
+        Some(new Spline(nonEmpty))
       }
     }
   }
@@ -443,7 +445,7 @@ object Spline{
     else {
       IntervalTree.buildRight(pieceFunctions, size - 1) match {
         case empty: EmptyNode[Double, S] => None
-        case nonEmpty: NonEmptyITree[Double, S, Upper] => Some(new Spline(nonEmpty))
+        case nonEmpty: NonEmptyITree[Double, S, _] => Some(new Spline(nonEmpty))
       }
     }
   }
@@ -553,7 +555,6 @@ object Spline{
     }
 
     override def applyConst(x0: Double, x1: Double, y: Double): Const = new Const(y)
-
   }
 
 }
