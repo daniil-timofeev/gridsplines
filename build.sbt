@@ -1,8 +1,6 @@
 import sbt._
-organization := "com.github.daniil-timofeev"
-
-name := "gridsplines"
-
+import sbtcrossproject.CrossPlugin.autoImport.crossProject
+import sbtcrossproject.CrossType
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 resolvers += Resolver.bintrayRepo("edadma", "maven")
@@ -16,39 +14,56 @@ lazy val commonSettings = Seq(
   crossScalaVersions := Seq("2.12.5", "2.11.12")
 )
 
-lazy val commonDependencies = "com.outr" %% "scribe" % "2.3.3" ::
-                              "org.scalacheck" %% "scalacheck" % "1.13.4" % "test" ::
-                              "org.specs2" %% "specs2-core" % "3.8.9" % "test" :: Nil
+lazy val commonDependencies = libraryDependencies ++= Seq(
+      "com.outr" %%% "scribe" % "2.3.3",
+      "org.typelevel" %%% "cats-core" % "1.1.0",
+      "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
+      "org.specs2" %%% "specs2-core" %  "4.2.0"  % "test")
 
-
-
-
-lazy val piecewise = (project in file("piecewise")).settings(
-  libraryDependencies ++=
-    commonDependencies ++ Seq("com.twitter" %% "algebird-core" % "0.13.0"),
-  commonSettings
-)
-
-lazy val approximation = (project in file("approximation"))
+lazy val piecewise = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("piecewise"))
   .settings(
-    libraryDependencies ++= commonDependencies ++
-      Seq("org.apache.commons" % "commons-math3" % "3.6.1" % "test"),
-    commonSettings
-  ).dependsOn(piecewise)
-
-lazy val gridsplines = (project in file("."))
-  .aggregate(piecewise, approximation)
-  .settings(
+    name := "gridsplines-piecewise",
+    commonDependencies,
     commonSettings
   )
 
-libraryDependencies ++= "org.slf4j" % "slf4j-api" % "1.7.22" ::
-                        "com.outr" %% "scribe" % "2.3.3" ::
-                        "com.twitter" %% "algebird-core" % "0.13.0" ::
-                        "org.scalacheck" %% "scalacheck" % "1.13.4" % "test" ::
-                        "org.specs2" %% "specs2-core" % "3.8.9" % "test" :: Nil
-         
-scalacOptions in Test ++= Seq("-Yrangepos")
+lazy val piecewiseJVM = piecewise.jvm
+lazy val piecewiseJS = piecewise.js
+
+lazy val approximation = crossProject(JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("approximation"))
+  .jvmSettings(
+    name := "gridsplines-approximation",
+    commonDependencies,
+    libraryDependencies ++= Seq("org.apache.commons" % "commons-math3" % "3.6.1" % "test"),
+    commonSettings
+  ).dependsOn(piecewise)
+
+lazy val approximationJVM = approximation.jvm
+
+lazy val gridsplines = crossProject(JVMPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("."))
+  .aggregate(piecewise, approximation)
+  .settings(
+    name := "gridsplines",
+    commonSettings
+  )
+
+lazy val gridsplinesJVM = gridsplines.jvm
+
+
+scalacOptions ++= Seq(
+  "-Ypartial-unification",
+  "-language:existentials",
+  "-language:higherKinds",
+  "-language:implicitConversions"
+)
+
+
 
 useGpg := true
 
