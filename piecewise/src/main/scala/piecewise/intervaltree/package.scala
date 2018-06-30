@@ -1,19 +1,13 @@
 
 package piecewise
 
-import com.twitter.algebird.Interval.{InLowExUp, InLowInUp}
-import com.twitter.algebird.{ExclusiveUpper, InclusiveUpper, Intersection}
-
 package object intervaltree {
 
+  implicit val Open = new Open
+  implicit val Closed = new Closed
 
-  implicit def toClosed[K: Ordering](int: InLowExUp[K]): InLowInUp[K] = {
-    Intersection(int.lower, InclusiveUpper(int.upper.upper))
-  }
-
-  implicit def toInLowExUp[K: Ordering](int: InLowInUp[K]): InLowExUp[K] = {
-    Intersection(int.lower, ExclusiveUpper(int.upper.upper))
-  }
+  implicit val Lower = new Lower
+  implicit val Upper = new Upper
 
 
 }
