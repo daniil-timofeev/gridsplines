@@ -1,8 +1,5 @@
 package approximation
 
-import approximation.CoordSystem._
-import com.twitter.algebird.Monoid
-
 import scala.math._
 
 sealed trait CoordSystem{
@@ -14,7 +11,7 @@ sealed trait CoordSystem{
   def to[T <: CoordSystem : CoordsConvert] = implicitly[CoordsConvert[T]].apply(this)
 
   def +[T <: CoordSystem : CoordsConvert : Monoid](coords: T): T = {
-    implicitly[Monoid[T]].plus(this.to[T], coords)
+    implicitly[Monoid[T]].combine(this.to[T], coords)
   }
 
 }
@@ -72,15 +69,15 @@ object CoordSystem{
   }
 
   implicit object PolarMonoid extends Monoid[Polar]{
-    override def zero: Polar = new Polar(0.0, 0.0)
-    override def plus(x: Polar, y: Polar): Polar = {
-      DecartMonoid.plus(x.toDecart, y.toDecart).toPolar
+    override val empty: Polar = new Polar(0.0, 0.0)
+    override def combine(x: Polar, y: Polar): Polar = {
+      DecartMonoid.combine(x.toDecart, y.toDecart).toPolar
     }
   }
 
   implicit object DecartMonoid extends Monoid[Decart]{
-    override def zero: Decart = new Decart(0.0, 0.0)
-    override def plus(x: Decart, y: Decart): Decart = {
+    override val empty: Decart = new Decart(0.0, 0.0)
+    override def combine(x: Decart, y: Decart): Decart = {
       new Decart(x.abscissa + y.abscissa, x.ordinate + y.ordinate)
     }
   }
