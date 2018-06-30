@@ -1,17 +1,14 @@
 package piecewise.intervaltree
 
-import com.twitter.algebird.Interval.{InLowExUp, InLowInUp, MaybeEmpty}
-import com.twitter.algebird.monad.Trampoline._
-import com.twitter.algebird.monad._
-import com.twitter.algebird.{Intersection, _}
-import piecewise.intervaltree.IntervalTree._
+
+
+import cats.Show
 
 import scala.annotation.tailrec
 import scala.collection.Iterator
-
-
-
-/** AST for the interval tree algorithm
+import scala.language.higherKinds
+/**
+  * AST for the interval tree algorithm
   *
   */
 abstract class IntervalTree[K, +V]{
@@ -21,37 +18,31 @@ abstract class IntervalTree[K, +V]{
 
   def hasBoundNode: Boolean
 
-  def sliceUpper(x: K): IntervalTree[K, V]
+  def sliceLower(x: K)(implicit ord: Ordering[K]): IntervalTree[K, V]
 
-  def sliceLower(x: K): IntervalTree[K, V]
+  def sliceUpper(x: K)(implicit ord: Ordering[K]): IntervalTree[K, V]
 
-  def upperThan(x: K): Boolean
+  def upperThan(x: K)(implicit ord: Ordering[K]): Boolean
 
-  def lowerThan(x: K): Boolean
+  def lowerThan(x: K)(implicit ord: Ordering[K]): Boolean
 
   def isEmpty: Boolean
 
   def nonEmpty: Boolean = !isEmpty
 
-  private[intervaltree] def updateArray[V1 >: V](
-                              array: Array[((K, K), V1)],
-                              pos: Int): Array[((K, K), V1)]
+  private[intervaltree]
+  def updateArray[V1 >: V](array: Array[((K, K), V1)], pos: Int): Array[((K, K), V1)]
 
-  def array[V1 >: V](implicit ord: Ordering[K]): Array[((K, K), V1)] = {
+  def array[V1 >: V]: Array[((K, K), V1)] = {
     this match {
       case empty: EmptyNode[K, V] => Array.empty[((K, K), V1)]
-      case InternalNode(_, _, left, _) => {
-        updateArray(new Array[((K, K), V1)](size), left.size)
-      }
-      case UpperBoundInternalNode(_, _, left) => {
-        updateArray(new Array[((K, K), V1)](size), left.size)
-      }
-      case UpperBoundLeaf(i, v) => Array((ext(i), v))
-      case Leaf(i, v) => Array((ext(i), v))
+      case branch: AbstractInternalNode[K, V1, _] =>
+        updateArray(new Array[((K, K), V1)](size), branch.left.size)
+      case leaf: AbstractLeaf[K, V1, _] => Array.apply[((K, K), V1)](leaf.values)
     }
   }
 
-  def iterator(implicit ord: Ordering[K]): Iterator[((K, K), V)] = {
+  def iterator: Iterator[((K, K), V)] = {
     array.iterator
   }
 
@@ -64,6 +55,13 @@ abstract class IntervalTree[K, +V]{
     }
   }
 
+  def mapOption[R](f: NonEmptyITree[K, V, _] => R): Option[R] = {
+    this match {
+      case empty: EmptyNode[K, V] => None
+      case nonEmpty: NonEmptyITree[K, V, _] => Some(f(nonEmpty))
+    }
+  }
+
 }
 
 case class EmptyNode[K, +V]() extends IntervalTree[K, V]{
@@ -72,13 +70,9 @@ case class EmptyNode[K, +V]() extends IntervalTree[K, V]{
 
   override def hasBoundNode = false
 
-  override def sliceUpper(x: K) = this
+  override def upperThan(x: K)(implicit ord: Ordering[K]) = true
 
-  override def sliceLower(x: K) = this
-
-  override def upperThan(x: K) = true
-
-  override def lowerThan(x: K) = true
+  override def lowerThan(x: K)(implicit ord: Ordering[K]) = true
 
   override def equals(that: Any) = that match{
     case empty: EmptyNode[k, v] => true
@@ -88,583 +82,127 @@ case class EmptyNode[K, +V]() extends IntervalTree[K, V]{
   override val isEmpty: Boolean = true
 
   override private[intervaltree]
-  def updateArray[V1 >: V](array: Array[((K, K), V1)], pos: Int): Array[((K, K), V1)] = {
+  def updateArray[V1 >: V](array: Array[((K, K), V1)], pos: Int
+        ): Array[((K, K), V1)] = {
     array
   }
 
   override def toString: String = ""
+
+  def sliceLower(x: K)(
+    implicit ord: Ordering[K]): IntervalTree[K, V] = this
+
+  def sliceUpper(x: K)(
+    implicit ord: Ordering[K]): IntervalTree[K, V] = this
+
 }
 
-abstract class NonEmptyITree[K, +V, U[t] <: Upper[t]](
-  val interval: Intersection[InclusiveLower, U, K],
-  val v: V)
-extends IntervalTree[K, V]{
+abstract class NonEmptyITree[K, +V, U <: BoundType]
+  extends IntervalTree[K, V]{
 
-  implicit val ord: Ordering[K]
+  val interval: Interval[K, Closed, U]
+  val v: V
 
-  def contains(x: K): Boolean = interval.contains(x)
+  def contains(x: K)(implicit ord: Ordering[K]): Boolean
 
   def apply: V = v
 
-  def map[K2: Ordering, V1 >: V, V2](f: (K, K, V1) => (K2, K2, V2)
-                                    ): IntervalTree[K2, V2] = {
-    Trampoline.run(IntervalTree.map(this, f))
+  def bimap[C, D](f: K => C, g: V => D): IntervalTree[C, D] = {
+    IntervalTree.bifunctor.bimap(this)(f, g)
   }
 
-  override
-  def upperThan(x: K): Boolean = !interval.lower.contains(x)
+  import typeclasses._
+  def split(at: Interval[K, Closed, Closed])(
+    maxSize: K,
+  )(implicit S: Splitter[K], ord: Ordering[K]): IntervalTree[K, V] = {
+    val arr = iterator.flatMap(v => S.split(v, at, maxSize)).toArray
+    val size = arr.size
+    IntervalTree.buildLeft(arr.iterator, size)
+  }
 
-  override
-  def lowerThan(x: K): Boolean = !interval.upper.contains(x)
+  def tuple: (Interval[K, Closed, U], V) = (interval, v)
 
-  def tuple: (Intersection[InclusiveLower, U, K], V) = (interval, v)
+  def values: ((K, K), V) = (interval.values, v)
 
-  def low: K = interval.lower.lower
-  def upp: K = IntervalTree.extUpper(interval)
+  def low: K = interval.lower.bound
+  def upp: K = interval.upper.bound
+  def extract: ((K, K), V) = ((low, upp), v)
 
+  import cats._
   def intervalLength(implicit G: Group[K]): K = {
-    G.minus(upp, low)
+    G.remove(upp, low)
   }
 
-  def upperBound: InclusiveUpper[K]
+  def upperBound: Bound[K, Closed, Upper]
 
-  def lowerBound: InclusiveLower[K]
+  def lowerBound: Bound[K, Closed, Lower]
 
-  def wholeInterval: InLowInUp[K] = {
-    {lowerBound && upperBound} match {
-      case expected: InLowInUp[K] => expected
-      case _  => throw new RuntimeException("Non empty tree must have not empty interval")
-    }
+  def wholeInterval: Interval[K, Closed, Closed] = {
+    new Interval[K, Closed, Closed](lowerBound, upperBound)
   }
-
 
   override val isEmpty: Boolean = false
 
 }
-
-/** Internal node can be placed at most right position.
-  * In that case it contain closed [] interval, and his `right` branch is empty
-  * In other cases it contain left closed right open [) interval, and his `right` is non empty
-  */
-abstract class AbstractInternalNode[K, +V, U[t] <: Upper[t]](
-                          override val interval: Intersection[InclusiveLower, U, K],
-                          override val v: V,
-                          val left: IntervalTree[K, V],
-                          val right: IntervalTree[K, V])
-  extends NonEmptyITree[K, V, U](interval, v){
-
-  override def equals(obj: scala.Any): Boolean = {
-    obj match {
-      case tree: InternalNode[Any, Any] => {
-        val l =
-          if (this.left.isEmpty && tree.left.nonEmpty ||
-            this.left.nonEmpty && tree.left.isEmpty) false
-          else {
-            if (this.left.isEmpty && tree.left.isEmpty) true
-            else this.left.equals(tree.left)
-          }
-
-        val r =
-          if (this.right.isEmpty && tree.right.nonEmpty ||
-            this.right.nonEmpty && tree.right.isEmpty) false
-          else {
-            if (this.right.isEmpty && tree.right.isEmpty) true
-            else this.right.equals(tree.left)
-          }
-
-        l &&
-        this.interval.equals(tree.interval) && this.v.equals(tree.v) &&
-        r
-      }
-      case _ => false
-    }
-  }
-
-  override def lowerBound: InclusiveLower[K] = {
-    left match {
-      case empty: EmptyNode[K, V] => interval.lower
-      case node @ InternalNode(_, _, _, _) => node.lowerBound
-      case node @ UpperBoundInternalNode(_, _, _) => node.lowerBound
-      case Leaf(i, _) => i.lower
-      case UpperBoundLeaf(i, _) => i.lower
-    }
-  }
-
-  override def upperBound: InclusiveUpper[K] = {
-    right match {
-      case node @ InternalNode(_, _, _, _) => node.upperBound
-      case UpperBoundInternalNode(i, _, _) => i.upper
-      case UpperBoundLeaf(i, _) => i.upper
-      case empty: EmptyNode[K, V] =>
-        throw new RuntimeException("right cannot be empty there")
-      case leaf: Leaf[K, V] =>
-        throw new RuntimeException("right cannot be leaf there")
-    }
-  }
-
-}
-
-final case class InternalNode[K, +V](override val interval: InLowExUp[K],
-                                     override val v: V,
-                                     override val left: IntervalTree[K, V],
-                                     override val right: IntervalTree[K, V])
-                                    (implicit val ord: Ordering[K])
-extends AbstractInternalNode(interval, v, left, right) {
-
-
-  override def tuple: (Intersection[InclusiveLower, ExclusiveUpper, K], V) = (interval, v)
-
-  override lazy val hasBoundNode: Boolean = right.hasBoundNode
-
-  override def upp: K = interval.upper.upper
-
-  override lazy val size: Int = 1 + left.size + right.size
-
-  override private[intervaltree]
-  def updateArray[V1 >: V](array: Array[((K, K), V1)],
-                           pos: Int): Array[((K, K), V1)] = {
-    left.updateArray(array, posOfLeft(left, pos))
-    array.update(pos, (ext(interval), v))
-    right.updateArray(array, posOfRight(right, pos))
-  }
-
-  override def toString: String = {
-      left.toString + System.lineSeparator() +
-      IntervalTree.show(interval) + " : " + v.toString + ";" +
-      System.lineSeparator() + right.toString
-  }
-
-  def sliceLower(x: K): IntervalTree[K, V] = {
-    x match{
-      case c if interval.contains(x) => {
-        new InternalNode[K, V](
-          Unsafe.inLowExUp(x, upp), v, EmptyNode[K, V], right
-        )
-      }
-      case l if this.upperThan(x) => {
-        new InternalNode[K, V](
-          interval, v, left.sliceLower(x), right
-        )
-      }
-      case r if this.lowerThan(x) => {
-        right.sliceLower(x)
-      }
-    }
-  }
-
-  def sliceUpper(x: K): IntervalTree[K, V] = {
-    x match {
-      case c if interval.contains(c) => {
-        val lower = IntervalTree.extLower(interval)
-        buildUpperBound(lower, c, v, left)
-      }
-      case l if upperThan(x) => {
-        left.sliceUpper(x)
-      }
-      case r if lowerThan(x) => {
-        right.sliceUpper(x) match{
-          case empty: EmptyNode[K, V] => {
-            val (lower, upper) = IntervalTree.ext(interval)
-            buildUpperBound(lower, upper, v, left)
-          }
-          case nonEmpty => new InternalNode(interval, v, left, nonEmpty)
-        }
-      }
-    }
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match{
-      case that: InternalNode[k, v] => {
-      that.canEqual(this) &&
-        this.v == that.v &&
-        this.interval == that.interval &&
-        this.left == that.left &&
-        this.right == that.right
-    }
-      case _ => false
-    }
-  }
-
-  override def canEqual(that: Any): Boolean = {
-    that match{
-      case that: InternalNode[_, _] => true
-      case _ => false
-    }
-  }
-
-  override def hashCode(): Int = (v, interval, left, right).##
-
-}
-
-final case class UpperBoundInternalNode[K, V](override val interval: InLowInUp[K],
-                                              override val v: V,
-                                              override val left: NonEmptyITree[K, V, ExclusiveUpper])
-                                             (implicit val ord: Ordering[K])
-  extends AbstractInternalNode(interval, v, left, EmptyNode[K, V]()) with BoundNode[K, V]{
-
-  override
-  def tuple: (Intersection[InclusiveLower, InclusiveUpper, K], V) = (interval, v)
-
-  override val size: Int = 1 + left.size
-
-  override lazy val hasBoundNode: Boolean = true
-
-  override private[intervaltree]
-  def updateArray[V1 >: V](array: Array[((K, K), V1)], pos: Int): Array[((K, K), V1)] = {
-    left.updateArray(array, posOfLeft(left, pos))
-    array.update(pos, (ext(interval), v))
-    array
-  }
-
-  def sliceLower(x: K): IntervalTree[K, V] = {
-    x match{
-      case c if interval.contains(x) => {
-        new UpperBoundLeaf[K, V](
-          Unsafe.closed(x, upp), v)
-      }
-      case l if this.upperThan(x) => {
-        left.sliceLower(x) match {
-          case leaf: Leaf[K, V] => {
-            new UpperBoundInternalNode[K, V](
-              interval, v, leaf)
-          }
-          case internal: InternalNode[K, V] =>  {
-            new UpperBoundInternalNode[K, V](
-              interval, v, internal)
-          }
-          case empty: EmptyNode[K, V] => {
-            new UpperBoundLeaf[K, V](
-              Unsafe.closed(low, upp), v)
-          }
-        }
-      }
-      case r if this.lowerThan(x) => {
-        this
-      }
-    }
-  }
-
-  override def upperBound: InclusiveUpper[K] = interval.upper
-
-  override def toString: String = {
-    left.toString + System.lineSeparator() +
-    IntervalTree.show(interval) + " : " + v.toString + ";"
-  }
-
-  def sliceUpper(x: K): IntervalTree[K, V] = {
-    x match {
-      case c if interval.contains(c) => {
-        val (lower, upper) = IntervalTree.ext(interval)
-        buildUpperBound(low, c, v, left)
-      }
-      case l if upperThan(x) => {
-        left.sliceUpper(x)
-      }
-      case r if lowerThan(x) => {
-        this
-      }
-    }
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match{
-      case that: UpperBoundInternalNode[k, v] => {
-        that.canEqual(this) &&
-          this.v == that.v &&
-          this.interval == that.interval &&
-          this.left == that.left
-      }
-      case _ => false
-    }
-  }
-
-  override def canEqual(that: Any): Boolean = {
-    that match{
-      case that: UpperBoundInternalNode[_, _] => true
-      case _ => false
-    }
-  }
-
-  override def hashCode(): Int = (v, interval, left).##
-
-}
-
-
-abstract class AbstractLeaf[K: Ordering, +V, U[t] <: Upper[t]](
-                            override val interval: Intersection[InclusiveLower, U, K],
-                            override val v: V)
-  extends NonEmptyITree[K, V, U](interval, v){
-
-  override def equals(obj: scala.Any): Boolean = {
-    obj match {
-    case leaf: Leaf[Any, Any] => {
-      this.interval.equals(leaf.interval) && this.v.equals(leaf.v)
-    }
-    case _ => false
-  }}
-
-  override private[intervaltree]
-  def updateArray[V1 >: V](array: Array[((K, K), V1)], pos: Int
-                          ): Array[((K, K), V1)] = {
-    array.update(pos, (ext(interval), v))
-    array
-  }
-
-  override def lowerBound: InclusiveLower[K] = interval.lower
-
-}
-
-final case class Leaf[K, +V](
-        override val interval: Intersection[InclusiveLower, ExclusiveUpper, K],
-        override val v: V
-        )(implicit val ord: Ordering[K])
-  extends AbstractLeaf[K, V, ExclusiveUpper](interval, v){
-
-  def this(low: K, upp: K, v: V)(implicit ord: Ordering[K]){
-    this(Unsafe.inLowExUp(low, upp), v)
-  }
-  override lazy val hasBoundNode: Boolean = false
-
-  override val size: Int = 1
-
-  override def upperBound: InclusiveUpper[K] = ???
-
-  override def sliceLower(x: K): IntervalTree[K, V] = {
-    val upp = interval.upper.upper
-    if (interval.contains(x)) {
-      new Leaf(x, upp, v)
-    }
-    else this
-  }
-
-  override def sliceUpper(x: K): IntervalTree[K, V] = {
-    val low = interval.lower.lower
-    if (interval.contains(x)) {
-      IntervalTree.foldITree(
-        IntervalTree.closed(low, x),
-        (i: InLowInUp[K]) => new UpperBoundLeaf[K, V](i, v),
-        () => EmptyNode[K, V]
-      )
-    }
-    else this
-  }
-
-  override def toString: String = {
-    IntervalTree.show(interval) + " : " + v.toString + ";"
-  }
-
-
-  override def equals(obj: Any): Boolean = {
-    obj match{
-      case that: Leaf[k, v] => {
-        that.canEqual(this) &&
-          this.v == that.v &&
-          this.interval == that.interval
-      }
-    }
-  }
-
-  override def canEqual(that: Any): Boolean = {
-    that match {
-      case that: Leaf[t, k] => true
-      case _ => false
-    }
-  }
-
-  override def hashCode(): Int = (v, interval).##
-
-}
-final case class UpperBoundLeaf[K, +V](
-                                  override val interval: InLowInUp[K],
-                                  override val v: V
-                                  )(implicit val ord: Ordering[K])
-  extends AbstractLeaf[K, V, InclusiveUpper](interval, v) with BoundNode[K, V]{
-
-  def this(low: K, upp: K, v: V)(implicit ord: Ordering[K]){
-    this(Unsafe.closed(low, upp), v)
-  }
-
-  override lazy val hasBoundNode: Boolean = true
-
-  override val size: Int = 1
-
-  override def sliceLower(x: K): IntervalTree[K, V] = {
-    val upp = interval.upper.upper
-    if (interval.contains(x)) {
-      new UpperBoundLeaf(x, upp, v)
-    }
-    else this
-  }
-
-  override def sliceUpper(x: K): IntervalTree[K, V] = {
-    val low = interval.lower.lower
-    if (interval.contains(x)) {
-      IntervalTree.foldITree(
-        IntervalTree.closed(low, x),
-        (i: InLowInUp[K]) => new UpperBoundLeaf[K, V](i, v),
-        () => EmptyNode[K, V]
-      )
-    }
-    else this
-  }
-
-  override def upperBound: InclusiveUpper[K] = interval.upper
-
-  override def toString: String = {
-    IntervalTree.show(interval) + " : " + v.toString + ";"
-  }
-
-  override def equals(obj: Any): Boolean = {
-    obj match{
-      case that: UpperBoundLeaf[k, v] => {
-        that.canEqual(this) &&
-        this.v == that.v &&
-        this.interval == that.interval
-      }
-    }
-  }
-
-  override def canEqual(that: Any): Boolean = {
-    that match {
-      case that: UpperBoundLeaf[t, k] => true
-      case _ => false
-    }
-  }
-
-  override def hashCode(): Int = (v, interval).##
-
-}
-
-trait BoundNode[K, +V] extends NonEmptyITree[K, V, InclusiveUpper]{
-  val interval: InLowInUp[K]
-  val v: V
-  def upperBound: InclusiveUpper[K] = interval.upper
-}
-
-object IntervalTree{
+import cats.Bifunctor
+object IntervalTree {
 
   private[intervaltree]
-  object Unsafe{
-    def inLowExUp[K](low: K, upp: K)(
-      implicit ord: Ordering[K]): InLowExUp[K] = {
-      assert(ord.lt(low, upp))
-      new Intersection(InclusiveLower(low), ExclusiveUpper(upp))
-    }
-    def closed[K: Ordering](low: K, upp: K)(
-      implicit ord: Ordering[K]): InLowInUp[K] = {
-      assert(ord.lt(low, upp))
-      new Intersection(InclusiveLower(low), InclusiveUpper(upp))
-    }
-  }
-
-  private[intervaltree]
-  def closed[K: Ordering](lower: K,
-                          upper: K): MaybeEmpty[K, InLowInUp] = {
-    if (implicitly[Ordering[K]].lt(lower, upper))
-      MaybeEmpty.NotSoEmpty[K, InLowInUp](
-        Intersection(InclusiveLower(lower), InclusiveUpper(upper)))
-    else MaybeEmpty.SoEmpty[K, InLowInUp]
-  }
-
-  private[intervaltree]
-  def foldITree[K: Ordering, V, I[k] <: Interval[k]](
-        interval: MaybeEmpty[K, I],
-        ifNotEmptyFunc: I[K] => IntervalTree[K, V],
-        empty: () => IntervalTree[K, V]): IntervalTree[K, V] = {
-    interval match{
-      case notEmpty: MaybeEmpty.NotSoEmpty[K, I] => ifNotEmptyFunc(notEmpty.get)
-      case _ => empty()
-    }
-  }
-
-  private[intervaltree]
-  def convertMostRight[K: Ordering, V](tree: IntervalTree[K, V]): IntervalTree[K, V] = {
+  def convertMostRight[K, V](tree: IntervalTree[K, V]): IntervalTree[K, V] = {
     tree match {
       case empty: EmptyNode[K, V] => empty
       case InternalNode(i, v, left, right) => {
         right match{
           case empty: EmptyNode[K, V] => {
             left match {
-              case empty: EmptyNode[K, V] => new UpperBoundLeaf(i, v)
-              case nonEmpty: NonEmptyITree[K, V, ExclusiveUpper] =>
-                new UpperBoundInternalNode(i, v, nonEmpty)
+              case empty: EmptyNode[K, V] => new UpperBoundLeaf(i.toClosed, v)
+              case nonEmpty: NonEmptyITree[K, V, Open] =>
+                new UpperBoundInternalNode(i.toClosed, v, nonEmpty)
             }
           }
-          case nonEmpty: NonEmptyITree[K, V, ExclusiveUpper] => {
+          case nonEmpty: NonEmptyITree[K, V, Open] => {
               new InternalNode(i, v, left, convertMostRight(right))
             }
           }
       }
-      case Leaf(i, v) => UpperBoundLeaf(i, v)
+      case Leaf(i, v) => new UpperBoundLeaf(i.toClosed, v)
       case upperLeaf: UpperBoundLeaf[K, V] => upperLeaf
     }
   }
-
   private[intervaltree]
-  def buildUpperBound[K: Ordering, V](low: K,
-                                      upp: K,
-                                      v: V,
-                                      left: IntervalTree[K, V]): IntervalTree[K, V] = {
-    left match{
-      case empty: EmptyNode[K, V] => {
-        IntervalTree.foldITree(
-          IntervalTree.closed(low, upp),
-          (i: InLowInUp[K]) => new UpperBoundLeaf[K, V](i, v),
-          () => EmptyNode[K, V]())
-      }
-      case nonEmpty: NonEmptyITree[K, V, ExclusiveUpper] => {
-        IntervalTree.foldITree(
-          IntervalTree.closed(low, upp),
-          (i: InLowInUp[K]) => new UpperBoundInternalNode[K, V](i, v, nonEmpty),
-          () => convertMostRight(nonEmpty)
-        )
-      }
-      }
-  }
+  def buildUpperBound[K: Ordering, V](
+    low: K,
+    upp: K,
+    v: V,
+    left: IntervalTree[K, V]): IntervalTree[K, V] = {
 
-
-
-  private[intervaltree]
-  def show[K, L[k] <: Lower[k], U[k] <: Upper[k]](
-          interval: Intersection[L, U, K]): String = {
-    interval match {
-      case Intersection(InclusiveLower(low: K), ExclusiveUpper(upp: K)) =>
-        f"[${low}, ${upp})"
-      case Intersection(InclusiveLower(low: K), InclusiveUpper(upp: K)) =>
-        f"[${low}, ${upp}]"
+    Interval[K, Closed, Closed](low, Closed, upp, Closed) match {
+      case empty: Empty[K, Closed, Closed] => {
+        left match {
+          case empty: EmptyNode[K, V] => empty
+          case nonEmptyTree: NonEmptyITree[K, V, Open] => {
+            convertMostRight[K, V](nonEmptyTree)
+          }
+        }
+      }
+      case nonEmpty: Interval[K, Closed, Closed] => {
+        left match {
+          case empty: EmptyNode[K, V] => new UpperBoundLeaf[K, V](nonEmpty.toClosed, v)
+          case nonEmptyTree: NonEmptyITree[K, V, Open] => {
+            new UpperBoundInternalNode[K, V](nonEmpty.toClosed, v, nonEmptyTree)
+          }
+        }
+      }
     }
   }
 
-  private[intervaltree]
-  def extUpper[K,  L[k] <: Lower[k], U[k] <: Upper[k]](i: Intersection[L, U, K]): K =
-  i.upper match {
-    case inc: InclusiveUpper[K] => inc.upper
-    case exc: ExclusiveUpper[K] => exc.upper
-  }
+
 
   private[intervaltree]
-  def extLower[K,  L[k] <: Lower[k], U[k] <: Upper[k]](i: Intersection[L, U, K]): K =
-  i.lower match{
-    case inc: InclusiveLower[K] => inc.lower
-    case exc: ExclusiveLower[K] => exc.lower
-  }
-
-  private[intervaltree]
-  def ext[K, L[k] <: Lower[k], U[k] <: Upper[k]](i: Intersection[L, U, K])
-    : (K, K) = {
-    (extLower(i), extUpper(i))
-  }
-
-  private[intervaltree]
-  def posOfLeft[K: Ordering, V](tree: IntervalTree[K, V], parentPos: Int): Int = {
+  def posOfLeft[K, V](tree: IntervalTree[K, V], parentPos: Int): Int = {
     tree match {
       case empty: EmptyNode[K, V] => parentPos - 1
-      case InternalNode(
-        interval: InLowExUp[K],
-        v: V,
-        _,
-        right) => {
+      case InternalNode(_, _, _, right) => {
         parentPos - right.size - 1
       }
       case UpperBoundInternalNode(_, _, left) => parentPos - 1
@@ -676,14 +214,10 @@ object IntervalTree{
   }
 
   private[intervaltree]
-  def posOfRight[K: Ordering, V](tree: IntervalTree[K, V], parentPos: Int): Int = {
+  def posOfRight[K, V](tree: IntervalTree[K, V], parentPos: Int): Int = {
     tree match {
       case empty: EmptyNode[K, V] => parentPos + 1
-      case InternalNode(
-        interval: InLowExUp[K],
-        v: V,
-        left,
-        _) => {
+      case InternalNode(_, _, left, _) => {
         parentPos + left.size + 1
       }
       case UpperBoundInternalNode(_, _, left) => parentPos + 1
@@ -694,52 +228,31 @@ object IntervalTree{
     }
   }
 
-
-
-  private[intervaltree]
-  def copyInterval[L[k] <: Lower[k], U[k] <: Upper[k], K](
-                   i: Intersection[L, U, K],
-                   low: K, upp: K): Intersection[L, Upper, K] =
-    i.upper match{
-      case inc: InclusiveUpper[K] => {
-        {new Intersection(new InclusiveLower[K](low),
-          new InclusiveUpper[K](upp))}.asInstanceOf[Intersection[L, Upper, K]]
-      }
-      case exc: ExclusiveUpper[K] => {
-        {new Intersection(new InclusiveLower[K](low),
-          new ExclusiveUpper[K](upp))}.asInstanceOf[Intersection[L, Upper, K]]
-      }
-  }
-
-  type InLowVarUp[K, U[t] <: Upper[t]] = Intersection[InclusiveLower, U, K]
-
-  def buildOne[K: Ordering, V](xLow: K, xUpp: K, f: V
-                              ): IntervalTree[K, V] = {
-    val ord = implicitly[Ordering[K]]
-    if (ord.lt(xLow, xUpp)) {
-      val interval = new Intersection(InclusiveLower(xLow), InclusiveUpper(xUpp))
-      new UpperBoundLeaf[K, V](interval, f)
+  def buildOne[K: Ordering, V](
+        xLow: K, xUpp: K, f: V
+  )(implicit ord: Ordering[K]): IntervalTree[K, V] = {
+    if (ord.lteq(xLow, xUpp)) {
+      new UpperBoundLeaf[K, V](xLow, xUpp, f)
     }
     else EmptyNode[K, V]()
   }
 
-
   def valueAt[K: Ordering, V](x: K, tree: IntervalTree[K, V]): Option[V] = {
       find(x, tree) match{
         case empty: EmptyNode[K, V] => None
-        case nonEmpty: NonEmptyITree[K, V, Upper] => Some(nonEmpty.v)
+        case nonEmpty: NonEmptyITree[K, V, _] => Some(nonEmpty.v)
       }
   }
 
-  def unsafeValueAt[K, V](x: K, tree: IntervalTree[K, V]): V = {
+  def unsafeValueAt[K: Ordering, V](x: K, tree: IntervalTree[K, V]): V = {
     find(x, tree) match {
       case empty: EmptyNode[K, V] => ???
-      case nonEmpty: NonEmptyITree[K, V, Upper] => nonEmpty.v
+      case nonEmpty: NonEmptyITree[K, V, _] => nonEmpty.v
     }
   }
 
   @tailrec
-  def find[K, V](x: K, tree: IntervalTree[K, V]): IntervalTree[K, V] = {
+  def find[K: Ordering, V](x: K, tree: IntervalTree[K, V]): IntervalTree[K, V] = {
     tree match {
       case empty: EmptyNode[K, V] => empty
       case internal: InternalNode[K, V] => {
@@ -763,101 +276,94 @@ object IntervalTree{
     }
 }
 
+  implicit val bifunctor: Bifunctor[IntervalTree] =
+    new Bifunctor[IntervalTree] {
+    override def bimap[A, B, C, D](
+                   fab: IntervalTree[A, B])(
+      f: A => C, g: B => D): IntervalTree[C, D] = {
+      val size = fab.size
 
+      val morphed =
+        fab.iterator.map{
+          case ((k1, k2), v1) => ((f(k1), f(k2)), g(v1))
+        }
 
-  final def extract[K: Ordering, V](tree: IntervalTree[K, V]): ((K, K), V) = {
-    tree match {
-      case InternalNode(
-        interval: InLowExUp[K], v: V, _, _) => {
-        (ext(interval), v)
-      }
-      case UpperBoundInternalNode(interval: InLowInUp[K], v: V, _) => {
-        (ext(interval), v)
-      }
-      case Leaf(interval: InLowExUp[K], v: V) => {
-        (ext(interval), v)
-      }
-      case UpperBoundLeaf(interval: InLowInUp[K], v: V) => {
-        (ext(interval), v)
-      }
-      case empty: EmptyNode[K, V] => ???
+      buildLeft(morphed, size)
     }
   }
 
-
-  def map[K, V, V1 >: V, K2: Ordering, V2](tree: IntervalTree[K, V],
-                                 f: (K, K, V1) => (K2, K2, V2)
-                                ): Trampoline[IntervalTree[K2, V2]] = {
-    tree match {
-      case InternalNode(
-      interval: InLowExUp[K],
-      v1: V1, left, right) => {
-        val (low: K2, upp: K2, v2: V2) = f(extLower(interval), extUpper(interval), v1)
-        for{
-          left1 <- call(map(left, f))
-          right1 <- call(map(right, f))
-        } yield {
-          new InternalNode(
-            Unsafe.inLowExUp(low, upp), v2, left1, right1)
+  implicit def showIntervalTree[K, V](
+    implicit showNonEmpty: Show[NonEmptyITree[K, V, _]]): Show[IntervalTree[K, V]] =
+    (iTree: IntervalTree[K, V]) => {
+      iTree match {
+        case empty: EmptyNode[K, V] => ""
+        case nonEmpty: NonEmptyITree[K, V, _] => {
+          showNonEmpty.show(nonEmpty)
         }
       }
-       case UpperBoundInternalNode(
-          interval: InLowInUp[K],
-          v1: V1, left) =>
-        map(left, f).map{left => {
-          val (low: K2, upp: K2, v2: V2) =
-            f(extLower(interval), extUpper(interval), v1)
+  }
 
-          left match {
-            case empty: EmptyNode[K2, V2] => empty
-            case internal: InternalNode[K2, V2] => {
-              new UpperBoundInternalNode[K2, V2](Unsafe.closed(low, upp), v2, internal)
-            }
-            case nonEmpty: NonEmptyITree[K2, V2, ExclusiveUpper] =>
-              new UpperBoundInternalNode[K2, V2](Unsafe.closed(low, upp), v2, nonEmpty)
+  implicit def showNonEmptyIntervalTree[K, V](
+    implicit showClosedInterval: Show[Interval[K, Closed, Closed]],
+             showClosedOpenInterval: Show[Interval[K, Closed, Open]]
+    ): Show[NonEmptyITree[K, V, _]] =
+    new Show[NonEmptyITree[K, V, _]]{
+      override def show(t: NonEmptyITree[K, V, _]): String = {
+        val maybeEmpty = showIntervalTree[K, V](this)
+
+        t match {
+          case leaf: Leaf[K, V] =>
+            s"${showClosedOpenInterval.show(leaf.interval)}: ${t.v.toString}\r\n"
+          case uLeaf: UpperBoundLeaf[K, V] => {
+            s"${showClosedInterval.show(uLeaf.interval)}: ${t.v.toString}"
+          }
+          case internal: InternalNode[K, V] => {
+
+            val left = maybeEmpty.show(internal.left)
+
+            val mid =
+              s"${showClosedOpenInterval.show(internal.interval)}: ${t.v.toString}\r\n"
+
+            val right = maybeEmpty.show(internal.right)
+
+            left + mid + right
+          }
+          case uInternal: UpperBoundInternalNode[K, V] => {
+
+            val left = show(uInternal)
+
+            val mid =
+              s"${showClosedInterval.show(uInternal.interval)}: ${t.v.toString}"
+
+            left + mid
           }
         }
       }
-      case Leaf(interval, v) => {
-        val (low: K2, upp: K2, v2: V2) = f(extLower(interval), extUpper(interval), v)
-        Done(new Leaf(Unsafe.inLowExUp(low, upp), v2))
-      }
-      case UpperBoundLeaf(interval, v) => {
-        val (low: K2, upp: K2, v2: V2) = f(extLower[K, InclusiveLower, InclusiveUpper](interval), extUpper(interval), v)
-        Done(new UpperBoundLeaf(Unsafe.closed(low, upp), v2))
-      }
     }
-  }
 
 
-  final def buildLeft[K: Ordering, V](vals: Iterator[((K, K), V)], size: Int): IntervalTree[K, V] = {
+  implicit def showEmptyIntervalTree[K, V]: Show[EmptyNode[K, V]] =
+    (value: EmptyNode[K, V]) =>  ""
+
+
+
+  final def buildLeft[K, V](vals: Iterator[((K, K), V)],
+                            size: Int): IntervalTree[K, V] = {
 
       size match {
         case 1 => {
-          val ((low, upp), func) = vals.next()
-          new Leaf(Unsafe.inLowExUp(low, upp), func)
+          new Leaf(vals.next())
         }
         case 2 => {
-          val ((leftLow, leftUpp), leftFunc) = vals.next()
-          val ((midLow, midUpp), midFunc) = vals.next()
-
-          val leftI = Unsafe.inLowExUp(leftLow, leftUpp)
-          val midI = Unsafe.inLowExUp(midLow, midUpp)
-
-          new InternalNode(midI, midFunc, new Leaf(leftI, leftFunc), EmptyNode[K, V]())
+          val leafData = vals.next()
+          new InternalNode(vals.next(), new Leaf(leafData), EmptyNode[K, V]())
         }
         case 3 => {
-          val ((leftLow, leftUpp), leftFunc) = vals.next()
-          val ((midLow, midUpp), midFunc) = vals.next()
-          val ((rightLow, rightUp), rightFunc) = vals.next()
+          val left = vals.next()
+          val mid = vals.next()
+          val right = vals.next()
 
-          val leftI = Unsafe.inLowExUp(leftLow, leftUpp)
-          val midI = Unsafe.inLowExUp(midLow, midUpp)
-          val rightI = Unsafe.inLowExUp(rightLow, rightUp)
-
-          new InternalNode(midI, midFunc,
-            new Leaf(leftI, leftFunc),
-            new Leaf(rightI, rightFunc)
+          new InternalNode(mid, new Leaf(left), new Leaf(right)
           )
         }
         case s => {
@@ -866,75 +372,65 @@ object IntervalTree{
             else s / 2
           val rightSize = size - leftIndex - 1
           val left = buildLeft(vals, leftIndex)
-          val((midLow, midUpp), midFunc) = vals.next()
-          val midI = Unsafe.inLowExUp(midLow, midUpp)
+          val mid = vals.next()
           val right = buildRight(vals, rightSize)
-          new InternalNode[K, V](midI, midFunc, left, right)
+          new InternalNode[K, V](mid, left, right)
         }
       }
   }
-
-
-  final def buildRight[K: Ordering, V](vals: Iterator[((K, K), V)],
+  final def buildRight[K, V](vals: Iterator[((K, K), V)],
                                        size: Int): IntervalTree[K, V] = {
       size match {
         case 0 => {
           EmptyNode[K, V]
         }
         case 1 => {
-          val ((low, upp), func) = vals.next()
-          if (vals.hasNext) new Leaf(Unsafe.inLowExUp(low, upp), func)
-          else new UpperBoundLeaf(Unsafe.closed(low, upp), func)
+          val next = vals.next()
+          if (vals.hasNext) new Leaf(next)
+          else new UpperBoundLeaf(next)
         }
         case 2 => {
-          val ((midLow, midUpp), midFunc) = vals.next()
-          val midI = Unsafe.inLowExUp(midLow, midUpp)
-
-          new InternalNode(midI, midFunc, EmptyNode[K, V](), buildRight(vals, 1))
+          val mid = vals.next()
+          new InternalNode[K, V](mid, EmptyNode[K, V](), buildRight(vals, 1))
         }
         case 3 => {
-          val ((leftLow, leftUpp), leftFunc) = vals.next()
-          val ((midLow, midUpp), midFunc) = vals.next()
-
-          val leftI = Unsafe.inLowExUp(leftLow, leftUpp)
-          val midI = Unsafe.inLowExUp(midLow, midUpp)
-
-          new InternalNode(midI, midFunc,
-            new Leaf(leftI, leftFunc), buildRight(vals, 1))
+          val left = vals.next()
+          val mid = vals.next()
+          new InternalNode(mid, new Leaf(left), buildRight(vals, 1))
         }
 
         case s => {
+
           val leftIndex =
             if(size % 2 == 0) (size - 1) / 2
             else size / 2
+          
           val rightSize = size - leftIndex - 1
           val left = buildLeft(vals, leftIndex)
-          val ((midLow, midUpp), midFunc) = vals.next()
-          val midI = Unsafe.inLowExUp(midLow, midUpp)
+          val mid = vals.next()
           val right = buildRight(vals, rightSize)
-          new InternalNode[K, V](midI, midFunc, left, right)
+          new InternalNode[K, V](mid, left, right)
         }
       }
   }
 
+  import cats._
   final def subIntervalFold[K, V, R](
          tree: IntervalTree[K, V],
          low: K,
          upp: K,
          f: Function3[K, K, V, R]
-    )(implicit R: Monoid[R]): R = {
+    )(implicit R: Monoid[R], ord: Ordering[K]): R = {
       tree match {
         case i @ InternalNode(_, v, left, right) => {
 
-          implicit val ord: Ordering[K] = i.ord
-
           val l =
             if (i.upperThan(low)) subIntervalFold(left, low, i.low, f)
-            else R.zero
+            else R.empty
 
           val r =
             if (i.lowerThan(upp)) subIntervalFold(right, i.upp, upp, f)
-            else R.zero
+            else R.empty
 
           val c = f(
               ord.max(low, i.low),
@@ -942,40 +438,39 @@ object IntervalTree{
               v
           )
 
-          R.plus(l, R.plus(c, r))
+          R.combine(l, R.combine(c, r))
         }
         case i @ UpperBoundInternalNode(_, v, left) => {
 
           val l =
             if (i.upperThan(low)) subIntervalFold(left, low, i.low, f)
-            else R.zero
+            else R.empty
 
           val c = f(
-            i.ord.max(low, i.low),
-            i.ord.min(upp, i.upp),
+            ord.max(low, i.low),
+            ord.min(upp, i.upp),
             v
           )
 
-          R.plus(l, c)
+          R.combine(l, c)
         }
         case l @ Leaf(_, v) => {
 
           f(
-            l.ord.max(l.low, low),
-            l.ord.min(l.upp, upp),
+            ord.max(l.low, low),
+            ord.min(l.upp, upp),
             v
           )
         }
         case l @ UpperBoundLeaf(_, v) => {
 
           f(
-            l.ord.max(l.low, low),
-            l.ord.min(l.upp, upp),
+            ord.max(l.low, low),
+            ord.min(l.upp, upp),
             v
           )
         }
-        case e: EmptyNode[K, V] => R.zero
-
+        case e: EmptyNode[K, V] => R.empty
       }
   }
 
