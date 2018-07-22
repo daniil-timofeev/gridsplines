@@ -1,6 +1,5 @@
 package approximation
 
-import org.specs2.mutable.Specification
 
 /**
   *
@@ -200,10 +199,9 @@ class TwoDGridUnit extends Specification{override def is = s2"""
       grid0.iteration(timeStep)
     }
 
-    import com.twitter.algebird._
 
-    val verticalSum = grid0.col(5).map(AveragedValue(_)).reduce(_ + _).value
-    val horizontalSum = grid.row(5).map(AveragedValue(_)).reduce(_ + _).value
+    val verticalSum = grid0.col(5).reduce(_ + _) / grid0.col(5).length
+    val horizontalSum = grid.row(5).reduce(_ + _) / grid.row(5).length
     verticalSum must be_>(horizontalSum) //because vertical is ortho, and horizontal is radial
   }
 

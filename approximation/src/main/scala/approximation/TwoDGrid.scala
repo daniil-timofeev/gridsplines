@@ -2,13 +2,6 @@ package approximation
 
 import java.io.{BufferedWriter, IOException}
 
-import approximation.TwoDGrid.Bounds._
-import approximation.TwoDGrid._
-import approximation.XDim._
-import approximation.YDim._
-import piecewise.Spline._
-import piecewise._
-
 import scala.math.abs
 
 class TwoDGrid[XType <: TypeDir, YType <: TypeDir, P <: PieceFunction](
@@ -939,19 +932,18 @@ object TwoDGrid {
 
   }
 
-  import com.twitter.algebird._
   class PatchXCoef[P <: PieceFunction](
                    private val thermCond: Array[AlwaysDefinedSpline[P]],
                    private val cap: Array[AlwaysDefinedSpline[P]],
                    private val tempCond: Array[AlwaysDefinedSpline[P]],
-                        rangeX: Interval[Int],
-                        rangeY: Interval[Int]) extends Coefficients[P]{
+                        rangeX: Interval[Int, Closed, Open],
+                        rangeY: Interval[Int, Closed, Open]) extends Coefficients[P]{
 
     def this(thermCond: Array[Spline[P]],
              cap: Array[Spline[P]],
              tempCond: Array[Spline[P]],
-             rangeX: Interval[Int],
-             rangeY: Interval[Int]
+             rangeX: Interval[Int, Closed, Open],
+             rangeY: Interval[Int, Closed, Open]
             ){
       this(
         thermCond.map(c => new AlwaysDefinedSpline(c)),
@@ -998,8 +990,8 @@ object TwoDGrid {
        xDim.values.sliding(2).collect{
          case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
        }.toArray,
-        Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
-        Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
+        Interval.unsafe(lX, Closed, uX, Open),
+        Interval.unsafe(lY, Closed, uY, Open)
      )
     }
 
@@ -1019,14 +1011,14 @@ object TwoDGrid {
                    private val thermCond: Array[AlwaysDefinedSpline[P]],
                    private val cap: Array[AlwaysDefinedSpline[P]],
                    private val tempCond: Array[AlwaysDefinedSpline[P]],
-                   rangeX: Interval[Int],
-                   rangeY: Interval[Int]) extends Coefficients[P]{
+                   rangeX: Interval[Int, Closed, Open],
+                   rangeY: Interval[Int, Closed, Open]) extends Coefficients[P]{
 
     def this(thermCond: Array[Spline[P]],
              cap: Array[Spline[P]],
              tempCond: Array[Spline[P]],
-             rangeX: Interval[Int],
-             rangeY: Interval[Int]
+             rangeX: Interval[Int, Closed, Open],
+             rangeY: Interval[Int, Closed, Open]
             ){
       this(
         thermCond.map(c => new AlwaysDefinedSpline(c)),
@@ -1070,8 +1062,8 @@ object TwoDGrid {
         yDim.values.sliding(2).collect {
           case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
         }.toArray,
-        Intersection(InclusiveLower(lX), ExclusiveUpper(uX)),
-        Intersection(InclusiveLower(lY), ExclusiveUpper(uY))
+        Interval.unsafe(lX, Closed, uX, Open),
+        Interval.unsafe(lY, Closed, uY, Open)
       )
     }
 

@@ -1,4 +1,6 @@
-import com.twitter.algebird.Monoid
+import cats.Monoid
+import cats.instances.double.catsKernelStdGroupForDouble
+import cats.instances.tuple.catsKernelStdCommutativeGroupForTuple2
 
 import scala.collection.Iterator
 
@@ -56,8 +58,8 @@ package object piecewise {
                   (casual: (A, A, A) => B)
                   (last: (A, A, A) => B, lPad: A)(implicit M: Monoid[A]): Iterator[B] = {
       var isFirst = true
-      var p0: A = M.zero
-      var p1: A = M.zero
+      var p0: A = M.empty
+      var p1: A = M.empty
       new Iterator[B] {
         override def hasNext: Boolean = iter.hasNext
         override def next(): B = {
@@ -103,6 +105,7 @@ package object piecewise {
     val der2 = deriv(rightVals.head, rightVals.tail.head)
     (der1, der2)
   }
+
 
   def derivatives(values: Iterator[(Double, Double)]): Iterator[Double] = {
     values.process((0.0, 0.0),
