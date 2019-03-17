@@ -10,7 +10,7 @@ class SplineSpecs extends Specification {def is = s2"""
   Split nodes ${splitNodes}
   Slice upper to two elements ${sliceUpperAt0}
   Slice upper to three elements ${sliceUpperAt1}
-  Correctly define spline bounds ${bounds}
+  Correctly define the spline bounds ${bounds}
   Slice lower to three elements ${sliceLowerAt0}
   Slice lower to one element ${sliceLowerAt1}
   """
@@ -78,7 +78,7 @@ class SplineSpecs extends Specification {def is = s2"""
   def sliceUpperAt1 = {
     val points = List((-1.2, 0.0), (-0.5, 0.0), (0.3, 0.0), (1.0, 0.0), (2.0, 0.0))
 
-    val spline = Spline[Line](points).flatMap(_.sliceUpper(1.0))
+    val spline = Spline.lines(points).flatMap(_.sliceUpper(0.9))
     (spline must beSome) and
     (spline.get.size must_== 3)
   }
@@ -86,7 +86,7 @@ class SplineSpecs extends Specification {def is = s2"""
   def sliceLowerAt0 = {
     val points = List((-1.2, 0.0), (-0.5, 0.0), (0.3, 0.0), (1.0, 0.0), (2.0, 0.0))
 
-    val spline = Spline[Line](points).flatMap(_.sliceLower(0.0))
+    val spline = Spline.lines(points).flatMap(_.sliceLower(0.0))
     (spline must beSome) and
     (spline.get.size must_== 3)
   }

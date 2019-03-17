@@ -4,8 +4,10 @@ import org.scalacheck._
 
 object AreaChecks extends Properties("Spline area test"){
 
-  property("1") =
-  forAllNoShrink{points: List[(Double, Double)] =>
+
+  import PiecewiseGen.points
+  property("Average value is between min and max values") =
+  forAllNoShrink(points){points: List[(Double, Double)] =>
     val lower = points.head._1
     val upper = points.last._1
 
