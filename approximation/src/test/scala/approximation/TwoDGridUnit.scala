@@ -1,5 +1,8 @@
 package approximation
-
+import approximation.TwoDGrid.Bounds._
+import approximation.TwoDGrid._
+import org.specs2._
+import piecewise._
 
 /**
   *

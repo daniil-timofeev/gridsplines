@@ -20,7 +20,7 @@ case class Lagrange2(override protected val coefs: Array[Double])
   override def apply(x: Double): Double =
     PieceFunction.quadraticRuleOfHorner(x, coefs(0), coefs(1), coefs(2))
 
-  def integral(x: Double) : Double =
+  def antider(x: Double) : Double =
     PieceFunction.cubicRuleOfHorner(x, 0.0, coefs(0), coefs(1) / 2.0, coefs(2) / 3.0)
 
   override def derivative(x: Double) : Double = coefs(2) * 2.0 * x + coefs(1)

@@ -125,8 +125,6 @@ package object piecewise {
 
   def derivatives(values: List[(Double, Double)]): Iterator[Double] = {
     val onBound = boundDervs(values)
-    onBound._1 :: (values, values drop 2).zipped.map(deriv) :::
-      onBound._2 :: Nil
     Iterator(onBound._1) ++
       values.sliding(3).map(list => deriv(list(0), list(2))) ++
       Iterator(onBound._2)

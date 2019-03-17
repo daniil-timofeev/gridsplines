@@ -1,4 +1,7 @@
 package approximation
+import approximation.TwoDGrid._
+import org.specs2._
+import piecewise._
 
 class Coefficients extends Specification{def is = s2"""
   Patched coefficient ${test}

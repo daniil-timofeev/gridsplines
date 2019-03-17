@@ -1,12 +1,12 @@
 package piecewise
 import org.specs2._
 
-class HermitSpecs extends Specification{def is = s2"""
+class HermiteSpecs extends Specification{def is = s2"""
 
  Spline sources building procedures comparison with 4 points ${
   val vals = List((0.1, 0.2), (1.0, 2.0), (3.0, 4.0), (5.0, 6.0))
 
-  val src0 = Hermite3.makeSources(vals.iterator).toList
+  val src0 = Hermite3.makeSources(vals, deriv(vals.head, vals.tail.head)).toList
   val src1 = MCSplineCheck.makeSources(vals).toList
 
   src0.map(_.sum).sum must be_==(src1.map(_.sum).sum)
@@ -15,7 +15,7 @@ class HermitSpecs extends Specification{def is = s2"""
 Spline sources building procedures comparison with 3 points ${
   val vals = List((0.1, 0.2), (1.0, 2.0), (3.0, 4.0))
 
-  val src0 = Hermite3.makeSources(vals.iterator).toList
+  val src0 = Hermite3.makeSources(vals, deriv(vals(0), vals(1))).toList
   val src1 = MCSplineCheck.makeSources(vals).toList
 
   (src0.size must be_==(src1.size)) and

@@ -8,7 +8,7 @@ case class Const(value: Double) extends PieceFunction{
 
   override def derivative(x: Double): Double = 0.0
 
-  override def integral(x: Double): Double = x * value
+  override def antider(x: Double): Double = x * value
 
   /** Extremum of the function of `x`
     * */

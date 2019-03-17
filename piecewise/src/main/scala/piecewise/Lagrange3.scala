@@ -43,7 +43,7 @@ case class Lagrange3(protected val coefs: Array[Double],
     * v of integral of function at {@code x} point
     *
     * @param x point, where is yL of function integral searched */
-  override def integral(x: Double): Double =
+  override def antider(x: Double): Double =
     PieceFunction.cubicHornerIntegral(2, coefs(0), coefs(1), coefs(2), coefs(3))
 
   override def extremum(low: Double, upp: Double) = ???

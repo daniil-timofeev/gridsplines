@@ -1,26 +1,20 @@
 package piecewise.intervaltree
+import cats._
 
+import scala.languageFeature.higherKinds._
+object BoundType
 sealed trait BoundType {
-
-  def eq[I](bound: I, v: I)(ord: Ordering[I]): Boolean
-
-  def isLowerThan[I, W <: Where](bound: I, v: I)(implicit B: W, ord: Ordering[I]): Boolean = {
-    !eq(bound, v)(ord) && B.lowerThan(bound, v)
-  }
-
-  def isUpperThan[I, W <: Where](bound: I, v: I)(implicit B: W, ord: Ordering[I]): Boolean = {
-    !eq(bound, v)(ord) && B.upperThan(bound, v)
-  }
-
+  def isClosed: Boolean
+  def eq[I](bound: I, v: I)(implicit ord: Order[I]): Boolean
 }
 class Closed extends BoundType {
-  override
-  def eq[I](bound: I, v: I)(ord: Ordering[I]): Boolean = {
-    ord.equiv(bound, v)
-  }
+  override def isClosed: Boolean = true
+  def eq[I](bound: I, v: I)(implicit ord: Order[I]) = ord.eqv(bound, v)
 }
 class Open extends BoundType {
-  def eq[I](bound: I, v: I)(ord: Ordering[I]): Boolean = {
-    false
-  }
+  override def isClosed: Boolean = false
+  def eq[I](bound: I, v: I)(implicit ord: Order[I]) = false
 }
+
+
+

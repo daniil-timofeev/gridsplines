@@ -30,7 +30,9 @@ object PiecewiseGen {
     sortBy(_._1)
 
   val points: Gen[List[(Double, Double)]] =
-    listOf(choose(-100.0, 100.0)).map(_.distinct.sorted)
+    listOf(choose(-100.0, 100.0))
+      .suchThat(list => list.lengthCompare(3) == 1)
+      .map(_.distinct.sorted)
       .flatMap((x: List[Double]) => {
         var max = 0.0
         x.map(x => {
@@ -45,7 +47,7 @@ object PiecewiseGen {
             bb <- b
           } yield aa ++ bb
         })
-      }) suchThat(list => list.lengthCompare(3) == 1)
+      })
 
   implicit val ArbPoints = Arbitrary(points)
 

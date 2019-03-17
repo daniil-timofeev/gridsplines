@@ -1,7 +1,7 @@
 package approximation
 import piecewise._
 
-case class AlwaysDefinedSpline[P <: PieceFunction](spl: Spline[P]) {
+case class AlwaysDefinedSpline[+P <: PieceFunction](spl: Spline[P]) {
   private val lowerX = spl.lowerBound
   private val upperX = spl.upperBound
   private val lowerY = spl(lowerX)

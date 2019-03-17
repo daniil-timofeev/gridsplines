@@ -2,6 +2,15 @@ package approximation
 
 import java.io.{BufferedWriter, IOException}
 
+import approximation.TwoDGrid.Bounds._
+import approximation.TwoDGrid._
+import approximation.XDim.RowIterator
+import approximation.YDim.ColumnIterator
+import cats.instances.int._
+import piecewise.Spline.PieceFunFactory
+import piecewise._
+import piecewise.intervaltree.{CsdOpn, Interval}
+
 import scala.math.abs
 
 class TwoDGrid[XType <: TypeDir, YType <: TypeDir, P <: PieceFunction](
@@ -936,14 +945,14 @@ object TwoDGrid {
                    private val thermCond: Array[AlwaysDefinedSpline[P]],
                    private val cap: Array[AlwaysDefinedSpline[P]],
                    private val tempCond: Array[AlwaysDefinedSpline[P]],
-                        rangeX: Interval[Int, Closed, Open],
-                        rangeY: Interval[Int, Closed, Open]) extends Coefficients[P]{
+                        rangeX: CsdOpn[Int],
+                        rangeY: CsdOpn[Int]) extends Coefficients[P]{
 
     def this(thermCond: Array[Spline[P]],
              cap: Array[Spline[P]],
              tempCond: Array[Spline[P]],
-             rangeX: Interval[Int, Closed, Open],
-             rangeY: Interval[Int, Closed, Open]
+             rangeX: CsdOpn[Int],
+             rangeY: CsdOpn[Int]
             ){
       this(
         thermCond.map(c => new AlwaysDefinedSpline(c)),
@@ -954,7 +963,7 @@ object TwoDGrid {
     }
 
     override def contains(x: Int, y: Int): Boolean = {
-      rangeX.contains(x) && rangeY.contains(y)
+      Interval.contains(rangeX)(x) && Interval.contains(rangeY)(y)
     }
 
     override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
@@ -990,8 +999,8 @@ object TwoDGrid {
        xDim.values.sliding(2).collect{
          case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
        }.toArray,
-        Interval.unsafe(lX, Closed, uX, Open),
-        Interval.unsafe(lY, Closed, uY, Open)
+        CsdOpn.pure.unsafe(lX, uX),
+        CsdOpn.pure.unsafe(lY, uY)
      )
     }
 
@@ -1011,14 +1020,14 @@ object TwoDGrid {
                    private val thermCond: Array[AlwaysDefinedSpline[P]],
                    private val cap: Array[AlwaysDefinedSpline[P]],
                    private val tempCond: Array[AlwaysDefinedSpline[P]],
-                   rangeX: Interval[Int, Closed, Open],
-                   rangeY: Interval[Int, Closed, Open]) extends Coefficients[P]{
+                   rangeX: CsdOpn[Int],
+                   rangeY: CsdOpn[Int]) extends Coefficients[P]{
 
     def this(thermCond: Array[Spline[P]],
              cap: Array[Spline[P]],
              tempCond: Array[Spline[P]],
-             rangeX: Interval[Int, Closed, Open],
-             rangeY: Interval[Int, Closed, Open]
+             rangeX: CsdOpn[Int],
+             rangeY: CsdOpn[Int]
             ){
       this(
         thermCond.map(c => new AlwaysDefinedSpline(c)),
@@ -1029,7 +1038,7 @@ object TwoDGrid {
     }
 
     override def contains(x: Int, y: Int): Boolean = {
-      rangeX.contains(x) && rangeY.contains(y)
+      Interval.contains(rangeX)(x)&& Interval.contains(rangeY)(y)
     }
 
     override def thermConductivity(x: Int, y: Int): AlwaysDefinedSpline[P] = {
@@ -1062,8 +1071,8 @@ object TwoDGrid {
         yDim.values.sliding(2).collect {
           case Array(x0, x1) => new AlwaysDefinedSpline(buildTempCond(x0, x1))
         }.toArray,
-        Interval.unsafe(lX, Closed, uX, Open),
-        Interval.unsafe(lY, Closed, uY, Open)
+        CsdOpn.pure.unsafe(lX, uX),
+        CsdOpn.pure.unsafe(lY, uY)
       )
     }
 
