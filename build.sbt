@@ -9,16 +9,22 @@ resolvers += Resolver.bintrayRepo("edadma", "maven")
 
 lazy val commonSettings = Seq(
   organization := "com.github.daniil-timofeev",
-  version := "0.2.0-SNAPSHOT",
-  scalaVersion := "2.12.5",
-  crossScalaVersions := Seq("2.12.5", "2.11.12")
+  version := "0.4.0-SNAPSHOT",
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.12.8", "2.11.12"),
+  scalafixDependencies in ThisBuild +=
+    "org.scala-lang.modules" %% "scala-collection-migrations" % "0.2.1",
+  scalacOptions ++= List("-Yrangepos")
 )
 
 lazy val commonDependencies = libraryDependencies ++= Seq(
       "com.outr" %%% "scribe" % "2.3.3",
-      "org.typelevel" %%% "cats-core" % "1.1.0",
-      "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
-      "org.specs2" %%% "specs2-core" %  "4.2.0"  % "test")
+      "org.typelevel" %%% "alleycats-core" % "1.5.0",
+      "org.typelevel" %%% "cats-core" % "1.5.0",
+      "org.typelevel" %% "algebra" % "1.0.0",
+      "org.scalacheck" %%% "scalacheck" % "1.14.0" % "test",
+      "org.specs2" %%% "specs2-core" %  "4.2.0"  % "test",
+      "org.scala-lang.modules" %%% "scala-collection-compat" % "0.2.1")
 
 lazy val piecewise = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
@@ -38,7 +44,8 @@ lazy val approximation = crossProject(JVMPlatform)
   .jvmSettings(
     name := "gridsplines-approximation",
     commonDependencies,
-    libraryDependencies ++= Seq("org.apache.commons" % "commons-math3" % "3.6.1" % "test"),
+    libraryDependencies ++= Seq(
+      "org.apache.commons" % "commons-math3" % "3.6.1" % "test"),
     commonSettings
   ).dependsOn(piecewise)
 
@@ -62,8 +69,6 @@ scalacOptions ++= Seq(
   "-language:higherKinds",
   "-language:implicitConversions"
 )
-
-
 
 useGpg := true
 
@@ -90,10 +95,7 @@ developers := List(
 )
 
 publishMavenStyle := true
-
 sonatypeProfileName := "(com.github.daniil-timofeev)"
-
-
 publishArtifact in Test := false
 
 // Add sonatype repository settings

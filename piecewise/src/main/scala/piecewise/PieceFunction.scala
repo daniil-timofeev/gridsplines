@@ -31,13 +31,13 @@ abstract class PieceFunction{
     *
     * @param x function argument
     * */
-  def integral(x: Double): Double
+  def antider(x: Double): Double
 
   /** The value of integral of function at `x` argument
     *
     * @param x function argument
     * */
-  final def int(x: Double): Double = integral(x)
+  final def int(x: Double): Double = antider(x)
 
   /** Суммирует значения кусочных функций, и возвращает новый сплайн
     *
@@ -101,7 +101,8 @@ abstract class PieceFunction{
     x >= interval._1 && x <= interval._2
   }
 
-  @tailrec  private[this] def bisect(interval: Tuple2[Double,Double], other : PieceFunction) : Double = {
+  @tailrec private[this] def bisect(interval: Tuple2[Double,Double],
+                                    other : PieceFunction) : Double = {
     val precision = 0.000001
     @inline def valsDiffer(where : Double) : Double = math.abs(apply(where) - other(where))
     val center = (interval._1 + interval._2) / 2.0
@@ -123,7 +124,7 @@ abstract class PieceFunction{
     * @return an area below this spline
     * */
   def area(lower: Double, upper: Double): Double = {
-    integral(upper) - integral(lower)
+    antider(upper) - antider(lower)
   }
 
   /**
@@ -134,8 +135,7 @@ abstract class PieceFunction{
 
 }
 object PieceFunction{
-
-  /** General rule of Gorner for polynomial function valu finder
+  /** General rule of Horner for polynomial function valu finder
     * @param x argument position
     * @param a coefficients. a(0) at 0, a(size - 1) at maximum extent
     * @return polynominal root
@@ -144,7 +144,7 @@ object PieceFunction{
     var res = a.last
     var i = a.size - 2
     while(i != -1){
-      res = res*x + a(i)
+      res = Math.fma(res, x, a(i))
       i -= 1
     }
     res
@@ -170,9 +170,11 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def quadRuleOfHorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double, a4: Double): Double = {
-    (((a4 * x + a3) * x + a2) * x + a1) * x + a0
-  }
+  final def quadRuleOfHorner(x: Double,
+                             a0: Double, a1: Double, a2: Double,
+                             a3: Double, a4: Double): Double =
+    Math.fma(Math.fma(Math.fma(Math.fma(a4, x, a3), x, a2), x, a1), x, a0)
+
 
 
   /** General Horner's rule which finds a value of the third degree polynomial function
@@ -183,15 +185,21 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def cubicRuleOfHorner(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
-    ((a3 * x + a2) * x + a1) * x + a0
+  final def cubicRuleOfHorner(x: Double,
+                              a0: Double, a1: Double,
+                              a2: Double, a3: Double): Double = {
+    Math.fma(Math.fma(Math.fma(a3, x, a2), x, a1), x, a0)
   }
 
-  final def cubicHornerIntegral(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+  final def cubicHornerIntegral(x: Double,
+                                a0: Double, a1: Double,
+                                a2: Double, a3: Double): Double = {
     quadRuleOfHorner(x, 0.0, a0, 0.5 * a1 , a2 / 3.0, 0.25 * a3)
   }
 
-  final def cubicHornerDerivative(x: Double, a0: Double, a1: Double, a2: Double, a3: Double): Double = {
+  final def cubicHornerDerivative(x: Double,
+                                  a0: Double, a1: Double,
+                                  a2: Double, a3: Double): Double = {
     quadraticRuleOfHorner(x, a1, 2.0 * a2, 3.0 * a3)
   }
 
@@ -202,9 +210,9 @@ object PieceFunction{
     * @param a0 coef at x^0^
     * @return polynominal root
     * */
-  final def quadraticRuleOfHorner(x: Double, a0: Double, a1: Double, a2: Double): Double = {
-    (a2 * x + a1) * x + a0
-  }
+  final def quadraticRuleOfHorner(x: Double,
+                                  a0: Double, a1: Double, a2: Double): Double =
+    Math.fma(Math.fma(a2, x, a1), x, a0)
 
   final def quadraticHornerIntegral(x: Double, a0: Double, a1: Double, a2: Double): Double = {
     cubicRuleOfHorner(x, 0.0, a0, a2 / 2.0, a2 / 3.0)
@@ -215,7 +223,7 @@ object PieceFunction{
   }
 
   final def atLine(x: Double, a0: Double, a1: Double) = {
-    a1 * x + a0
+    Math.fma(a1, x, a0)
   }
 
   final def atLineIntegral(x: Double, a0: Double, a1: Double) = {
@@ -227,6 +235,7 @@ object PieceFunction{
     else y1 + (y2 - y1) / (x2 - x1) * (x - x1)
   }
 
+  private final
   def iteratePoints[R](values: Iterator[(Double, Double)],
                        whenEmpty: => Iterator[R],
                        whenOne: (Double, Double) => R,
@@ -279,7 +288,9 @@ object PieceFunction{
   }
 
   @tailrec
-  def interpolate2(value : Double, coll : List[Double], firstIndex : Int = 0) : List[Tuple2[Double, Int]] = {
+  def interpolate2(value: Double,
+                   coll: List[Double],
+                   firstIndex: Int = 0): List[(Double, Int)] = {
     val size = coll.size
     @inline val solve = (x : List[Double]) => signum(x.last - value) != signum(x.head - value)
     size match {

@@ -91,10 +91,10 @@ object MCSplineCheck extends Properties("Monotonic spline .."){
       case v1 :: v2 :: v3 :: Nil => {
         val der1 = deriv(v1, v2)
         val der2 = deriv(v2, v3)
-        val der = (der1 + der2) / 2.0
+        val der = deriv(v1, v3)
         Iterator(
-          array(v1._2, v2._2, 0.0, der, v1._1, v2._1),
-          array(v2._2, v3._2, der, 0.0, v2._1, v3._1)
+          array(v1._2, v2._2, der1, der, v1._1, v2._1),
+          array(v2._2, v3._2, der, der2, v2._1, v3._1)
         )
       }
       case vals => {

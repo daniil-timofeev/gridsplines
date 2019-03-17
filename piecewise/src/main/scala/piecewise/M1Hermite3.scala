@@ -1,5 +1,6 @@
 package piecewise
 
+import scala.collection.mutable.ListBuffer
 import scala.math._
 
 /** Monotonic piecewise cubic curve for the spline interpolation
@@ -18,7 +19,7 @@ case class M1Hermite3(coefs: Array[Double], x0: Double) extends Hermite {
 
   override def derivative(x: Double): Double = PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def integral(x: Double): Double = PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
+  override def antider(x: Double): Double = PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
   private lazy val body = f"*(x${-x0}%+.7f)"
 
@@ -91,42 +92,38 @@ object M1Hermite3 {
     val Array(_, _, dRight, _, _, _) = next
     val der = signum(dLeft) * min(abs(dRight), abs(dLeft))
     prev.update(3, der)
+    next.update(2, der)
     prev
   }
 
   def apply(values: Iterator[(Double, Double)]
            ): Iterator[((Double, Double), M1Hermite3)] = {
     import Hermite3._
-    val sources = Hermite3.makeSources(values)
+    val vals = values.toList
+    val sources = Hermite3.makeSources(vals, deriv(vals.head, vals.tail.head))
       .map(monothone(_)(Normal))
 
-      if (sources.isEmpty) Iterator.empty
-      else new Iterator[((Double, Double), M1Hermite3)]{
+    if (sources.isEmpty) Iterator.empty
+    else {
 
-      val src = sources
-
-      override def hasNext: Boolean = src.hasNext
-
-      private var prevous = if (sources.hasNext) src.next else ???
-
-      override def next(): ((Double, Double), M1Hermite3) = {
-        if (hasNext) {
-          val next = src.next()
+      def go(prevous: Array[Double],
+             iter: Iterator[Array[Double]],
+             acc: ListBuffer[Array[Double]]): Iterator[Array[Double]] = {
+        if (iter.isEmpty) {
+          acc += prevous
+          acc.result().iterator
+        } else {
+          val next = iter.next()
           val transformed = smoothness(prevous, next)
-          val res = constructSpline(transformed)
-          if (hasNext) {
-            prevous = next
-          }
-          else {
-            next.update(2, transformed(3))
-            prevous = next
-          }
-          res
-        }
-        else constructSpline(prevous)
+          acc += transformed
+          go(next, iter, acc)
         }
       }
+
+      val first = sources.next()
+      go(first, sources, ListBuffer.empty).map(constructSpline)
     }
+  }
 
 
 

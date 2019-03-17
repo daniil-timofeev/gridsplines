@@ -1,7 +1,9 @@
 package approximation
 
-import scala.math._
+import approximation.CoordSystem._
+import cats._
 
+import scala.math._
 sealed trait CoordSystem{
 
   def toPolar: Polar

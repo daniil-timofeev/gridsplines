@@ -1,6 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaCompilerConfiguration">
-    <profile name="SBT 1" modules="sspline,GridSplines,util,gridsplines,approximation,piecewise" />
+    <option name="incrementalityType" value="SBT" />
+    <profile name="SBT 1" modules="GridSplines,approximation,approximationJVM,gridsplinesJVM,piecewise,piecewiseJVM,sspline,util" />
+    <profile name="sbt 1" modules="gridsplines">
+      <option name="implicitConversions" value="true" />
+      <option name="higherKinds" value="true" />
+      <option name="existentials" value="true" />
+      <parameters>
+        <parameter value="-Ypartial-unification" />
+      </parameters>
+    </profile>
+    <profile name="sbt 2" modules="piecewiseJS">
+      <plugins>
+        <plugin path="C:\Users\Daniil\.ivy2\cache\org.scala-js\scalajs-compiler_2.12.5\jars\scalajs-compiler_2.12.5-0.6.24.jar" />
+      </plugins>
+    </profile>
+    <profile name="sbt 3" modules=".js-gridsplines-piecewise">
+      <parameters>
+        <parameter value="-Yrangepos" />
+      </parameters>
+      <plugins>
+        <plugin path="C:\Users\daniil\.ivy2\cache\org.scala-js\scalajs-compiler_2.12.8\jars\scalajs-compiler_2.12.8-0.6.26.jar" />
+      </plugins>
+    </profile>
+    <profile name="sbt 5" modules=".jvm-gridsplines,gridsplines-approximation,gridsplines-piecewise">
+      <parameters>
+        <parameter value="-Yrangepos" />
+      </parameters>
+    </profile>
   </component>
 </project>

@@ -2,6 +2,7 @@ package piecewise
 
 import cats.Show
 
+import scala.collection.mutable.ListBuffer
 import scala.math.{abs, pow, signum, sqrt}
 
 /**
@@ -33,7 +34,7 @@ case class Hermite3(coefs: Array[Double], x0: Double) extends Hermite{
   override def derivative(x: Double): Double =
     PieceFunction.cubicHornerDerivative(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
-  override def integral(x: Double): Double =
+  override def antider(x: Double): Double =
     PieceFunction.cubicHornerIntegral(x - x0, coefs(0), coefs(1), coefs(2), coefs(3))
 
   private lazy val body = f"*(x${-x0}%+.7f)"
@@ -197,21 +198,24 @@ object Hermite3 {
       override def hasNext: Boolean = vals.hasNext || isLast
 
 
+
       override def next(): Array[Double] = {
         if (isFirst && hasNext){
           isFirst = false
           val v0 = vals.next()
-          if (hasNext) {
+          if (vals.hasNext) {
             v1 = vals.next()
-            if (hasNext) {
+            if (vals.hasNext) {
               v2 = vals.next()
               if (vals.hasNext) {
                 val der1 = deriv(v0, v1)
                 val der2 = deriv(v0, v2)
                 der = der2
+                isLast = false
                 array(v0._2, v1._2, der1, der2, v0._1, v1._1)
               }
               else {
+                isLast = false
                 val der1 = deriv(v0, v1)
                 val der2 = deriv(v1, v2)
                 der = (der1 + der2) / 2.0
@@ -219,10 +223,14 @@ object Hermite3 {
                 array(v0._2, v1._2, 0.0, der, v0._1, v1._1)
               }
             }
-            else array(v0._2, v1._2, 0.0, 0.0, v0._1, v1._1)
+            else {
+              isLast = false
+              array(v0._2, v1._2, 0.0, 0.0, v0._1, v1._1)
+            }
           }
-          else
-            throw new IllegalArgumentException("Iterator must link to more than 1 value")
+          else throw new IllegalArgumentException(
+            "Iterator must link to more than 1 value"
+          )
         }
         else if (vals.hasNext){
           val v3 = vals.next()
@@ -245,8 +253,27 @@ object Hermite3 {
     }
   }
 
+  final def makeSources(values: List[(Double, Double)],
+                        der1: Double,
+                        acc: ListBuffer[Array[Double]] = ListBuffer.empty
+                       ): Iterator[Array[Double]] = {
+    values match {
+      case Nil => Iterator.empty
+      case v0 :: Nil => Iterator.empty
+      case v0 :: v1 :: Nil => {
+        acc += array(v0._2, v1._2, der1, deriv(v0, v1), v0._1, v1._1)
+        acc.iterator
+      }
+      case v0 :: v1 :: v2 :: xs => {
+        val der2 = deriv(v0, v2)
+        makeSources(values.tail, der2, acc += array(v0._2, v1._2, der1, der2, v0._1, v1._1))
+      }
+    }
+  }
+
   def apply(values: Iterator[(Double, Double)]): Iterator[Hermite3] = {
-    makeSources(values).map{src =>
+    val vals = values.toList
+    makeSources(vals, deriv(vals.head, vals.tail.head)).map{src =>
       val d_a = delta(src(0), src(1), src(4), src(5))
       val h0 = h(src(4), src(5))
       new Hermite3(src(0), src(1), src(2), src(3), src(4), src(5), h0, d_a)
